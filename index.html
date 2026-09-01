@@ -177,14 +177,14 @@
 
 <div class="budget-card" id="budget-card">
   <div class="budget-row">
+    <span style="color:var(--muted); font-size:0.85rem;">Filter:</span>
+    <div class="tag-picker" id="budget-tag-picker"></div>
+  </div>
+  <div class="budget-row" style="margin-top:10px;">
     <span>I have</span>
     <input type="number" id="budget-input" min="5" step="5" value="60">
     <span>minutes</span>
     <button class="add-btn" id="budget-build-btn" style="margin-left:auto; white-space:nowrap;">Pick tasks</button>
-  </div>
-  <div class="budget-row" style="margin-top:10px;">
-    <span style="color:var(--muted); font-size:0.85rem;">Filter:</span>
-    <div class="tag-picker" id="budget-tag-picker"></div>
   </div>
 </div>
 
@@ -230,13 +230,13 @@
       <div class="timer-current" id="timer-current">Task 1 of 1</div>
       <div class="timer-task" id="timer-task">—</div>
       <div class="timer-clock" id="timer-clock">00:00</div>
+      <div class="up-next" id="up-next" style="margin-bottom:20px;"></div>
       <div class="timer-controls">
         <button id="done-current-btn">✓ Done</button>
         <button id="pause-btn">Pause</button>
         <button id="skip-btn">Skip</button>
         <button id="stop-btn">Stop</button>
       </div>
-      <div class="up-next" id="up-next"></div>
     </div>
     <div id="timer-done-view" class="hidden">
       <div style="font-size:3rem; margin-bottom:6px;">🎉</div>
@@ -373,6 +373,7 @@ const TAG_LABELS = {nohands:'No hands', errands:'Errands', movearound:'Move arou
 const TAG_ICONS = {nohands:'🎧', errands:'🏃', movearound:'🚶'};
 
 let tasks = JSON.parse(localStorage.getItem('powerHourTasks') || '[]');
+let deletedCompleted = JSON.parse(localStorage.getItem('powerHourDeletedCompleted') || '[]'); // completed tasks that were swiped away, kept for the report until Clear day
 tasks.sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority));
 let pendingMins = 5, pendingPriority = 'p3', pendingTag = null, pendingRecurring = false;
 let editMins = 5, editPriority = 'p3', editTag = null, editRecurring = false, editTaskId = null;
@@ -393,6 +394,7 @@ function save(){
     if(newIdx !== -1) currentIndex = newIdx;
   }
   localStorage.setItem('powerHourTasks', JSON.stringify(tasks));
+  localStorage.setItem('powerHourDeletedCompleted', JSON.stringify(deletedCompleted));
 }
 
 /* ---------- priority & tag pickers ---------- */
@@ -630,6 +632,7 @@ function cleanupSwipe(){
 function deleteTaskById(id){
   const idx = tasks.findIndex(t => t.id === id);
   if(idx === -1) return;
+  if(tasks[idx].done) deletedCompleted.push({ ...tasks[idx] }); // keep it in the report until Clear day
   tasks.splice(idx, 1);
   if(currentIndex === idx){ currentIndex = -1; }
   else if(currentIndex > idx){ currentIndex--; }
@@ -723,11 +726,11 @@ function startInterval(){
 function tick(){
   if(timerState !== 'running') return;
   secondsLeft--;
-  if(secondsLeft < 0){ completeCurrentTask(); return; }
+  if(secondsLeft < 0){ skipCurrentTask(); return; } // time ran out without an explicit Done — ask about it later
   refreshTimerDisplays();
 }
 
-/* marks the current task done, records it for the session summary, and advances */
+/* marks the current task done, records it for the session summary, and advances — only from an explicit Done action */
 function completeCurrentTask(){
   if(currentIndex === -1 || !tasks[currentIndex]) return;
   tasks[currentIndex].done = true;
@@ -1080,8 +1083,11 @@ document.getElementById('board-close-btn').onclick = () => {
 };
 
 /* ---------- completed report ---------- */
+function getAllCompleted(){
+  return [...tasks.filter(t => t.done), ...deletedCompleted];
+}
 document.getElementById('open-report-btn').onclick = () => {
-  const completed = tasks.filter(t => t.done);
+  const completed = getAllCompleted();
   const totalMins = completed.reduce((s, t) => s + t.mins, 0);
   document.getElementById('report-summary').textContent =
     completed.length === 0 ? 'No completed tasks yet.' : `${completed.length} task${completed.length > 1 ? 's' : ''} • ${totalMins} min`;
@@ -1100,7 +1106,7 @@ document.getElementById('open-report-btn').onclick = () => {
 };
 document.getElementById('report-close-btn').onclick = () => document.getElementById('report-modal').classList.add('hidden');
 document.getElementById('report-export-btn').onclick = () => {
-  const completed = tasks.filter(t => t.done);
+  const completed = getAllCompleted();
   const lines = completed.map(t => `[x] ${t.name}, ${t.mins}, ${t.priority}${t.tag ? ', ' + t.tag : ''}`);
   document.getElementById('export-textarea').value = lines.join('\n');
   document.getElementById('export-modal').classList.remove('hidden');
@@ -1111,6 +1117,7 @@ document.getElementById('report-clear-btn').onclick = () => {
   tasks = tasks
     .map(t => (t.done && t.recurring) ? { ...t, done: false } : t)
     .filter(t => !t.done);
+  deletedCompleted = [];
   save(); render();
   document.getElementById('report-modal').classList.add('hidden');
 };
