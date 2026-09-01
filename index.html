@@ -121,9 +121,6 @@
   .empty{color:var(--muted); text-align:center; padding:20px 0;}
 
   /* launcher */
-  .timer-launcher{background:var(--card); border:1px solid #2a2e37; border-radius:16px; padding:20px; text-align:center;}
-  .timer-launcher p{color:var(--muted); font-size:0.85rem; margin:0 0 12px;}
-
   /* full screen timer */
   .timer-screen{
     position:fixed; inset:0; background:var(--bg); z-index:200;
@@ -152,8 +149,8 @@
     position:fixed; inset:0; background:var(--bg); z-index:200;
     display:flex; flex-direction:column; padding:20px;
   }
-  .board-body{flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding-bottom:20px;}
-  .priority-zone{border:2px solid #2a2e37; border-radius:14px; padding:12px; min-height:64px; transition:background 0.15s, box-shadow 0.15s;}
+  .board-body{flex:1; overflow-y:auto; padding-bottom:20px;}
+  .priority-zone{border:2px solid #2a2e37; border-radius:14px; padding:12px; margin-bottom:12px; min-height:64px; transition:background 0.15s, box-shadow 0.15s;}
   .priority-zone.drag-over{background:rgba(255,255,255,0.05); box-shadow:0 0 0 2px var(--accent) inset;}
   .priority-zone-header{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
   .priority-zone-label{padding:2px 10px; border-radius:12px; font-size:0.78rem; font-weight:700; color:#0f1115;}
@@ -201,6 +198,10 @@
     <span>minutes</span>
     <button class="add-btn" id="budget-build-btn" style="margin-left:auto; white-space:nowrap;">Pick tasks</button>
   </div>
+  <div class="budget-row" style="margin-top:10px;">
+    <span style="color:var(--muted); font-size:0.85rem;">Filter:</span>
+    <div class="tag-picker" id="budget-tag-picker"></div>
+  </div>
 </div>
 
 <div class="total-bar">
@@ -236,11 +237,6 @@
 </div>
 
 <ul id="task-list" style="margin-top:12px;"></ul>
-
-<div class="timer-launcher" id="timer-launcher">
-  <p id="launcher-text">Ready to run through your tasks?</p>
-  <button class="add-btn" id="open-timer-btn">▶ Start Power Hour</button>
-</div>
 
 <!-- full screen timer -->
 <div class="timer-screen hidden" id="timer-screen">
@@ -455,7 +451,6 @@ function render(){
   attachDragHandlers();
   attachSwipeHandlers();
   updateTotalBar();
-  updateLauncher();
 }
 
 function updateTotalBar(){
@@ -469,14 +464,6 @@ function updateTotalBar(){
   fill.classList.toggle('over', over);
   amount.classList.toggle('over', over);
   amount.classList.toggle('ok', !over);
-}
-
-function updateLauncher(){
-  const launcher = document.getElementById('timer-launcher');
-  if(timerState !== 'idle'){ launcher.classList.add('hidden'); return; }
-  launcher.classList.remove('hidden');
-  document.getElementById('launcher-text').textContent =
-    tasks.length === 0 ? 'Add a task to get started' : `Ready to run through ${tasks.length} task${tasks.length>1?'s':''}?`;
 }
 
 /* checkbox toggle */
@@ -705,7 +692,6 @@ document.getElementById('edit-save-btn').onclick = () => {
 /* ---------- timer ---------- */
 const timerScreen = document.getElementById('timer-screen');
 const miniBar = document.getElementById('mini-bar');
-const timerLauncher = document.getElementById('timer-launcher');
 
 function formatTime(s){
   s = Math.max(0, s);
@@ -738,8 +724,6 @@ function beginRun(){
   }
   showMaximized();
 }
-
-document.getElementById('open-timer-btn').onclick = () => { sessionTaskIds = null; beginRun(); };
 
 function startInterval(){
   clearInterval(timerInterval);
@@ -827,13 +811,11 @@ function refreshTimerDisplays(){
 function showMaximized(){
   timerScreen.classList.remove('hidden');
   miniBar.classList.add('hidden');
-  timerLauncher.classList.add('hidden');
   refreshTimerDisplays();
 }
 function showMinimized(){
   timerScreen.classList.add('hidden');
   if(timerState !== 'idle'){ miniBar.classList.remove('hidden'); }
-  timerLauncher.classList.add('hidden');
   refreshTimerDisplays();
 }
 function closeTimerFully(){
@@ -961,6 +943,14 @@ document.querySelectorAll('.sort-chip').forEach(btn => {
 
 /* ---------- "I have X minutes" → review selection ---------- */
 let reviewBudget = 0;
+let budgetTagFilter = null;
+
+function refreshBudgetTagPicker(){
+  buildTagPicker(document.getElementById('budget-tag-picker'), budgetTagFilter, t => {
+    budgetTagFilter = t; refreshBudgetTagPicker();
+  });
+}
+refreshBudgetTagPicker();
 
 document.getElementById('budget-build-btn').onclick = () => {
   const budget = parseInt(document.getElementById('budget-input').value);
@@ -970,7 +960,8 @@ document.getElementById('budget-build-btn').onclick = () => {
 
 function openReviewModal(budget){
   reviewBudget = budget;
-  const pending = tasks.filter(t => !t.done); // current order reflects whichever quick sort is active
+  let pending = tasks.filter(t => !t.done); // current order reflects whichever quick sort is active
+  if(budgetTagFilter) pending = pending.filter(t => t.tag === budgetTagFilter);
   const selected = pickTasksForBudget(pending, budget);
   renderReviewList(pending, selected);
   updateReviewTotal();
