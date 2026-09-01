@@ -7,178 +7,411 @@
 <style>
   :root{
     --bg:#0f1115; --card:#1a1d24; --accent:#6ee7b7; --accent2:#f97316;
-    --text:#f2f3f5; --muted:#8a8f98; --danger:#ef4444;
+    --text:#f2f3f5; --muted:#8a8f98; --danger:#ef4444; --edit:#3b82f6;
+    --p1:#ef4444; --p2:#f97316; --p3:#eab308; --p4:#3b82f6; --p5:#6ee7b7;
   }
-  *{box-sizing:border-box;}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   body{
     margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
     background:var(--bg); color:var(--text); min-height:100vh; padding:20px;
+    overscroll-behavior:none;
   }
   h1{font-size:1.4rem; margin:0 0 4px;}
   .sub{color:var(--muted); font-size:0.85rem; margin-bottom:12px;}
+  .hidden{display:none !important;}
 
-.total-bar{
-  background:var(--card); border:1px solid #2a2e37; border-radius:10px;
-  padding:10px 14px; margin-bottom:16px; display:flex; align-items:center; gap:10px;
-}
-.total-bar .label{font-size:0.9rem; color:var(--muted); white-space:nowrap;}
-.total-bar .amount{font-weight:700; font-size:0.95rem; white-space:nowrap;}
-.total-bar .amount.over{color:var(--danger);}
-.total-bar .amount.ok{color:var(--accent);}
-.total-bar .track{
-  flex:1; height:8px; background:#2a2e37; border-radius:5px; overflow:hidden;
-}
-.total-bar .fill{height:100%; background:var(--accent); transition:width .2s;}
-.total-bar .fill.over{background:var(--danger);}
-
-  .add-row{
-    display:flex; gap:8px; margin-bottom:16px; align-items:center; flex-wrap:wrap;
+  /* total bar */
+  .total-bar{
+    background:var(--card); border:1px solid #2a2e37; border-radius:10px;
+    padding:10px 14px; margin-bottom:16px; display:flex; align-items:center; gap:10px;
   }
+  .total-bar .amount{font-weight:700; font-size:0.9rem; white-space:nowrap;}
+  .total-bar .amount.over{color:var(--danger);}
+  .total-bar .amount.ok{color:var(--accent);}
+  .total-bar .track{flex:1; height:8px; background:#2a2e37; border-radius:5px; overflow:hidden;}
+  .total-bar .fill{height:100%; background:var(--accent); transition:width .2s;}
+  .total-bar .fill.over{background:var(--danger);}
+
+  /* add row */
+  .add-row{display:flex; gap:8px; margin-bottom:8px; align-items:center; flex-wrap:wrap;}
   input[type=text]{
     flex:1; min-width:150px; padding:12px 14px; border-radius:10px; border:1px solid #2a2e37;
     background:var(--card); color:var(--text); font-size:1rem;
   }
   .mic-btn{
-    width:46px; height:46px; border-radius:50%; border:none; background:var(--card);
-    color:var(--text); font-size:1.2rem; cursor:pointer; border:1px solid #2a2e37;
+    width:46px; height:46px; border-radius:50%; flex-shrink:0; border:1px solid #2a2e37;
+    background:var(--card); color:var(--text); font-size:1.2rem; cursor:pointer;
   }
   .mic-btn.listening{background:var(--danger); animation:pulse 1s infinite;}
   @keyframes pulse{0%{opacity:1;}50%{opacity:.5;}100%{opacity:1;}}
 
   .time-stepper{
-    display:flex; align-items:center; gap:8px; background:var(--card);
-    border:1px solid #2a2e37; border-radius:10px; padding:6px 10px;
+    display:flex; align-items:center; gap:4px; background:var(--card);
+    border:1px solid #2a2e37; border-radius:10px; padding:4px 6px; flex-shrink:0;
   }
-  .time-stepper button{
-    background:none; border:none; color:var(--text); font-size:1.2rem; cursor:pointer; padding:4px 8px;
-  }
-  .time-stepper span{min-width:48px; text-align:center; font-variant-numeric:tabular-nums;}
+  .time-stepper button{background:none; border:none; color:var(--text); font-size:1.1rem; cursor:pointer; padding:2px 6px;}
+  .time-stepper span{min-width:40px; text-align:center; font-variant-numeric:tabular-nums; font-size:0.85rem;}
 
-  .add-btn{
-    padding:12px 18px; border-radius:10px; border:none; background:var(--accent);
-    color:#0f1115; font-weight:600; cursor:pointer; font-size:1rem;
+  .priority-picker{display:flex; gap:4px; flex-shrink:0;}
+  .priority-btn{
+    width:28px; height:28px; border-radius:7px; border:2px solid transparent;
+    color:#0f1115; font-weight:700; font-size:0.6rem; cursor:pointer; opacity:0.55; padding:0;
+  }
+  .priority-btn.selected{opacity:1; border-color:#fff;}
+  .priority-btn.p1{background:var(--p1);} .priority-btn.p2{background:var(--p2);}
+  .priority-btn.p3{background:var(--p3);} .priority-btn.p4{background:var(--p4);}
+  .priority-btn.p5{background:var(--p5);}
+
+  .tag-picker{display:flex; gap:6px; overflow-x:auto; padding-bottom:2px;}
+  .tag-btn{
+    flex-shrink:0; background:var(--card); border:1px solid #2a2e37; color:var(--muted);
+    padding:7px 12px; border-radius:20px; font-size:0.78rem; cursor:pointer; white-space:nowrap;
+  }
+  .tag-btn.selected{background:var(--edit); color:#fff; border-color:var(--edit);}
+  .tag-badge{
+    font-size:0.68rem; color:var(--muted); background:#2a2e37; padding:2px 8px;
+    border-radius:10px; flex-shrink:0; white-space:nowrap;
   }
 
-  ul#task-list{list-style:none; padding:0; margin:0 0 24px;}
-  li.task{
-    display:flex; align-items:center; gap:10px; background:var(--card);
-    border-radius:10px; padding:12px 14px; margin-bottom:8px; border:1px solid #2a2e37;
+  .sort-row{display:flex; gap:6px; overflow-x:auto; margin-bottom:4px; align-items:center;}
+  .sort-label{color:var(--muted); font-size:0.8rem; flex-shrink:0;}
+  .sort-chip{
+    flex-shrink:0; background:var(--card); border:1px solid #2a2e37; color:var(--text);
+    padding:7px 12px; border-radius:20px; font-size:0.78rem; cursor:pointer; white-space:nowrap;
   }
-  li.task.done{opacity:0.4; text-decoration:line-through;}
-  li.task.current{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent);}
-  li.task input[type=checkbox]{width:20px; height:20px; flex-shrink:0;}
-  li.task .name{flex:1;}
-  li.task .mins{color:var(--muted); font-size:0.85rem; flex-shrink:0;}
-  li.task .del{background:none; border:none; color:var(--muted); font-size:1.1rem; cursor:pointer;}
-  li.task .handle{
-    cursor:grab; color:var(--muted); font-size:1.1rem; padding:0 2px; flex-shrink:0;
-    touch-action:none; user-select:none;
-  }
-  li.task.dragging{opacity:0.5; border-color:var(--accent);}
-  li.task.drag-placeholder{border:1px dashed var(--accent); background:transparent;}
+  .sort-chip:active{opacity:0.7;}
 
-  .timer-card{
-    background:var(--card); border-radius:16px; padding:24px; text-align:center;
-    border:1px solid #2a2e37;
+  .budget-card{background:var(--card); border:1px solid #2a2e37; border-radius:14px; padding:14px; margin-bottom:16px;}
+  .budget-row{display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:0.95rem;}
+  .budget-row input[type=number]{
+    width:70px; padding:10px; border-radius:8px; border:1px solid #2a2e37; background:var(--bg);
+    color:var(--text); font-size:1rem; text-align:center;
   }
-  .timer-current{font-size:1rem; color:var(--muted); margin-bottom:6px;}
-  .timer-task{font-size:1.4rem; font-weight:700; margin-bottom:12px; min-height:1.6em;}
-  .timer-clock{font-size:3rem; font-variant-numeric:tabular-nums; font-weight:700; margin-bottom:16px;}
-  .timer-controls{display:flex; gap:10px; justify-content:center;}
-  .timer-controls button{
-    padding:12px 20px; border-radius:10px; border:none; font-size:1rem; font-weight:600; cursor:pointer;
+
+  .review-item{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid #2a2e37;}
+  .review-item input[type=checkbox]{width:19px; height:19px; flex-shrink:0;}
+  .review-item .name{flex:1; font-size:0.9rem;}
+  #review-total{font-weight:600;}
+
+  .add-btn{padding:12px 18px; border-radius:10px; border:none; background:var(--accent); color:#0f1115; font-weight:600; cursor:pointer; font-size:1rem;}
+  .add-btn.full{width:100%; margin-top:4px;}
+
+  /* task list */
+  ul#task-list{list-style:none; padding:0; margin:0 0 20px;}
+  li.task-item{position:relative; border-radius:10px; margin-bottom:8px; overflow:hidden;}
+  .swipe-bg{position:absolute; inset:0; display:flex; border-radius:10px; overflow:hidden;}
+  .swipe-edit, .swipe-delete{flex:1; display:flex; align-items:center; font-weight:600; font-size:0.9rem; opacity:0;}
+  .swipe-edit{background:var(--edit); color:#fff; justify-content:flex-start; padding-left:16px;}
+  .swipe-delete{background:var(--danger); color:#fff; justify-content:flex-end; padding-right:16px;}
+
+  .swipe-content{
+    position:relative; display:flex; align-items:center; gap:10px; background:var(--card);
+    border-radius:10px; padding:12px 14px; border:1px solid #2a2e37; border-left:5px solid var(--muted);
+    touch-action:pan-y; z-index:1;
   }
-  #start-btn{background:var(--accent); color:#0f1115;}
-  #pause-btn{background:var(--accent2); color:#0f1115;}
-  #skip-btn{background:#2a2e37; color:var(--text);}
-  #reset-btn{background:#2a2e37; color:var(--text);}
+  .swipe-content.done{opacity:0.4; text-decoration:line-through;}
+  .swipe-content.current{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent);}
+  .swipe-content input[type=checkbox]{width:20px; height:20px; flex-shrink:0;}
+  .swipe-content .name{flex:1;}
+  .swipe-content .mins{color:var(--muted); font-size:0.85rem; flex-shrink:0;}
+  .priority-badge{font-size:0.65rem; font-weight:700; color:var(--muted); flex-shrink:0;}
+  .handle{cursor:grab; color:var(--muted); font-size:1.1rem; padding:0 2px; flex-shrink:0; touch-action:none; user-select:none;}
+  li.task-item.dragging .swipe-content{opacity:0.5; border-color:var(--accent);}
 
   .empty{color:var(--muted); text-align:center; padding:20px 0;}
+
+  /* launcher */
+  .timer-launcher{background:var(--card); border:1px solid #2a2e37; border-radius:16px; padding:20px; text-align:center;}
+  .timer-launcher p{color:var(--muted); font-size:0.85rem; margin:0 0 12px;}
+
+  /* full screen timer */
+  .timer-screen{
+    position:fixed; inset:0; background:var(--bg); z-index:200;
+    display:flex; flex-direction:column; padding:20px;
+  }
+  .timer-screen-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+  .timer-screen-header .title{font-weight:700;}
+  .icon-btn{width:42px; height:42px; border-radius:50%; border:1px solid #2a2e37; background:var(--card); color:var(--text); font-size:1.1rem; cursor:pointer;}
+  .timer-screen-body{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;}
+  .timer-priority-badge{font-size:0.8rem; font-weight:700; padding:4px 10px; border-radius:20px; margin-bottom:10px; color:#0f1115;}
+  .timer-current{font-size:1rem; color:var(--muted); margin-bottom:6px;}
+  .timer-task{font-size:1.8rem; font-weight:700; margin-bottom:18px; padding:0 10px;}
+  .timer-clock{font-size:4rem; font-variant-numeric:tabular-nums; font-weight:700; margin-bottom:24px;}
+  .timer-controls{display:flex; gap:10px; justify-content:center; margin-bottom:20px;}
+  .timer-controls button{padding:14px 22px; border-radius:12px; border:none; font-size:1rem; font-weight:600; cursor:pointer;}
+  #pause-btn{background:var(--accent2); color:#0f1115;}
+  #skip-btn{background:#2a2e37; color:var(--text);}
+  #stop-btn{background:#2a2e37; color:var(--text);}
+  .up-next{color:var(--muted); font-size:0.85rem;}
+
+  /* mini bar */
+  .mini-bar{
+    position:fixed; left:16px; right:16px; bottom:16px; background:var(--card);
+    border:1px solid #2a2e37; border-radius:14px; padding:10px 14px; display:flex;
+    align-items:center; gap:10px; z-index:150; box-shadow:0 6px 20px rgba(0,0,0,0.4);
+  }
+  .mini-info{flex:1; min-width:0;}
+  .mini-task{font-size:0.85rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .mini-clock{font-size:0.8rem; color:var(--muted); font-variant-numeric:tabular-nums;}
+
+  /* modal */
+  .modal{position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:300; display:flex; align-items:flex-end; justify-content:center;}
+  .modal-card{background:var(--card); border-radius:16px 16px 0 0; padding:20px; width:100%; max-width:480px; border:1px solid #2a2e37;}
+  .modal-card h3{margin:0 0 14px;}
+  .modal-row{margin-bottom:12px;}
+  .modal-actions{display:flex; gap:10px; margin-top:8px;}
+  .modal-actions button{flex:1; padding:12px; border-radius:10px; border:none; font-size:1rem; font-weight:600; cursor:pointer;}
+  #edit-cancel-btn{background:#2a2e37; color:var(--text);}
 </style>
 </head>
 <body>
 
 <h1>⏱️ Power Hour</h1>
-<div class="sub">Add tasks in 5-min blocks, then run through them one at a time.</div>
+<div class="sub">Add tasks in 5-min blocks, set priority, then run through them one at a time.</div>
+
+<div class="budget-card" id="budget-card">
+  <div class="budget-row">
+    <span>I have</span>
+    <input type="number" id="budget-input" min="5" step="5" value="60">
+    <span>minutes</span>
+  </div>
+  <button class="add-btn full" id="budget-build-btn">Pick tasks for my time</button>
+</div>
 
 <div class="total-bar">
-  <span class="label">Assigned</span>
+  <span class="label" style="color:var(--muted); font-size:0.9rem;">Assigned</span>
   <div class="track"><div class="fill" id="total-fill"></div></div>
   <span class="amount" id="total-amount">0 / 60 min</span>
 </div>
 
+<div class="tag-picker" id="add-tag-picker" style="margin-bottom:8px;"></div>
 <div class="add-row">
   <input type="text" id="task-input" placeholder="What are you working on?">
   <button class="mic-btn" id="mic-btn" title="Voice input">🎤</button>
+</div>
+<div class="add-row" style="flex-wrap:nowrap; overflow-x:auto;">
   <div class="time-stepper">
     <button id="minus-btn">−</button>
     <span id="mins-display">5 min</span>
     <button id="plus-btn">+</button>
   </div>
-  <button class="add-btn" id="add-btn">Add</button>
+  <div class="priority-picker" id="add-priority-picker"></div>
+</div>
+<button class="add-btn full" id="add-btn">Add task</button>
+<button id="bulk-add-btn" style="width:100%; margin-top:6px; background:none; border:1px solid #2a2e37; color:var(--muted); padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;">＋ Bulk add (paste a list)</button>
+<button id="export-btn" style="width:100%; margin-top:6px; background:none; border:1px solid #2a2e37; color:var(--muted); padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;">⇧ Export tasks</button>
+
+<div class="sort-row" id="sort-row">
+  <span class="sort-label">Sort:</span>
+  <button class="sort-chip" data-sort="priority">⚡ P1 first</button>
+  <button class="sort-chip" data-sort="nohands">🎧 No hands</button>
+  <button class="sort-chip" data-sort="errands">🏃 Errands</button>
+  <button class="sort-chip" data-sort="movearound">🚶 Move around</button>
 </div>
 
-<ul id="task-list"></ul>
+<ul id="task-list" style="margin-top:12px;"></ul>
 
-<div class="timer-card">
-  <div class="timer-current" id="timer-current">No task running</div>
-  <div class="timer-task" id="timer-task">—</div>
-  <div class="timer-clock" id="timer-clock">00:00</div>
-  <div class="timer-controls">
-    <button id="start-btn">Start</button>
-    <button id="pause-btn" style="display:none;">Pause</button>
-    <button id="skip-btn">Skip</button>
-    <button id="reset-btn">Reset</button>
+<div class="timer-launcher" id="timer-launcher">
+  <p id="launcher-text">Ready to run through your tasks?</p>
+  <button class="add-btn" id="open-timer-btn">▶ Start Power Hour</button>
+</div>
+
+<!-- full screen timer -->
+<div class="timer-screen hidden" id="timer-screen">
+  <div class="timer-screen-header">
+    <button class="icon-btn" id="minimize-btn" title="Minimize">⌄</button>
+    <span class="title">Power Hour</span>
+    <button class="icon-btn" id="close-timer-btn" title="Stop">✕</button>
+  </div>
+  <div class="timer-screen-body">
+    <div class="timer-priority-badge" id="timer-priority-badge">P3</div>
+    <div class="timer-current" id="timer-current">Task 1 of 1</div>
+    <div class="timer-task" id="timer-task">—</div>
+    <div class="timer-clock" id="timer-clock">00:00</div>
+    <div class="timer-controls">
+      <button id="pause-btn">Pause</button>
+      <button id="skip-btn">Skip</button>
+      <button id="stop-btn">Stop</button>
+    </div>
+    <div class="up-next" id="up-next"></div>
+  </div>
+</div>
+
+<!-- minimized bar -->
+<div class="mini-bar hidden" id="mini-bar">
+  <div class="mini-info" id="mini-expand-area">
+    <div class="mini-task" id="mini-task">—</div>
+    <div class="mini-clock" id="mini-clock">00:00</div>
+  </div>
+  <button class="icon-btn" id="mini-playpause">⏸</button>
+  <button class="icon-btn" id="mini-expand">⤢</button>
+</div>
+
+<!-- edit modal -->
+<div class="modal hidden" id="edit-modal">
+  <div class="modal-card">
+    <h3>Edit task</h3>
+    <div class="modal-row">
+      <input type="text" id="edit-name-input" style="width:100%;">
+    </div>
+    <div class="modal-row time-stepper" style="width:fit-content;">
+      <button id="edit-minus-btn">−</button>
+      <span id="edit-mins-display">5 min</span>
+      <button id="edit-plus-btn">+</button>
+    </div>
+    <div class="modal-row priority-picker" id="edit-priority-picker"></div>
+    <div class="modal-row tag-picker" id="edit-tag-picker"></div>
+    <div class="modal-actions">
+      <button id="edit-cancel-btn">Cancel</button>
+      <button id="edit-save-btn" class="add-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- bulk add modal -->
+<div class="modal hidden" id="bulk-modal">
+  <div class="modal-card">
+    <h3>Bulk add tasks</h3>
+    <p style="color:var(--muted); font-size:0.8rem; margin-top:-8px;">
+      One task per line. Time and priority are recognised however you write them — e.g. <em>"Reply to emails, 15, p2"</em>, <em>"Tidy desk - 5 min - P4"</em>, or <em>"10m call with Sam p1"</em>. Leave either out and it defaults to 5 min / P3.<br>
+      Ask Claude in chat to write this list for you, then paste it here.
+    </p>
+    <div class="modal-row">
+      <textarea id="bulk-textarea" rows="6" style="width:100%; padding:12px; border-radius:10px; border:1px solid #2a2e37; background:var(--bg); color:var(--text); font-family:inherit; font-size:0.9rem;" placeholder="Reply to emails, 15, p2&#10;Tidy desk - 5 min - P4&#10;10m call with Sam p1&#10;Plan tomorrow"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button id="bulk-cancel-btn">Cancel</button>
+      <button id="bulk-save-btn" class="add-btn">Add all</button>
+    </div>
+  </div>
+</div>
+
+<!-- export modal -->
+<div class="modal hidden" id="export-modal">
+  <div class="modal-card">
+    <h3>Export tasks</h3>
+    <p style="color:var(--muted); font-size:0.8rem; margin-top:-8px;">
+      Copy this to back it up, or paste it back into Bulk add later to restore it (completed tasks are marked with [x]).
+    </p>
+    <div class="modal-row">
+      <textarea id="export-textarea" rows="8" readonly style="width:100%; padding:12px; border-radius:10px; border:1px solid #2a2e37; background:var(--bg); color:var(--text); font-family:inherit; font-size:0.9rem;"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button id="export-close-btn">Close</button>
+      <button id="export-copy-btn" class="add-btn">Copy</button>
+    </div>
+  </div>
+</div>
+
+<!-- review selection modal -->
+<div class="modal hidden" id="review-modal">
+  <div class="modal-card" style="max-height:80vh; overflow-y:auto;">
+    <h3>Review your Power Hour</h3>
+    <p id="review-total" style="font-size:0.85rem; margin-top:-8px; color:var(--muted);">0 / 0 min selected</p>
+    <div id="review-list"></div>
+    <div class="modal-actions">
+      <button id="review-cancel-btn">Cancel</button>
+      <button id="review-start-btn" class="add-btn">Start timer</button>
+    </div>
   </div>
 </div>
 
 <script>
+const PRIORITIES = ['p1','p2','p3','p4','p5'];
+const PRIORITY_LABELS = {p1:'P1',p2:'P2',p3:'P3',p4:'P4',p5:'P5'};
+const TAGS = ['nohands','errands','movearound'];
+const TAG_LABELS = {nohands:'No hands', errands:'Errands', movearound:'Move around'};
+const TAG_ICONS = {nohands:'🎧', errands:'🏃', movearound:'🚶'};
+
 let tasks = JSON.parse(localStorage.getItem('powerHourTasks') || '[]');
-let pendingMins = 5;
-let currentIndex = -1;
-let secondsLeft = 0;
-let timerInterval = null;
-let isPaused = false;
+let pendingMins = 5, pendingPriority = 'p3', pendingTag = null;
+let editMins = 5, editPriority = 'p3', editTag = null, editTaskId = null;
+let currentIndex = -1, secondsLeft = 0, timerInterval = null, sessionTaskIds = null;
+let timerState = 'idle'; // idle | running | paused | done
 
 const taskInput = document.getElementById('task-input');
 const taskList = document.getElementById('task-list');
 const minsDisplay = document.getElementById('mins-display');
-const timerCurrent = document.getElementById('timer-current');
-const timerTask = document.getElementById('timer-task');
-const timerClock = document.getElementById('timer-clock');
-const startBtn = document.getElementById('start-btn');
-const pauseBtn = document.getElementById('pause-btn');
 
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 function save(){ localStorage.setItem('powerHourTasks', JSON.stringify(tasks)); }
 
+/* ---------- priority & tag pickers ---------- */
+function buildPriorityPicker(container, selected, onSelect){
+  container.innerHTML = '';
+  PRIORITIES.forEach(p => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'priority-btn ' + p + (p === selected ? ' selected' : '');
+    btn.textContent = PRIORITY_LABELS[p];
+    btn.onclick = () => onSelect(p);
+    container.appendChild(btn);
+  });
+}
+function refreshAddPriorityPicker(){
+  buildPriorityPicker(document.getElementById('add-priority-picker'), pendingPriority, p => {
+    pendingPriority = p; refreshAddPriorityPicker();
+  });
+}
+refreshAddPriorityPicker();
+
+function buildTagPicker(container, selected, onSelect){
+  container.innerHTML = '';
+  TAGS.forEach(tag => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tag-btn' + (tag === selected ? ' selected' : '');
+    btn.textContent = TAG_ICONS[tag] + ' ' + TAG_LABELS[tag];
+    btn.onclick = () => onSelect(tag === selected ? null : tag);
+    container.appendChild(btn);
+  });
+}
+function refreshAddTagPicker(){
+  buildTagPicker(document.getElementById('add-tag-picker'), pendingTag, t => {
+    pendingTag = t; refreshAddTagPicker();
+  });
+}
+refreshAddTagPicker();
+
+/* ---------- render task list ---------- */
 function render(){
   taskList.innerHTML = '';
   if(tasks.length === 0){
     taskList.innerHTML = '<div class="empty">No tasks yet — add one above.</div>';
-    return;
+  } else {
+    tasks.forEach((t, i) => {
+      const li = document.createElement('li');
+      li.className = 'task-item';
+      li.dataset.id = t.id;
+      li.dataset.i = i;
+      li.innerHTML = `
+        <div class="swipe-bg">
+          <div class="swipe-edit">✎ Edit</div>
+          <div class="swipe-delete">🗑 Delete</div>
+        </div>
+        <div class="swipe-content ${t.done ? 'done' : ''} ${i === currentIndex ? 'current' : ''}" style="border-left-color:var(--${t.priority})">
+          <span class="handle">⋮⋮</span>
+          <input type="checkbox" ${t.done ? 'checked' : ''}>
+          <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
+          <span class="name">${t.name}</span>
+          ${t.tag ? `<span class="tag-badge">${TAG_ICONS[t.tag]} ${TAG_LABELS[t.tag]}</span>` : ''}
+          <span class="mins">${t.mins} min</span>
+        </div>
+      `;
+      taskList.appendChild(li);
+    });
   }
-  tasks.forEach((t, i) => {
-    const li = document.createElement('li');
-    li.className = 'task' + (t.done ? ' done' : '') + (i === currentIndex ? ' current' : '');
-    li.dataset.i = i;
-    li.innerHTML = `
-      <span class="handle">⋮⋮</span>
-      <input type="checkbox" ${t.done ? 'checked' : ''} data-i="${i}">
-      <span class="name">${t.name}</span>
-      <span class="mins">${t.mins} min</span>
-      <button class="del" data-i="${i}">✕</button>
-    `;
-    taskList.appendChild(li);
-  });
   attachDragHandlers();
+  attachSwipeHandlers();
   updateTotalBar();
+  updateLauncher();
 }
 
 function updateTotalBar(){
-  const total = tasks.reduce((sum, t) => sum + t.mins, 0);
+  const total = tasks.reduce((s,t) => s + t.mins, 0);
   const fill = document.getElementById('total-fill');
   const amount = document.getElementById('total-amount');
-  const pct = Math.min(100, (total / 60) * 100);
+  const pct = Math.min(100, (total/60)*100);
   fill.style.width = pct + '%';
   amount.textContent = `${total} / 60 min`;
   const over = total > 60;
@@ -187,179 +420,61 @@ function updateTotalBar(){
   amount.classList.toggle('ok', !over);
 }
 
-taskList.addEventListener('click', e => {
-  const i = e.target.dataset.i;
-  if(i === undefined) return;
-  if(e.target.type === 'checkbox'){
-    tasks[i].done = e.target.checked;
-    save(); render();
-  } else if(e.target.classList.contains('del')){
-    tasks.splice(i, 1);
-    if(currentIndex === parseInt(i)) resetTimer();
-    save(); render();
-  }
+function updateLauncher(){
+  const launcher = document.getElementById('timer-launcher');
+  if(timerState !== 'idle'){ launcher.classList.add('hidden'); return; }
+  launcher.classList.remove('hidden');
+  document.getElementById('launcher-text').textContent =
+    tasks.length === 0 ? 'Add a task to get started' : `Ready to run through ${tasks.length} task${tasks.length>1?'s':''}?`;
+}
+
+/* checkbox toggle */
+taskList.addEventListener('change', e => {
+  if(e.target.type !== 'checkbox') return;
+  const id = e.target.closest('.task-item').dataset.id;
+  const t = tasks.find(t => t.id === id);
+  if(t){ t.done = e.target.checked; save(); render(); }
 });
 
+/* ---------- add task ---------- */
 document.getElementById('plus-btn').onclick = () => { pendingMins += 5; minsDisplay.textContent = pendingMins + ' min'; };
 document.getElementById('minus-btn').onclick = () => { pendingMins = Math.max(5, pendingMins - 5); minsDisplay.textContent = pendingMins + ' min'; };
-
 document.getElementById('add-btn').onclick = addTask;
 taskInput.addEventListener('keydown', e => { if(e.key === 'Enter') addTask(); });
 
 function addTask(){
   const name = taskInput.value.trim();
   if(!name) return;
-  tasks.push({ name, mins: pendingMins, done: false });
+  tasks.push({ id: uid(), name, mins: pendingMins, priority: pendingPriority, tag: pendingTag, done: false });
   taskInput.value = '';
-  pendingMins = 5;
+  pendingMins = 5; pendingPriority = 'p3'; pendingTag = null;
   minsDisplay.textContent = '5 min';
+  refreshAddPriorityPicker();
+  refreshAddTagPicker();
   save(); render();
 }
 
-// Voice input
+/* ---------- voice input ---------- */
 const micBtn = document.getElementById('mic-btn');
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 if(SpeechRecognition){
   const recog = new SpeechRecognition();
-  recog.continuous = false;
-  recog.interimResults = false;
-  recog.lang = 'en-US';
+  recog.continuous = false; recog.interimResults = false; recog.lang = 'en-US';
   let listening = false;
-
-  micBtn.onclick = () => {
-    if(listening) return;
-    listening = true;
-    micBtn.classList.add('listening');
-    recog.start();
-  };
-  recog.onresult = (e) => {
-    taskInput.value = e.results[0][0].transcript;
-  };
+  micBtn.onclick = () => { if(listening) return; listening = true; micBtn.classList.add('listening'); recog.start(); };
+  recog.onresult = e => { taskInput.value = e.results[0][0].transcript; };
   recog.onend = () => { listening = false; micBtn.classList.remove('listening'); };
   recog.onerror = () => { listening = false; micBtn.classList.remove('listening'); };
-} else {
-  micBtn.style.display = 'none';
-}
+} else { micBtn.style.display = 'none'; }
 
-// Timer logic
-function formatTime(s){
-  const m = Math.floor(s/60).toString().padStart(2,'0');
-  const sec = (s%60).toString().padStart(2,'0');
-  return `${m}:${sec}`;
-}
-
-function findNextIndex(from){
-  for(let i = from; i < tasks.length; i++){
-    if(!tasks[i].done) return i;
-  }
-  return -1;
-}
-
-function startTimer(){
-  if(currentIndex === -1){
-    currentIndex = findNextIndex(0);
-    if(currentIndex === -1){ timerCurrent.textContent = 'All tasks done! 🎉'; return; }
-    secondsLeft = tasks[currentIndex].mins * 60;
-  }
-  isPaused = false;
-  startBtn.style.display = 'none';
-  pauseBtn.style.display = 'inline-block';
-  updateTimerDisplay();
-  timerInterval = setInterval(tick, 1000);
-}
-
-function tick(){
-  secondsLeft--;
-  if(secondsLeft < 0){
-    tasks[currentIndex].done = true;
-    save(); render();
-    const next = findNextIndex(currentIndex + 1);
-    if(next === -1){
-      clearInterval(timerInterval);
-      timerCurrent.textContent = 'All tasks done! 🎉';
-      timerTask.textContent = '—';
-      timerClock.textContent = '00:00';
-      startBtn.style.display = 'inline-block';
-      pauseBtn.style.display = 'none';
-      currentIndex = -1;
-      return;
-    }
-    currentIndex = next;
-    secondsLeft = tasks[currentIndex].mins * 60;
-    render();
-  }
-  updateTimerDisplay();
-}
-
-function updateTimerDisplay(){
-  timerCurrent.textContent = `Task ${currentIndex + 1} of ${tasks.length}`;
-  timerTask.textContent = tasks[currentIndex] ? tasks[currentIndex].name : '—';
-  timerClock.textContent = formatTime(secondsLeft);
-  render();
-}
-
-startBtn.onclick = startTimer;
-
-pauseBtn.onclick = () => {
-  clearInterval(timerInterval);
-  isPaused = true;
-  startBtn.style.display = 'inline-block';
-  startBtn.textContent = 'Resume';
-  pauseBtn.style.display = 'none';
-};
-
-document.getElementById('skip-btn').onclick = () => {
-  if(currentIndex === -1) return;
-  tasks[currentIndex].done = true;
-  save();
-  clearInterval(timerInterval);
-  const next = findNextIndex(currentIndex + 1);
-  if(next === -1){
-    timerCurrent.textContent = 'All tasks done! 🎉';
-    timerTask.textContent = '—';
-    timerClock.textContent = '00:00';
-    startBtn.style.display = 'inline-block';
-    startBtn.textContent = 'Start';
-    pauseBtn.style.display = 'none';
-    currentIndex = -1;
-    render();
-    return;
-  }
-  currentIndex = next;
-  secondsLeft = tasks[currentIndex].mins * 60;
-  updateTimerDisplay();
-  if(!isPaused) timerInterval = setInterval(tick, 1000);
-};
-
-function resetTimer(){
-  clearInterval(timerInterval);
-  currentIndex = -1;
-  secondsLeft = 0;
-  isPaused = false;
-  timerCurrent.textContent = 'No task running';
-  timerTask.textContent = '—';
-  timerClock.textContent = '00:00';
-  startBtn.style.display = 'inline-block';
-  startBtn.textContent = 'Start';
-  pauseBtn.style.display = 'none';
-  render();
-}
-document.getElementById('reset-btn').onclick = () => {
-  tasks.forEach(t => t.done = false);
-  save();
-  resetTimer();
-};
-
+/* ---------- drag reorder (vertical, via handle) ---------- */
 function attachDragHandlers(){
-  document.querySelectorAll('.handle').forEach(handle => {
-    handle.onpointerdown = onDragStart;
-  });
+  document.querySelectorAll('.handle').forEach(h => { h.onpointerdown = onDragStart; });
 }
-
-let dragEl = null, dragStartY = 0, dragOrigIndex = 0, dragNewIndex = 0, rowHeight = 0;
+let dragEl=null, dragStartY=0, dragOrigIndex=0, dragNewIndex=0, rowHeight=0;
 
 function onDragStart(e){
-  const li = e.target.closest('li.task');
+  const li = e.target.closest('li.task-item');
   if(!li) return;
   e.preventDefault();
   dragEl = li;
@@ -370,39 +485,32 @@ function onDragStart(e){
   rowHeight = li.offsetHeight + parseFloat(style.marginBottom || 0);
   li.classList.add('dragging');
   li.style.zIndex = '20';
+  li.style.position = 'relative';
   document.addEventListener('pointermove', onDragMove);
   document.addEventListener('pointerup', onDragEnd);
 }
-
 function onDragMove(e){
   if(!dragEl || !rowHeight) return;
   const dy = e.clientY - dragStartY;
   dragEl.style.transform = `translateY(${dy}px)`;
-
   let newIndex = dragOrigIndex + Math.round(dy / rowHeight);
   newIndex = Math.max(0, Math.min(tasks.length - 1, newIndex));
   if(newIndex === dragNewIndex) return;
   dragNewIndex = newIndex;
-
-  taskList.querySelectorAll('li.task').forEach(sib => {
+  taskList.querySelectorAll('li.task-item').forEach(sib => {
     if(sib === dragEl) return;
     const idx = parseInt(sib.dataset.i);
     let shift = 0;
-    if(dragOrigIndex < dragNewIndex){
-      if(idx > dragOrigIndex && idx <= dragNewIndex) shift = -1;
-    } else if(dragOrigIndex > dragNewIndex){
-      if(idx >= dragNewIndex && idx < dragOrigIndex) shift = 1;
-    }
+    if(dragOrigIndex < dragNewIndex){ if(idx > dragOrigIndex && idx <= dragNewIndex) shift = -1; }
+    else if(dragOrigIndex > dragNewIndex){ if(idx >= dragNewIndex && idx < dragOrigIndex) shift = 1; }
     sib.style.transition = 'transform 0.15s';
-    sib.style.transform = shift ? `translateY(${shift * rowHeight}px)` : '';
+    sib.style.transform = shift ? `translateY(${shift*rowHeight}px)` : '';
   });
 }
-
 function onDragEnd(){
   document.removeEventListener('pointermove', onDragMove);
   document.removeEventListener('pointerup', onDragEnd);
   if(!dragEl) return;
-
   if(dragNewIndex !== dragOrigIndex){
     const [moved] = tasks.splice(dragOrigIndex, 1);
     tasks.splice(dragNewIndex, 0, moved);
@@ -413,13 +521,418 @@ function onDragEnd(){
     }
     save();
   }
-
   dragEl.classList.remove('dragging');
-  dragEl.style.transform = '';
-  dragEl.style.zIndex = '';
+  dragEl.style.transform = ''; dragEl.style.zIndex = '';
   dragEl = null;
   render();
 }
+
+/* ---------- swipe (horizontal, edit / delete) ---------- */
+function attachSwipeHandlers(){
+  document.querySelectorAll('.swipe-content').forEach(el => { el.onpointerdown = onSwipeStart; });
+}
+let swipeEl=null, swipeWrapper=null, swipeStartX=0, swipeStartY=0, swipeDX=0, swipeActive=false, swipeTaskId=null;
+
+function onSwipeStart(e){
+  if(e.target.closest('.handle')) return;
+  if(e.target.tagName === 'INPUT') return;
+  swipeEl = e.currentTarget;
+  swipeWrapper = swipeEl.closest('.task-item');
+  swipeTaskId = swipeWrapper.dataset.id;
+  swipeStartX = e.clientX; swipeStartY = e.clientY;
+  swipeDX = 0; swipeActive = false;
+  document.addEventListener('pointermove', onSwipeMove);
+  document.addEventListener('pointerup', onSwipeEnd);
+}
+function onSwipeMove(e){
+  if(!swipeEl) return;
+  const dx = e.clientX - swipeStartX;
+  const dy = e.clientY - swipeStartY;
+  if(!swipeActive){
+    if(Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)){ swipeActive = true; }
+    else if(Math.abs(dy) > 8){ cleanupSwipe(); return; }
+    else { return; }
+  }
+  swipeDX = dx;
+  const clamped = Math.max(-140, Math.min(140, dx));
+  swipeEl.style.transform = `translateX(${clamped}px)`;
+  swipeWrapper.querySelector('.swipe-edit').style.opacity = clamped > 20 ? Math.min(1, clamped/100) : 0;
+  swipeWrapper.querySelector('.swipe-delete').style.opacity = clamped < -20 ? Math.min(1, -clamped/100) : 0;
+}
+function onSwipeEnd(){
+  if(swipeEl && swipeActive){
+    const threshold = 90;
+    if(swipeDX < -threshold){ deleteTaskById(swipeTaskId); }
+    else if(swipeDX > threshold){ openEditModal(swipeTaskId); resetSwipeEl(); }
+    else { resetSwipeEl(); }
+  }
+  cleanupSwipe();
+}
+function resetSwipeEl(){
+  if(!swipeEl) return;
+  swipeEl.style.transition = 'transform 0.2s';
+  swipeEl.style.transform = 'translateX(0)';
+  const w = swipeWrapper;
+  setTimeout(() => { if(w){ w.querySelectorAll('.swipe-edit,.swipe-delete').forEach(x=>x.style.opacity=0); } }, 200);
+}
+function cleanupSwipe(){
+  document.removeEventListener('pointermove', onSwipeMove);
+  document.removeEventListener('pointerup', onSwipeEnd);
+  swipeEl = null; swipeWrapper = null; swipeActive = false; swipeDX = 0;
+}
+function deleteTaskById(id){
+  const idx = tasks.findIndex(t => t.id === id);
+  if(idx === -1) return;
+  tasks.splice(idx, 1);
+  if(currentIndex === idx){ currentIndex = -1; }
+  else if(currentIndex > idx){ currentIndex--; }
+  save(); render(); refreshTimerDisplays();
+}
+
+/* ---------- edit modal ---------- */
+const editModal = document.getElementById('edit-modal');
+function openEditModal(id){
+  const t = tasks.find(t => t.id === id);
+  if(!t) return;
+  editTaskId = id;
+  document.getElementById('edit-name-input').value = t.name;
+  editMins = t.mins;
+  editPriority = t.priority;
+  editTag = t.tag || null;
+  document.getElementById('edit-mins-display').textContent = editMins + ' min';
+  refreshEditPriorityPicker();
+  refreshEditTagPicker();
+  editModal.classList.remove('hidden');
+}
+function refreshEditPriorityPicker(){
+  buildPriorityPicker(document.getElementById('edit-priority-picker'), editPriority, p => {
+    editPriority = p; refreshEditPriorityPicker();
+  });
+}
+function refreshEditTagPicker(){
+  buildTagPicker(document.getElementById('edit-tag-picker'), editTag, t => {
+    editTag = t; refreshEditTagPicker();
+  });
+}
+document.getElementById('edit-plus-btn').onclick = () => { editMins += 5; document.getElementById('edit-mins-display').textContent = editMins + ' min'; };
+document.getElementById('edit-minus-btn').onclick = () => { editMins = Math.max(5, editMins - 5); document.getElementById('edit-mins-display').textContent = editMins + ' min'; };
+document.getElementById('edit-cancel-btn').onclick = () => { editModal.classList.add('hidden'); editTaskId = null; };
+document.getElementById('edit-save-btn').onclick = () => {
+  const t = tasks.find(t => t.id === editTaskId);
+  if(t){
+    const newName = document.getElementById('edit-name-input').value.trim();
+    if(newName) t.name = newName;
+    t.mins = editMins;
+    t.priority = editPriority;
+    t.tag = editTag;
+    save(); render(); refreshTimerDisplays();
+  }
+  editModal.classList.add('hidden'); editTaskId = null;
+};
+
+/* ---------- timer ---------- */
+const timerScreen = document.getElementById('timer-screen');
+const miniBar = document.getElementById('mini-bar');
+const timerLauncher = document.getElementById('timer-launcher');
+
+function formatTime(s){
+  s = Math.max(0, s);
+  const m = Math.floor(s/60).toString().padStart(2,'0');
+  const sec = (s%60).toString().padStart(2,'0');
+  return `${m}:${sec}`;
+}
+function findNextIndex(from){
+  for(let i = from; i < tasks.length; i++){
+    if(tasks[i].done) continue;
+    if(sessionTaskIds && !sessionTaskIds.includes(tasks[i].id)) continue;
+    return i;
+  }
+  return -1;
+}
+function sessionCount(){ return sessionTaskIds ? sessionTaskIds.length : tasks.length; }
+function sessionPosition(){
+  if(!sessionTaskIds) return currentIndex + 1;
+  const t = tasks[currentIndex];
+  return t ? sessionTaskIds.indexOf(t.id) + 1 : 0;
+}
+
+function beginRun(){
+  if(tasks.length === 0) return;
+  if(timerState === 'idle'){
+    currentIndex = findNextIndex(0);
+    if(currentIndex === -1){ timerState = 'done'; }
+    else { secondsLeft = tasks[currentIndex].mins * 60; timerState = 'running'; startInterval(); }
+  }
+  showMaximized();
+}
+
+document.getElementById('open-timer-btn').onclick = () => { sessionTaskIds = null; beginRun(); };
+
+function startInterval(){
+  clearInterval(timerInterval);
+  timerInterval = setInterval(tick, 1000);
+}
+function tick(){
+  if(timerState !== 'running') return;
+  secondsLeft--;
+  if(secondsLeft < 0){
+    tasks[currentIndex].done = true;
+    save();
+    const next = findNextIndex(currentIndex + 1);
+    if(next === -1){
+      clearInterval(timerInterval);
+      timerState = 'done'; currentIndex = -1;
+    } else {
+      currentIndex = next;
+      secondsLeft = tasks[currentIndex].mins * 60;
+    }
+  }
+  refreshTimerDisplays();
+}
+
+function refreshTimerDisplays(){
+  render();
+  const doneCount = tasks.filter(t=>t.done).length;
+  if(timerState === 'done'){
+    document.getElementById('timer-current').textContent = 'All done! 🎉';
+    document.getElementById('timer-task').textContent = 'Nice work.';
+    document.getElementById('timer-clock').textContent = '00:00';
+    document.getElementById('timer-priority-badge').classList.add('hidden');
+    document.getElementById('up-next').textContent = '';
+    document.getElementById('pause-btn').classList.add('hidden');
+    document.getElementById('skip-btn').classList.add('hidden');
+    miniBar.classList.add('hidden');
+    return;
+  }
+  if(currentIndex === -1 || !tasks[currentIndex]) return;
+  const t = tasks[currentIndex];
+  document.getElementById('pause-btn').classList.remove('hidden');
+  document.getElementById('skip-btn').classList.remove('hidden');
+  document.getElementById('timer-priority-badge').classList.remove('hidden');
+  document.getElementById('timer-priority-badge').textContent = PRIORITY_LABELS[t.priority];
+  document.getElementById('timer-priority-badge').style.background = `var(--${t.priority})`;
+  document.getElementById('timer-current').textContent = `Task ${sessionPosition()} of ${sessionCount()}`;
+  document.getElementById('timer-task').textContent = t.name;
+  document.getElementById('timer-clock').textContent = formatTime(secondsLeft);
+  document.getElementById('pause-btn').textContent = timerState === 'paused' ? 'Resume' : 'Pause';
+
+  const nextIdx = findNextIndex(currentIndex + 1);
+  document.getElementById('up-next').textContent = nextIdx === -1 ? 'Last task 🎯' : `Up next: ${tasks[nextIdx].name}`;
+
+  document.getElementById('mini-task').textContent = t.name;
+  document.getElementById('mini-clock').textContent = formatTime(secondsLeft);
+  document.getElementById('mini-playpause').textContent = timerState === 'paused' ? '▶' : '⏸';
+}
+
+function showMaximized(){
+  timerScreen.classList.remove('hidden');
+  miniBar.classList.add('hidden');
+  timerLauncher.classList.add('hidden');
+  refreshTimerDisplays();
+}
+function showMinimized(){
+  timerScreen.classList.add('hidden');
+  if(timerState !== 'idle'){ miniBar.classList.remove('hidden'); }
+  timerLauncher.classList.add('hidden');
+  refreshTimerDisplays();
+}
+function closeTimerFully(){
+  clearInterval(timerInterval);
+  timerState = 'idle'; currentIndex = -1; secondsLeft = 0; sessionTaskIds = null;
+  timerScreen.classList.add('hidden');
+  miniBar.classList.add('hidden');
+  document.getElementById('pause-btn').classList.remove('hidden');
+  document.getElementById('skip-btn').classList.remove('hidden');
+  render();
+}
+
+document.getElementById('minimize-btn').onclick = showMinimized;
+document.getElementById('mini-expand').onclick = showMaximized;
+document.getElementById('mini-expand-area').onclick = showMaximized;
+document.getElementById('close-timer-btn').onclick = closeTimerFully;
+
+document.getElementById('pause-btn').onclick = () => {
+  if(timerState === 'running'){ timerState = 'paused'; clearInterval(timerInterval); }
+  else if(timerState === 'paused'){ timerState = 'running'; startInterval(); }
+  refreshTimerDisplays();
+};
+document.getElementById('mini-playpause').onclick = () => document.getElementById('pause-btn').onclick();
+
+document.getElementById('skip-btn').onclick = () => {
+  if(currentIndex === -1) return;
+  tasks[currentIndex].done = true;
+  save();
+  const next = findNextIndex(currentIndex + 1);
+  if(next === -1){
+    clearInterval(timerInterval);
+    timerState = 'done'; currentIndex = -1;
+  } else {
+    currentIndex = next;
+    secondsLeft = tasks[currentIndex].mins * 60;
+  }
+  refreshTimerDisplays();
+};
+
+document.getElementById('stop-btn').onclick = closeTimerFully;
+
+/* ---------- bulk add ---------- */
+const bulkModal = document.getElementById('bulk-modal');
+document.getElementById('bulk-add-btn').onclick = () => {
+  document.getElementById('bulk-textarea').value = '';
+  bulkModal.classList.remove('hidden');
+};
+document.getElementById('bulk-cancel-btn').onclick = () => bulkModal.classList.add('hidden');
+
+/* recognises priority (p1-p5), time (e.g. "15", "15 min", "15m", "15 minutes"),
+   and one of the three tags — anywhere in a line, in any order — and treats
+   the rest as the task name. */
+function parseTaskLine(raw){
+  let text = raw;
+  let mins = null, priority = null, tag = null;
+
+  const pMatch = text.match(/\bp([1-5])\b/i);
+  if(pMatch){ priority = 'p' + pMatch[1]; text = text.replace(pMatch[0], ' '); }
+
+  const tagAliases = { nohands: /\bno[\s-]?hands?\b/i, errands: /\berrands?\b/i, movearound: /\bmove[\s-]?around\b/i };
+  for(const key of Object.keys(tagAliases)){
+    const m = text.match(tagAliases[key]);
+    if(m){ tag = key; text = text.replace(m[0], ' '); break; }
+  }
+
+  const tMatch = text.match(/(\d+)\s*(minutes|mins|minute|min|m)\b/i);
+  if(tMatch){ mins = parseInt(tMatch[1]); text = text.replace(tMatch[0], ' '); }
+
+  let segments = text.split(/[,\u2013\u2014-]/).map(s => s.trim());
+  if(mins === null){
+    for(let i = segments.length - 1; i >= 0; i--){
+      if(/^\d+$/.test(segments[i])){ mins = parseInt(segments[i]); segments.splice(i, 1); break; }
+    }
+  }
+  let name = segments.filter(Boolean).join(' ').replace(/\s{2,}/g, ' ').trim();
+  if(!name) name = raw.trim();
+
+  if(mins === null || mins <= 0) mins = 5;
+  mins = Math.max(5, Math.round(mins / 5) * 5);
+  if(!priority) priority = 'p3';
+  return { name, mins, priority, tag };
+}
+
+document.getElementById('bulk-save-btn').onclick = () => {
+  const raw = document.getElementById('bulk-textarea').value;
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  lines.forEach(line => {
+    let done = false;
+    const doneMatch = line.match(/^\[x\]\s*/i);
+    if(doneMatch){ done = true; line = line.slice(doneMatch[0].length); }
+    const parsed = parseTaskLine(line);
+    if(!parsed.name) return;
+    tasks.push({ id: uid(), name: parsed.name, mins: parsed.mins, priority: parsed.priority, tag: parsed.tag, done });
+  });
+  save(); render();
+  bulkModal.classList.add('hidden');
+};
+
+/* ---------- export ---------- */
+document.getElementById('export-btn').onclick = () => {
+  const lines = tasks.map(t => `${t.done ? '[x] ' : ''}${t.name}, ${t.mins}, ${t.priority}${t.tag ? ', ' + t.tag : ''}`);
+  document.getElementById('export-textarea').value = lines.join('\n');
+  document.getElementById('export-modal').classList.remove('hidden');
+};
+document.getElementById('export-close-btn').onclick = () => document.getElementById('export-modal').classList.add('hidden');
+document.getElementById('export-copy-btn').onclick = () => {
+  const ta = document.getElementById('export-textarea');
+  ta.select();
+  const btn = document.getElementById('export-copy-btn');
+  const done = () => { const old = btn.textContent; btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = old, 1500); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(ta.value).then(done).catch(() => { document.execCommand('copy'); done(); });
+  } else {
+    document.execCommand('copy'); done();
+  }
+};
+
+/* ---------- quick sort ---------- */
+function sortByPriority(){
+  tasks = [...tasks].sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority));
+  save(); render();
+}
+function sortByTag(tag){
+  const matched = tasks.filter(t => t.tag === tag);
+  const rest = tasks.filter(t => t.tag !== tag);
+  tasks = [...matched, ...rest];
+  save(); render();
+}
+document.querySelectorAll('.sort-chip').forEach(btn => {
+  btn.onclick = () => {
+    const key = btn.dataset.sort;
+    if(key === 'priority') sortByPriority();
+    else sortByTag(key);
+  };
+});
+
+/* ---------- "I have X minutes" → review selection ---------- */
+let reviewBudget = 0;
+
+document.getElementById('budget-build-btn').onclick = () => {
+  const budget = parseInt(document.getElementById('budget-input').value);
+  if(!budget || budget <= 0) return;
+  openReviewModal(budget);
+};
+
+function openReviewModal(budget){
+  reviewBudget = budget;
+  const pending = tasks.filter(t => !t.done); // current order reflects whichever quick sort is active
+  let total = 0;
+  const selected = new Set();
+  pending.forEach(t => {
+    if(total + t.mins <= budget){ selected.add(t.id); total += t.mins; }
+  });
+  renderReviewList(pending, selected);
+  updateReviewTotal();
+  document.getElementById('review-modal').classList.remove('hidden');
+}
+
+function renderReviewList(pending, selectedIds){
+  const list = document.getElementById('review-list');
+  list.innerHTML = '';
+  if(pending.length === 0){
+    list.innerHTML = '<div class="empty">No open tasks to pick from.</div>';
+    return;
+  }
+  pending.forEach(t => {
+    const row = document.createElement('div');
+    row.className = 'review-item';
+    row.innerHTML = `
+      <input type="checkbox" data-id="${t.id}" ${selectedIds.has(t.id) ? 'checked' : ''}>
+      <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
+      <span class="name">${t.name}</span>
+      ${t.tag ? `<span class="tag-badge">${TAG_ICONS[t.tag]}</span>` : ''}
+      <span class="mins">${t.mins} min</span>
+    `;
+    list.appendChild(row);
+  });
+  list.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.onchange = updateReviewTotal; });
+}
+
+function updateReviewTotal(){
+  const checked = [...document.querySelectorAll('#review-list input:checked')];
+  const total = checked.reduce((sum, cb) => {
+    const t = tasks.find(x => x.id === cb.dataset.id);
+    return sum + (t ? t.mins : 0);
+  }, 0);
+  const el = document.getElementById('review-total');
+  el.textContent = `${total} / ${reviewBudget} min selected`;
+  el.style.color = total > reviewBudget ? 'var(--danger)' : 'var(--muted)';
+}
+
+document.getElementById('review-cancel-btn').onclick = () => document.getElementById('review-modal').classList.add('hidden');
+document.getElementById('review-start-btn').onclick = () => {
+  const checked = [...document.querySelectorAll('#review-list input:checked')].map(cb => cb.dataset.id);
+  if(checked.length === 0) return;
+  sessionTaskIds = checked;
+  document.getElementById('review-modal').classList.add('hidden');
+  beginRun();
+};
 
 render();
 </script>
