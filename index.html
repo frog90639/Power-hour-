@@ -20,18 +20,6 @@
   .sub{color:var(--muted); font-size:0.85rem; margin-bottom:12px;}
   .hidden{display:none !important;}
 
-  /* total bar */
-  .total-bar{
-    background:var(--card); border:1px solid #2a2e37; border-radius:10px;
-    padding:10px 14px; margin-bottom:16px; display:flex; align-items:center; gap:10px;
-  }
-  .total-bar .amount{font-weight:700; font-size:0.9rem; white-space:nowrap;}
-  .total-bar .amount.over{color:var(--danger);}
-  .total-bar .amount.ok{color:var(--accent);}
-  .total-bar .track{flex:1; height:8px; background:#2a2e37; border-radius:5px; overflow:hidden;}
-  .total-bar .fill{height:100%; background:var(--accent); transition:width .2s;}
-  .total-bar .fill.over{background:var(--danger);}
-
   /* add row */
   .add-row{display:flex; gap:8px; margin-bottom:8px; align-items:center; flex-wrap:wrap;}
   input[type=text]{
@@ -72,14 +60,6 @@
     font-size:0.68rem; color:var(--muted); background:#2a2e37; padding:2px 8px;
     border-radius:10px; flex-shrink:0; white-space:nowrap;
   }
-
-  .sort-row{display:flex; gap:6px; overflow-x:auto; margin-bottom:4px; align-items:center;}
-  .sort-label{color:var(--muted); font-size:0.8rem; flex-shrink:0;}
-  .sort-chip{
-    flex-shrink:0; background:var(--card); border:1px solid #2a2e37; color:var(--text);
-    padding:7px 12px; border-radius:20px; font-size:0.78rem; cursor:pointer; white-space:nowrap;
-  }
-  .sort-chip:active{opacity:0.7;}
 
   .budget-card{background:var(--card); border:1px solid #2a2e37; border-radius:14px; padding:14px; margin-bottom:16px;}
   .budget-row{display:flex; align-items:center; gap:8px; font-size:0.95rem; flex-wrap:wrap;}
@@ -142,6 +122,9 @@
   #stop-btn{background:#2a2e37; color:var(--text);}
   #done-export-btn, #done-close-btn{background:#2a2e37; color:var(--text);}
   #done-remove-btn:disabled{opacity:0.4; cursor:default;}
+  #report-export-btn{background:#2a2e37; color:var(--text);}
+  #report-clear-btn{background:var(--danger); color:#fff;}
+  #report-clear-btn:disabled{opacity:0.4; cursor:default;}
   .up-next{color:var(--muted); font-size:0.85rem;}
 
   /* priority board */
@@ -204,12 +187,6 @@
   </div>
 </div>
 
-<div class="total-bar">
-  <span class="label" style="color:var(--muted); font-size:0.9rem;">Assigned</span>
-  <div class="track"><div class="fill" id="total-fill"></div></div>
-  <span class="amount" id="total-amount">0 / 60 min</span>
-</div>
-
 <div class="tag-picker" id="add-tag-picker" style="margin-bottom:8px;"></div>
 <div class="add-row">
   <input type="text" id="task-input" placeholder="What are you working on?">
@@ -227,16 +204,9 @@
 <button id="bulk-add-btn" style="width:100%; margin-top:6px; background:none; border:1px solid #2a2e37; color:var(--muted); padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;">＋ Bulk add (paste a list)</button>
 <button id="export-btn" style="width:100%; margin-top:6px; background:none; border:1px solid #2a2e37; color:var(--muted); padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;">⇧ Export tasks</button>
 <button id="open-board-btn" style="width:100%; margin-top:6px; background:none; border:1px solid #2a2e37; color:var(--muted); padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;">🎯 Priority board</button>
+<button id="open-report-btn" style="width:100%; margin-top:6px; background:none; border:1px solid #2a2e37; color:var(--muted); padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;">📋 Completed report</button>
 
-<div class="sort-row" id="sort-row">
-  <span class="sort-label">Sort:</span>
-  <button class="sort-chip" data-sort="priority">⚡ P1 first</button>
-  <button class="sort-chip" data-sort="nohands">🎧 No hands</button>
-  <button class="sort-chip" data-sort="errands">🏃 Errands</button>
-  <button class="sort-chip" data-sort="movearound">🚶 Move around</button>
-</div>
-
-<ul id="task-list" style="margin-top:12px;"></ul>
+<ul id="task-list" style="margin-top:16px;"></ul>
 
 <!-- full screen timer -->
 <div class="timer-screen hidden" id="timer-screen">
@@ -263,7 +233,12 @@
       <div style="font-size:3rem; margin-bottom:6px;">🎉</div>
       <div class="timer-task">Well done!</div>
       <div id="done-summary" style="color:var(--muted); font-size:0.9rem; margin-bottom:16px;"></div>
-      <div id="done-list" style="width:100%; max-width:420px; text-align:left; max-height:38vh; overflow-y:auto; margin-bottom:20px;"></div>
+      <div id="done-list" style="width:100%; max-width:420px; text-align:left; max-height:32vh; overflow-y:auto; margin-bottom:16px;"></div>
+      <div id="skipped-section" class="hidden" style="width:100%; max-width:420px; text-align:left; margin-bottom:20px;">
+        <div style="font-weight:600; margin-bottom:6px;">Did you complete these?</div>
+        <div style="color:var(--muted); font-size:0.8rem; margin-bottom:8px;">The timer passed through these without them being ticked off — check any you actually finished.</div>
+        <div id="skipped-list" style="max-height:26vh; overflow-y:auto;"></div>
+      </div>
       <div class="timer-controls" style="flex-wrap:wrap;">
         <button id="done-export-btn">⇧ Export list</button>
         <button id="done-remove-btn" style="background:var(--danger); color:#fff;">Remove completed</button>
@@ -350,6 +325,20 @@
   </div>
 </div>
 
+<!-- completed report modal -->
+<div class="modal hidden" id="report-modal">
+  <div class="modal-card" style="max-height:80vh; overflow-y:auto;">
+    <h3>Completed report</h3>
+    <p id="report-summary" style="color:var(--muted); font-size:0.85rem; margin-top:-8px;"></p>
+    <div id="report-list"></div>
+    <div class="modal-actions">
+      <button id="report-export-btn">⇧ Export</button>
+      <button id="report-clear-btn">Clear day</button>
+    </div>
+    <button id="report-close-btn" style="width:100%; margin-top:10px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
 <!-- review selection modal -->
 <div class="modal hidden" id="review-modal">
   <div class="modal-card" style="max-height:80vh; overflow-y:auto;">
@@ -371,9 +360,10 @@ const TAG_LABELS = {nohands:'No hands', errands:'Errands', movearound:'Move arou
 const TAG_ICONS = {nohands:'🎧', errands:'🏃', movearound:'🚶'};
 
 let tasks = JSON.parse(localStorage.getItem('powerHourTasks') || '[]');
+tasks.sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority));
 let pendingMins = 5, pendingPriority = 'p3', pendingTag = null;
 let editMins = 5, editPriority = 'p3', editTag = null, editTaskId = null;
-let currentIndex = -1, secondsLeft = 0, timerInterval = null, sessionTaskIds = null, sessionCompleted = [];
+let currentIndex = -1, secondsLeft = 0, timerInterval = null, sessionTaskIds = null, sessionCompleted = [], sessionSkipped = [];
 let timerState = 'idle'; // idle | running | paused | done
 
 const taskInput = document.getElementById('task-input');
@@ -381,7 +371,16 @@ const taskList = document.getElementById('task-list');
 const minsDisplay = document.getElementById('mins-display');
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
-function save(){ localStorage.setItem('powerHourTasks', JSON.stringify(tasks)); }
+function save(){
+  let activeId = null;
+  if(currentIndex !== -1 && tasks[currentIndex]) activeId = tasks[currentIndex].id;
+  tasks.sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority));
+  if(activeId !== null){
+    const newIdx = tasks.findIndex(t => t.id === activeId);
+    if(newIdx !== -1) currentIndex = newIdx;
+  }
+  localStorage.setItem('powerHourTasks', JSON.stringify(tasks));
+}
 
 /* ---------- priority & tag pickers ---------- */
 function buildPriorityPicker(container, selected, onSelect){
@@ -450,20 +449,6 @@ function render(){
   }
   attachDragHandlers();
   attachSwipeHandlers();
-  updateTotalBar();
-}
-
-function updateTotalBar(){
-  const total = tasks.reduce((s,t) => s + t.mins, 0);
-  const fill = document.getElementById('total-fill');
-  const amount = document.getElementById('total-amount');
-  const pct = Math.min(100, (total/60)*100);
-  fill.style.width = pct + '%';
-  amount.textContent = `${total} / 60 min`;
-  const over = total > 60;
-  fill.classList.toggle('over', over);
-  amount.classList.toggle('over', over);
-  amount.classList.toggle('ok', !over);
 }
 
 /* checkbox toggle */
@@ -718,6 +703,7 @@ function beginRun(){
   if(tasks.length === 0) return;
   if(timerState === 'idle'){
     sessionCompleted = [];
+    sessionSkipped = [];
     currentIndex = findNextIndex(0);
     if(currentIndex === -1){ timerState = 'done'; }
     else { secondsLeft = tasks[currentIndex].mins * 60; timerState = 'running'; startInterval(); }
@@ -744,9 +730,10 @@ function completeCurrentTask(){
   save();
   advanceAfterCurrent();
 }
-/* moves on WITHOUT marking the current task done — it stays pending for later */
+/* moves on WITHOUT marking the current task done — it stays pending, and gets asked about at session end */
 function skipCurrentTask(){
   if(currentIndex === -1 || !tasks[currentIndex]) return;
+  sessionSkipped.push({ ...tasks[currentIndex] });
   advanceAfterCurrent();
 }
 function advanceAfterCurrent(){
@@ -783,6 +770,45 @@ function refreshTimerDisplays(){
     const removeBtn = document.getElementById('done-remove-btn');
     removeBtn.textContent = 'Remove completed';
     removeBtn.disabled = tasks.every(t => !t.done);
+
+    const skippedSection = document.getElementById('skipped-section');
+    const stillPendingSkips = sessionSkipped.filter(s => tasks.some(t => t.id === s.id));
+    if(stillPendingSkips.length === 0){
+      skippedSection.classList.add('hidden');
+    } else {
+      skippedSection.classList.remove('hidden');
+      const skippedList = document.getElementById('skipped-list');
+      skippedList.innerHTML = stillPendingSkips.map(s => {
+        const live = tasks.find(t => t.id === s.id);
+        return `
+        <div class="review-item">
+          <input type="checkbox" data-id="${s.id}" ${live && live.done ? 'checked' : ''}>
+          <span class="priority-badge" style="color:var(--${s.priority})">${PRIORITY_LABELS[s.priority]}</span>
+          <span class="name">${s.name}</span>
+          ${s.tag ? `<span class="tag-badge">${TAG_ICONS[s.tag]}</span>` : ''}
+          <span class="mins">${s.mins} min</span>
+        </div>
+      `;
+      }).join('');
+      skippedList.querySelectorAll('input[type=checkbox]').forEach(cb => {
+        cb.onchange = () => {
+          const id = cb.dataset.id;
+          const t = tasks.find(x => x.id === id);
+          if(!t) return;
+          if(cb.checked && !t.done){
+            t.done = true;
+            if(!sessionCompleted.find(x => x.id === id)) sessionCompleted.push({ ...t });
+          } else if(!cb.checked && t.done){
+            t.done = false;
+            const idx = sessionCompleted.findIndex(x => x.id === id);
+            if(idx !== -1) sessionCompleted.splice(idx, 1);
+          }
+          save();
+          refreshTimerDisplays();
+        };
+      });
+    }
+
     miniBar.classList.add('hidden');
     return;
   }
@@ -922,25 +948,6 @@ document.getElementById('export-copy-btn').onclick = () => {
   }
 };
 
-/* ---------- quick sort ---------- */
-function sortByPriority(){
-  tasks = [...tasks].sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority));
-  save(); render();
-}
-function sortByTag(tag){
-  const matched = tasks.filter(t => t.tag === tag);
-  const rest = tasks.filter(t => t.tag !== tag);
-  tasks = [...matched, ...rest];
-  save(); render();
-}
-document.querySelectorAll('.sort-chip').forEach(btn => {
-  btn.onclick = () => {
-    const key = btn.dataset.sort;
-    if(key === 'priority') sortByPriority();
-    else sortByTag(key);
-  };
-});
-
 /* ---------- "I have X minutes" → review selection ---------- */
 let reviewBudget = 0;
 let budgetTagFilter = null;
@@ -1048,7 +1055,8 @@ document.getElementById('done-export-btn').onclick = () => {
 document.getElementById('done-remove-btn').onclick = () => {
   if(document.getElementById('done-remove-btn').disabled) return;
   tasks = tasks.filter(t => !t.done);
-  save(); render();
+  save();
+  refreshTimerDisplays();
   const btn = document.getElementById('done-remove-btn');
   btn.textContent = 'Removed ✓';
   btn.disabled = true;
@@ -1064,11 +1072,45 @@ document.getElementById('board-close-btn').onclick = () => {
   document.getElementById('board-screen').classList.add('hidden');
 };
 
+/* ---------- completed report ---------- */
+document.getElementById('open-report-btn').onclick = () => {
+  const completed = tasks.filter(t => t.done);
+  const totalMins = completed.reduce((s, t) => s + t.mins, 0);
+  document.getElementById('report-summary').textContent =
+    completed.length === 0 ? 'No completed tasks yet.' : `${completed.length} task${completed.length > 1 ? 's' : ''} • ${totalMins} min`;
+  const list = document.getElementById('report-list');
+  list.innerHTML = completed.map(t => `
+    <div class="review-item">
+      <span style="color:var(--accent); flex-shrink:0;">✓</span>
+      <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
+      <span class="name">${t.name}</span>
+      ${t.tag ? `<span class="tag-badge">${TAG_ICONS[t.tag]}</span>` : ''}
+      <span class="mins">${t.mins} min</span>
+    </div>
+  `).join('');
+  document.getElementById('report-clear-btn').disabled = completed.length === 0;
+  document.getElementById('report-modal').classList.remove('hidden');
+};
+document.getElementById('report-close-btn').onclick = () => document.getElementById('report-modal').classList.add('hidden');
+document.getElementById('report-export-btn').onclick = () => {
+  const completed = tasks.filter(t => t.done);
+  const lines = completed.map(t => `[x] ${t.name}, ${t.mins}, ${t.priority}${t.tag ? ', ' + t.tag : ''}`);
+  document.getElementById('export-textarea').value = lines.join('\n');
+  document.getElementById('export-modal').classList.remove('hidden');
+};
+document.getElementById('report-clear-btn').onclick = () => {
+  if(document.getElementById('report-clear-btn').disabled) return;
+  if(!confirm('Clear all completed tasks for today?')) return;
+  tasks = tasks.filter(t => !t.done);
+  save(); render();
+  document.getElementById('report-modal').classList.add('hidden');
+};
+
 function renderBoard(){
   const body = document.getElementById('board-body');
   body.innerHTML = '';
   PRIORITIES.forEach(p => {
-    const zoneTasks = tasks.filter(t => t.priority === p);
+    const zoneTasks = tasks.filter(t => t.priority === p && !t.done);
     const zone = document.createElement('div');
     zone.className = 'priority-zone';
     zone.dataset.priority = p;
