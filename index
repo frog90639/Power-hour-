@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Power Hour</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#1a1d24; --accent:#6ee7b7; --accent2:#f97316;
+    --text:#f2f3f5; --muted:#8a8f98; --danger:#ef4444;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg); color:var(--text); min-height:100vh; padding:20px;
+  }
+  h1{font-size:1.4rem; margin:0 0 4px;}
+  .sub{color:var(--muted); font-size:0.85rem; margin-bottom:20px;}
+
+  .add-row{
+    display:flex; gap:8px; margin-bottom:16px; align-items:center; flex-wrap:wrap;
+  }
+  input[type=text]{
+    flex:1; min-width:150px; padding:12px 14px; border-radius:10px; border:1px solid #2a2e37;
+    background:var(--card); color:var(--text); font-size:1rem;
+  }
+  .mic-btn{
+    width:46px; height:46px; border-radius:50%; border:none; background:var(--card);
+    color:var(--text); font-size:1.2rem; cursor:pointer; border:1px solid #2a2e37;
+  }
+  .mic-btn.listening{background:var(--danger); animation:pulse 1s infinite;}
+  @keyframes pulse{0%{opacity:1;}50%{opacity:.5;}100%{opacity:1;}}
+
+  .time-stepper{
+    display:flex; align-items:center; gap:8px; background:var(--card);
+    border:1px solid #2a2e37; border-radius:10px; padding:6px 10px;
+  }
+  .time-stepper button{
+    background:none; border:none; color:var(--text); font-size:1.2rem; cursor:pointer; padding:4px 8px;
+  }
+  .time-stepper span{min-width:48px; text-align:center; font-variant-numeric:tabular-nums;}
+
+  .add-btn{
+    padding:12px 18px; border-radius:10px; border:none; background:var(--accent);
+    color:#0f1115; font-weight:600; cursor:pointer; font-size:1rem;
+  }
+
+  ul#task-list{list-style:none; padding:0; margin:0 0 24px;}
+  li.task{
+    display:flex; align-items:center; gap:10px; background:var(--card);
+    border-radius:10px; padding:12px 14px; margin-bottom:8px; border:1px solid #2a2e37;
+  }
+  li.task.done{opacity:0.4; text-decoration:line-through;}
+  li.task.current{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent);}
+  li.task input[type=checkbox]{width:20px; height:20px; flex-shrink:0;}
+  li.task .name{flex:1;}
+  li.task .mins{color:var(--muted); font-size:0.85rem; flex-shrink:0;}
+  li.task .del{background:none; border:none; color:var(--muted); font-size:1.1rem; cursor:pointer;}
+
+  .timer-card{
+    background:var(--card); border-radius:16px; padding:24px; text-align:center;
+    border:1px solid #2a2e37;
+  }
+  .timer-current{font-size:1rem; color:var(--muted); margin-bottom:6px;}
+  .timer-task{font-size:1.4rem; font-weight:700; margin-bottom:12px; min-height:1.6em;}
+  .timer-clock{font-size:3rem; font-variant-numeric:tabular-nums; font-weight:700; margin-bottom:16px;}
+  .timer-controls{display:flex; gap:10px; justify-content:center;}
+  .timer-controls button{
+    padding:12px 20px; border-radius:10px; border:none; font-size:1rem; font-weight:600; cursor:pointer;
+  }
+  #start-btn{background:var(--accent); color:#0f1115;}
+  #pause-btn{background:var(--accent2); color:#0f1115;}
+  #skip-btn{background:#2a2e37; color:var(--text);}
+  #reset-btn{background:#2a2e37; color:var(--text);}
+
+  .empty{color:var(--muted); text-align:center; padding:20px 0;}
+</style>
+</head>
+<body>
+
+<h1>⏱️ Power Hour</h1>
+<div class="sub">Add tasks in 5-min blocks, then run through them one at a time.</div>
+
+<div class="add-row">
+  <input type="text" id="task-input" placeholder="What are you working on?">
+  <button class="mic-btn" id="mic-btn" title="Voice input">🎤</button>
+  <div class="time-stepper">
+    <button id="minus-btn">−</button>
+    <span id="mins-display">5 min</span>
+    <button id="plus-btn">+</button>
+  </div>
+  <button class="add-btn" id="add-btn">Add</button>
+</div>
+
+<ul id="task-list"></ul>
+
+<div class="timer-card">
+  <div class="timer-current" id="timer-current">No task running</div>
+  <div class="timer-task" id="timer-task">—</div>
+  <div class="timer-clock" id="timer-clock">00:00</div>
+  <div class="timer-controls">
+    <button id="start-btn">Start</button>
+    <button id="pause-btn" style="display:none;">Pause</button>
+    <button id="skip-btn">Skip</button>
+    <button id="reset-btn">Reset</button>
+  </div>
+</div>
+
+<script>
+let tasks = JSON.parse(localStorage.getItem('powerHourTasks') || '[]');
+let pendingMins = 5;
+let currentIndex = -1;
+let secondsLeft = 0;
+let timerInterval = null;
+let isPaused = false;
+
+const taskInput = document.getElementById('task-input');
+const taskList = document.getElementById('task-list');
+const minsDisplay = document.getElementById('mins-display');
+const timerCurrent = document.getElementById('timer-current');
+const timerTask = document.getElementById('timer-task');
+const timerClock = document.getElementById('timer-clock');
+const startBtn = document.getElementById('start-btn');
+const pauseBtn = document.getElementById('pause-btn');
+
+function save(){ localStorage.setItem('powerHourTasks', JSON.stringify(tasks)); }
+
+function render(){
+  taskList.innerHTML = '';
+  if(tasks.length === 0){
+    taskList.innerHTML = '<div class="empty">No tasks yet — add one above.</div>';
+    return;
+  }
+  tasks.forEach((t, i) => {
+    const li = document.createElement('li');
+    li.className = 'task' + (t.done ? ' done' : '') + (i === currentIndex ? ' current' : '');
+    li.innerHTML = `
+      <input type="checkbox" ${t.done ? 'checked' : ''} data-i="${i}">
+      <span class="name">${t.name}</span>
+      <span class="mins">${t.mins} min</span>
+      <button class="del" data-i="${i}">✕</button>
+    `;
+    taskList.appendChild(li);
+  });
+}
+
+taskList.addEventListener('click', e => {
+  const i = e.target.dataset.i;
+  if(i === undefined) return;
+  if(e.target.type === 'checkbox'){
+    tasks[i].done = e.target.checked;
+    save(); render();
+  } else if(e.target.classList.contains('del')){
+    tasks.splice(i, 1);
+    if(currentIndex === parseInt(i)) resetTimer();
+    save(); render();
+  }
+});
+
+document.getElementById('plus-btn').onclick = () => { pendingMins += 5; minsDisplay.textContent = pendingMins + ' min'; };
+document.getElementById('minus-btn').onclick = () => { pendingMins = Math.max(5, pendingMins - 5); minsDisplay.textContent = pendingMins + ' min'; };
+
+document.getElementById('add-btn').onclick = addTask;
+taskInput.addEventListener('keydown', e => { if(e.key === 'Enter') addTask(); });
+
+function addTask(){
+  const name = taskInput.value.trim();
+  if(!name) return;
+  tasks.push({ name, mins: pendingMins, done: false });
+  taskInput.value = '';
+  pendingMins = 5;
+  minsDisplay.textContent = '5 min';
+  save(); render();
+}
+
+// Voice input
+const micBtn = document.getElementById('mic-btn');
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+if(SpeechRecognition){
+  const recog = new SpeechRecognition();
+  recog.continuous = false;
+  recog.interimResults = false;
+  recog.lang = 'en-US';
+  let listening = false;
+
+  micBtn.onclick = () => {
+    if(listening) return;
+    listening = true;
+    micBtn.classList.add('listening');
+    recog.start();
+  };
+  recog.onresult = (e) => {
+    taskInput.value = e.results[0][0].transcript;
+  };
+  recog.onend = () => { listening = false; micBtn.classList.remove('listening'); };
+  recog.onerror = () => { listening = false; micBtn.classList.remove('listening'); };
+} else {
+  micBtn.style.display = 'none';
+}
+
+// Timer logic
+function formatTime(s){
+  const m = Math.floor(s/60).toString().padStart(2,'0');
+  const sec = (s%60).toString().padStart(2,'0');
+  return `${m}:${sec}`;
+}
+
+function findNextIndex(from){
+  for(let i = from; i < tasks.length; i++){
+    if(!tasks[i].done) return i;
+  }
+  return -1;
+}
+
+function startTimer(){
+  if(currentIndex === -1){
+    currentIndex = findNextIndex(0);
+    if(currentIndex === -1){ timerCurrent.textContent = 'All tasks done! 🎉'; return; }
+    secondsLeft = tasks[currentIndex].mins * 60;
+  }
+  isPaused = false;
+  startBtn.style.display = 'none';
+  pauseBtn.style.display = 'inline-block';
+  updateTimerDisplay();
+  timerInterval = setInterval(tick, 1000);
+}
+
+function tick(){
+  secondsLeft--;
+  if(secondsLeft < 0){
+    tasks[currentIndex].done = true;
+    save(); render();
+    const next = findNextIndex(currentIndex + 1);
+    if(next === -1){
+      clearInterval(timerInterval);
+      timerCurrent.textContent = 'All tasks done! 🎉';
+      timerTask.textContent = '—';
+      timerClock.textContent = '00:00';
+      startBtn.style.display = 'inline-block';
+      pauseBtn.style.display = 'none';
+      currentIndex = -1;
+      return;
+    }
+    currentIndex = next;
+    secondsLeft = tasks[currentIndex].mins * 60;
+    render();
+  }
+  updateTimerDisplay();
+}
+
+function updateTimerDisplay(){
+  timerCurrent.textContent = `Task ${currentIndex + 1} of ${tasks.length}`;
+  timerTask.textContent = tasks[currentIndex] ? tasks[currentIndex].name : '—';
+  timerClock.textContent = formatTime(secondsLeft);
+  render();
+}
+
+startBtn.onclick = startTimer;
+
+pauseBtn.onclick = () => {
+  clearInterval(timerInterval);
+  isPaused = true;
+  startBtn.style.display = 'inline-block';
+  startBtn.textContent = 'Resume';
+  pauseBtn.style.display = 'none';
+};
+
+document.getElementById('skip-btn').onclick = () => {
+  if(currentIndex === -1) return;
+  tasks[currentIndex].done = true;
+  save();
+  clearInterval(timerInterval);
+  const next = findNextIndex(currentIndex + 1);
+  if(next === -1){
+    timerCurrent.textContent = 'All tasks done! 🎉';
+    timerTask.textContent = '—';
+    timerClock.textContent = '00:00';
+    startBtn.style.display = 'inline-block';
+    startBtn.textContent = 'Start';
+    pauseBtn.style.display = 'none';
+    currentIndex = -1;
+    render();
+    return;
+  }
+  currentIndex = next;
+  secondsLeft = tasks[currentIndex].mins * 60;
+  updateTimerDisplay();
+  if(!isPaused) timerInterval = setInterval(tick, 1000);
+};
+
+function resetTimer(){
+  clearInterval(timerInterval);
+  currentIndex = -1;
+  secondsLeft = 0;
+  isPaused = false;
+  timerCurrent.textContent = 'No task running';
+  timerTask.textContent = '—';
+  timerClock.textContent = '00:00';
+  startBtn.style.display = 'inline-block';
+  startBtn.textContent = 'Start';
+  pauseBtn.style.display = 'none';
+  render();
+}
+document.getElementById('reset-btn').onclick = () => {
+  tasks.forEach(t => t.done = false);
+  save();
+  resetTimer();
+};
+
+render();
+</script>
+</body>
+</html>
