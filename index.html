@@ -970,14 +970,39 @@ document.getElementById('budget-build-btn').onclick = () => {
 function openReviewModal(budget){
   reviewBudget = budget;
   const pending = tasks.filter(t => !t.done); // current order reflects whichever quick sort is active
-  let total = 0;
-  const selected = new Set();
-  pending.forEach(t => {
-    if(total + t.mins <= budget){ selected.add(t.id); total += t.mins; }
-  });
+  const selected = pickTasksForBudget(pending, budget);
   renderReviewList(pending, selected);
   updateReviewTotal();
   document.getElementById('review-modal').classList.remove('hidden');
+}
+
+/* Picks the set of tasks (from `pending`, in its given order) that best fills `budget`
+   minutes without going over. Uses exact 0/1-knapsack rather than a single top-down pass,
+   so it won't leave time unused when a different combination would fit better — e.g. two
+   20+10 min tasks over one 25 min task, if the budget is 30. Ties are resolved in favor of
+   whichever combination keeps the earlier (higher-priority/sort-order) tasks. */
+function pickTasksForBudget(pending, budget){
+  const n = pending.length;
+  const selected = new Set();
+  if(n === 0 || budget <= 0) return selected;
+  const dp = [new Array(budget + 1).fill(0)];
+  for(let i = 1; i <= n; i++){
+    const mins = pending[i - 1].mins;
+    const prev = dp[i - 1];
+    const row = new Array(budget + 1);
+    for(let b = 0; b <= budget; b++){
+      row[b] = mins > b ? prev[b] : Math.max(prev[b], prev[b - mins] + mins);
+    }
+    dp.push(row);
+  }
+  let b = budget;
+  for(let i = n; i >= 1; i--){
+    if(dp[i][b] !== dp[i - 1][b]){
+      selected.add(pending[i - 1].id);
+      b -= pending[i - 1].mins;
+    }
+  }
+  return selected;
 }
 
 function renderReviewList(pending, selectedIds){
