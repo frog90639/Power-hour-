@@ -62,6 +62,8 @@
   }
 
   .budget-card{background:var(--card); border:1px solid #2a2e37; border-radius:14px; padding:14px; margin-bottom:16px;}
+  .add-task-card{background:var(--card); border:1px solid #2a2e37; border-radius:14px; padding:14px; margin-bottom:8px;}
+  .add-task-card .add-row{margin-bottom:10px;}
   .budget-row{display:flex; align-items:center; gap:8px; font-size:0.95rem; flex-wrap:wrap;}
   .budget-row input[type=number]{
     width:70px; padding:10px; border-radius:8px; border:1px solid #2a2e37; background:var(--bg);
@@ -187,20 +189,25 @@
   </div>
 </div>
 
-<div class="tag-picker" id="add-tag-picker" style="margin-bottom:8px;"></div>
-<div class="add-row">
-  <input type="text" id="task-input" placeholder="What are you working on?">
-  <button class="mic-btn" id="mic-btn" title="Voice input">🎤</button>
-</div>
-<div class="add-row" style="flex-wrap:nowrap; overflow-x:auto;">
-  <div class="time-stepper">
-    <button id="minus-btn">−</button>
-    <span id="mins-display">5 min</span>
-    <button id="plus-btn">+</button>
+<div class="add-task-card" id="add-task-card">
+  <div class="add-row">
+    <input type="text" id="task-input" placeholder="What are you working on?">
+    <button class="mic-btn" id="mic-btn" title="Voice input">🎤</button>
   </div>
-  <div class="priority-picker" id="add-priority-picker"></div>
+  <div class="add-row" style="flex-wrap:nowrap; overflow-x:auto; margin-bottom:0;">
+    <div class="time-stepper">
+      <button id="minus-btn">−</button>
+      <span id="mins-display">5 min</span>
+      <button id="plus-btn">+</button>
+    </div>
+    <div class="priority-picker" id="add-priority-picker"></div>
+  </div>
+  <div class="budget-row" style="margin-top:10px;">
+    <span style="color:var(--muted); font-size:0.85rem;">Tag:</span>
+    <div class="tag-picker" id="add-tag-picker"></div>
+  </div>
+  <button class="add-btn full" id="add-btn" style="margin-top:12px;">Add task</button>
 </div>
-<button class="add-btn full" id="add-btn">Add task</button>
 <button id="bulk-add-btn" style="width:100%; margin-top:6px; background:none; border:1px solid #2a2e37; color:var(--muted); padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;">＋ Bulk add (paste a list)</button>
 <button id="export-btn" style="width:100%; margin-top:6px; background:none; border:1px solid #2a2e37; color:var(--muted); padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;">⇧ Export tasks</button>
 <button id="open-board-btn" style="width:100%; margin-top:6px; background:none; border:1px solid #2a2e37; color:var(--muted); padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;">🎯 Priority board</button>
