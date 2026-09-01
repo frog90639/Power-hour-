@@ -82,7 +82,7 @@
   .sort-chip:active{opacity:0.7;}
 
   .budget-card{background:var(--card); border:1px solid #2a2e37; border-radius:14px; padding:14px; margin-bottom:16px;}
-  .budget-row{display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:0.95rem;}
+  .budget-row{display:flex; align-items:center; gap:8px; font-size:0.95rem; flex-wrap:wrap;}
   .budget-row input[type=number]{
     width:70px; padding:10px; border-radius:8px; border:1px solid #2a2e37; background:var(--bg);
     color:var(--text); font-size:1rem; text-align:center;
@@ -142,6 +142,8 @@
   #pause-btn{background:var(--accent2); color:#0f1115;}
   #skip-btn{background:#2a2e37; color:var(--text);}
   #stop-btn{background:#2a2e37; color:var(--text);}
+  #done-export-btn, #done-close-btn{background:#2a2e37; color:var(--text);}
+  #done-remove-btn:disabled{opacity:0.4; cursor:default;}
   .up-next{color:var(--muted); font-size:0.85rem;}
 
   /* mini bar */
@@ -174,8 +176,8 @@
     <span>I have</span>
     <input type="number" id="budget-input" min="5" step="5" value="60">
     <span>minutes</span>
+    <button class="add-btn" id="budget-build-btn" style="margin-left:auto; white-space:nowrap;">Pick tasks</button>
   </div>
-  <button class="add-btn full" id="budget-build-btn">Pick tasks for my time</button>
 </div>
 
 <div class="total-bar">
@@ -224,16 +226,29 @@
     <button class="icon-btn" id="close-timer-btn" title="Stop">✕</button>
   </div>
   <div class="timer-screen-body">
-    <div class="timer-priority-badge" id="timer-priority-badge">P3</div>
-    <div class="timer-current" id="timer-current">Task 1 of 1</div>
-    <div class="timer-task" id="timer-task">—</div>
-    <div class="timer-clock" id="timer-clock">00:00</div>
-    <div class="timer-controls">
-      <button id="pause-btn">Pause</button>
-      <button id="skip-btn">Skip</button>
-      <button id="stop-btn">Stop</button>
+    <div id="timer-active-view">
+      <div class="timer-priority-badge" id="timer-priority-badge">P3</div>
+      <div class="timer-current" id="timer-current">Task 1 of 1</div>
+      <div class="timer-task" id="timer-task">—</div>
+      <div class="timer-clock" id="timer-clock">00:00</div>
+      <div class="timer-controls">
+        <button id="pause-btn">Pause</button>
+        <button id="skip-btn">Skip</button>
+        <button id="stop-btn">Stop</button>
+      </div>
+      <div class="up-next" id="up-next"></div>
     </div>
-    <div class="up-next" id="up-next"></div>
+    <div id="timer-done-view" class="hidden">
+      <div style="font-size:3rem; margin-bottom:6px;">🎉</div>
+      <div class="timer-task">Well done!</div>
+      <div id="done-summary" style="color:var(--muted); font-size:0.9rem; margin-bottom:16px;"></div>
+      <div id="done-list" style="width:100%; max-width:420px; text-align:left; max-height:38vh; overflow-y:auto; margin-bottom:20px;"></div>
+      <div class="timer-controls" style="flex-wrap:wrap;">
+        <button id="done-export-btn">⇧ Export list</button>
+        <button id="done-remove-btn" style="background:var(--danger); color:#fff;">Remove completed</button>
+        <button id="done-close-btn">Close</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -326,7 +341,7 @@ const TAG_ICONS = {nohands:'🎧', errands:'🏃', movearound:'🚶'};
 let tasks = JSON.parse(localStorage.getItem('powerHourTasks') || '[]');
 let pendingMins = 5, pendingPriority = 'p3', pendingTag = null;
 let editMins = 5, editPriority = 'p3', editTag = null, editTaskId = null;
-let currentIndex = -1, secondsLeft = 0, timerInterval = null, sessionTaskIds = null;
+let currentIndex = -1, secondsLeft = 0, timerInterval = null, sessionTaskIds = null, sessionCompleted = [];
 let timerState = 'idle'; // idle | running | paused | done
 
 const taskInput = document.getElementById('task-input');
@@ -659,6 +674,7 @@ function sessionPosition(){
 function beginRun(){
   if(tasks.length === 0) return;
   if(timerState === 'idle'){
+    sessionCompleted = [];
     currentIndex = findNextIndex(0);
     if(currentIndex === -1){ timerState = 'done'; }
     else { secondsLeft = tasks[currentIndex].mins * 60; timerState = 'running'; startInterval(); }
@@ -677,6 +693,7 @@ function tick(){
   secondsLeft--;
   if(secondsLeft < 0){
     tasks[currentIndex].done = true;
+    sessionCompleted.push({ ...tasks[currentIndex] });
     save();
     const next = findNextIndex(currentIndex + 1);
     if(next === -1){
@@ -692,18 +709,31 @@ function tick(){
 
 function refreshTimerDisplays(){
   render();
-  const doneCount = tasks.filter(t=>t.done).length;
   if(timerState === 'done'){
-    document.getElementById('timer-current').textContent = 'All done! 🎉';
-    document.getElementById('timer-task').textContent = 'Nice work.';
-    document.getElementById('timer-clock').textContent = '00:00';
-    document.getElementById('timer-priority-badge').classList.add('hidden');
-    document.getElementById('up-next').textContent = '';
-    document.getElementById('pause-btn').classList.add('hidden');
-    document.getElementById('skip-btn').classList.add('hidden');
+    document.getElementById('timer-active-view').classList.add('hidden');
+    document.getElementById('timer-done-view').classList.remove('hidden');
+    const completed = sessionCompleted;
+    const totalMins = completed.reduce((s, t) => s + t.mins, 0);
+    document.getElementById('done-summary').textContent =
+      completed.length === 0 ? 'No tasks were completed this session.' : `${completed.length} task${completed.length>1?'s':''} • ${totalMins} min ticked off.`;
+    const list = document.getElementById('done-list');
+    list.innerHTML = completed.map(t => `
+      <div class="review-item">
+        <span style="color:var(--accent); flex-shrink:0;">✓</span>
+        <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
+        <span class="name">${t.name}</span>
+        ${t.tag ? `<span class="tag-badge">${TAG_ICONS[t.tag]}</span>` : ''}
+        <span class="mins">${t.mins} min</span>
+      </div>
+    `).join('');
+    const removeBtn = document.getElementById('done-remove-btn');
+    removeBtn.textContent = 'Remove completed';
+    removeBtn.disabled = tasks.every(t => !t.done);
     miniBar.classList.add('hidden');
     return;
   }
+  document.getElementById('timer-active-view').classList.remove('hidden');
+  document.getElementById('timer-done-view').classList.add('hidden');
   if(currentIndex === -1 || !tasks[currentIndex]) return;
   const t = tasks[currentIndex];
   document.getElementById('pause-btn').classList.remove('hidden');
@@ -761,6 +791,7 @@ document.getElementById('mini-playpause').onclick = () => document.getElementByI
 document.getElementById('skip-btn').onclick = () => {
   if(currentIndex === -1) return;
   tasks[currentIndex].done = true;
+  sessionCompleted.push({ ...tasks[currentIndex] });
   save();
   const next = findNextIndex(currentIndex + 1);
   if(next === -1){
@@ -933,6 +964,22 @@ document.getElementById('review-start-btn').onclick = () => {
   document.getElementById('review-modal').classList.add('hidden');
   beginRun();
 };
+
+/* ---------- session completion actions ---------- */
+document.getElementById('done-export-btn').onclick = () => {
+  const lines = sessionCompleted.map(t => `[x] ${t.name}, ${t.mins}, ${t.priority}${t.tag ? ', ' + t.tag : ''}`);
+  document.getElementById('export-textarea').value = lines.join('\n');
+  document.getElementById('export-modal').classList.remove('hidden');
+};
+document.getElementById('done-remove-btn').onclick = () => {
+  if(document.getElementById('done-remove-btn').disabled) return;
+  tasks = tasks.filter(t => !t.done);
+  save(); render();
+  const btn = document.getElementById('done-remove-btn');
+  btn.textContent = 'Removed ✓';
+  btn.disabled = true;
+};
+document.getElementById('done-close-btn').onclick = closeTimerFully;
 
 render();
 </script>
