@@ -137,14 +137,36 @@
   .timer-current{font-size:1rem; color:var(--muted); margin-bottom:6px;}
   .timer-task{font-size:1.8rem; font-weight:700; margin-bottom:18px; padding:0 10px;}
   .timer-clock{font-size:4rem; font-variant-numeric:tabular-nums; font-weight:700; margin-bottom:24px;}
-  .timer-controls{display:flex; gap:10px; justify-content:center; margin-bottom:20px;}
+  .timer-controls{display:flex; gap:10px; justify-content:center; margin-bottom:20px; flex-wrap:wrap;}
   .timer-controls button{padding:14px 22px; border-radius:12px; border:none; font-size:1rem; font-weight:600; cursor:pointer;}
+  #done-current-btn{background:var(--accent); color:#0f1115;}
   #pause-btn{background:var(--accent2); color:#0f1115;}
   #skip-btn{background:#2a2e37; color:var(--text);}
   #stop-btn{background:#2a2e37; color:var(--text);}
   #done-export-btn, #done-close-btn{background:#2a2e37; color:var(--text);}
   #done-remove-btn:disabled{opacity:0.4; cursor:default;}
   .up-next{color:var(--muted); font-size:0.85rem;}
+
+  /* priority board */
+  .board-screen{
+    position:fixed; inset:0; background:var(--bg); z-index:200;
+    display:flex; flex-direction:column; padding:20px;
+  }
+  .board-body{flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding-bottom:20px;}
+  .priority-zone{border:2px solid #2a2e37; border-radius:14px; padding:12px; min-height:64px; transition:background 0.15s, box-shadow 0.15s;}
+  .priority-zone.drag-over{background:rgba(255,255,255,0.05); box-shadow:0 0 0 2px var(--accent) inset;}
+  .priority-zone-header{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
+  .priority-zone-label{padding:2px 10px; border-radius:12px; font-size:0.78rem; font-weight:700; color:#0f1115;}
+  .priority-zone-count{color:var(--muted); font-size:0.78rem;}
+  .zone-chips{min-height:8px;}
+  .board-chip{
+    background:var(--card); border:1px solid #2a2e37; border-radius:10px; padding:10px 12px;
+    margin-bottom:8px; font-size:0.88rem; cursor:grab; touch-action:none; user-select:none;
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+  }
+  .board-chip.dragging{opacity:0.35;}
+  .board-chip .mins{color:var(--muted); font-size:0.78rem; flex-shrink:0;}
+  .board-empty{color:var(--muted); font-size:0.8rem; padding:4px 2px;}
 
   /* mini bar */
   .mini-bar{
@@ -202,6 +224,7 @@
 <button class="add-btn full" id="add-btn">Add task</button>
 <button id="bulk-add-btn" style="width:100%; margin-top:6px; background:none; border:1px solid #2a2e37; color:var(--muted); padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;">＋ Bulk add (paste a list)</button>
 <button id="export-btn" style="width:100%; margin-top:6px; background:none; border:1px solid #2a2e37; color:var(--muted); padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;">⇧ Export tasks</button>
+<button id="open-board-btn" style="width:100%; margin-top:6px; background:none; border:1px solid #2a2e37; color:var(--muted); padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;">🎯 Priority board</button>
 
 <div class="sort-row" id="sort-row">
   <span class="sort-label">Sort:</span>
@@ -232,6 +255,7 @@
       <div class="timer-task" id="timer-task">—</div>
       <div class="timer-clock" id="timer-clock">00:00</div>
       <div class="timer-controls">
+        <button id="done-current-btn">✓ Done</button>
         <button id="pause-btn">Pause</button>
         <button id="skip-btn">Skip</button>
         <button id="stop-btn">Stop</button>
@@ -252,12 +276,23 @@
   </div>
 </div>
 
+<!-- priority board -->
+<div class="board-screen hidden" id="board-screen">
+  <div class="timer-screen-header">
+    <span class="title">Priority board</span>
+    <button class="icon-btn" id="board-close-btn">✕</button>
+  </div>
+  <p style="color:var(--muted); font-size:0.8rem; margin:0 0 12px;">Drag a task into a different box to change its priority.</p>
+  <div class="board-body" id="board-body"></div>
+</div>
+
 <!-- minimized bar -->
 <div class="mini-bar hidden" id="mini-bar">
   <div class="mini-info" id="mini-expand-area">
     <div class="mini-task" id="mini-task">—</div>
     <div class="mini-clock" id="mini-clock">00:00</div>
   </div>
+  <button class="icon-btn" id="mini-done" title="Mark done">✓</button>
   <button class="icon-btn" id="mini-playpause">⏸</button>
   <button class="icon-btn" id="mini-expand">⤢</button>
 </div>
@@ -448,7 +483,24 @@ taskList.addEventListener('change', e => {
   if(e.target.type !== 'checkbox') return;
   const id = e.target.closest('.task-item').dataset.id;
   const t = tasks.find(t => t.id === id);
-  if(t){ t.done = e.target.checked; save(); render(); }
+  if(!t) return;
+  const checked = e.target.checked;
+  const sessionActive = timerState === 'running' || timerState === 'paused';
+
+  if(checked && !t.done){
+    if(sessionActive && currentIndex !== -1 && tasks[currentIndex] && tasks[currentIndex].id === id){
+      completeCurrentTask(); // it's the task currently being timed — advance properly
+      return;
+    }
+    t.done = true;
+    if(sessionActive) sessionCompleted.push({ ...t });
+  } else if(!checked && t.done){
+    t.done = false;
+    const idx = sessionCompleted.findIndex(x => x.id === id);
+    if(idx !== -1) sessionCompleted.splice(idx, 1);
+  }
+  save(); render();
+  if(sessionActive) refreshTimerDisplays();
 });
 
 /* ---------- add task ---------- */
@@ -556,16 +608,19 @@ function onSwipeStart(e){
   swipeTaskId = swipeWrapper.dataset.id;
   swipeStartX = e.clientX; swipeStartY = e.clientY;
   swipeDX = 0; swipeActive = false;
+  try { swipeEl.setPointerCapture(e.pointerId); } catch(err) {}
   document.addEventListener('pointermove', onSwipeMove);
   document.addEventListener('pointerup', onSwipeEnd);
+  document.addEventListener('pointercancel', onSwipeEnd);
 }
 function onSwipeMove(e){
   if(!swipeEl) return;
   const dx = e.clientX - swipeStartX;
   const dy = e.clientY - swipeStartY;
   if(!swipeActive){
-    if(Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)){ swipeActive = true; }
-    else if(Math.abs(dy) > 8){ cleanupSwipe(); return; }
+    // wait until movement is clearly more horizontal than vertical before committing;
+    // real fingers drift diagonally, so don't bail out on a little vertical noise.
+    if(Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2){ swipeActive = true; }
     else { return; }
   }
   swipeDX = dx;
@@ -593,6 +648,7 @@ function resetSwipeEl(){
 function cleanupSwipe(){
   document.removeEventListener('pointermove', onSwipeMove);
   document.removeEventListener('pointerup', onSwipeEnd);
+  document.removeEventListener('pointercancel', onSwipeEnd);
   swipeEl = null; swipeWrapper = null; swipeActive = false; swipeDX = 0;
 }
 function deleteTaskById(id){
@@ -691,18 +747,31 @@ function startInterval(){
 function tick(){
   if(timerState !== 'running') return;
   secondsLeft--;
-  if(secondsLeft < 0){
-    tasks[currentIndex].done = true;
-    sessionCompleted.push({ ...tasks[currentIndex] });
-    save();
-    const next = findNextIndex(currentIndex + 1);
-    if(next === -1){
-      clearInterval(timerInterval);
-      timerState = 'done'; currentIndex = -1;
-    } else {
-      currentIndex = next;
-      secondsLeft = tasks[currentIndex].mins * 60;
-    }
+  if(secondsLeft < 0){ completeCurrentTask(); return; }
+  refreshTimerDisplays();
+}
+
+/* marks the current task done, records it for the session summary, and advances */
+function completeCurrentTask(){
+  if(currentIndex === -1 || !tasks[currentIndex]) return;
+  tasks[currentIndex].done = true;
+  sessionCompleted.push({ ...tasks[currentIndex] });
+  save();
+  advanceAfterCurrent();
+}
+/* moves on WITHOUT marking the current task done — it stays pending for later */
+function skipCurrentTask(){
+  if(currentIndex === -1 || !tasks[currentIndex]) return;
+  advanceAfterCurrent();
+}
+function advanceAfterCurrent(){
+  const next = findNextIndex(currentIndex + 1);
+  if(next === -1){
+    clearInterval(timerInterval);
+    timerState = 'done'; currentIndex = -1;
+  } else {
+    currentIndex = next;
+    secondsLeft = tasks[currentIndex].mins * 60;
   }
   refreshTimerDisplays();
 }
@@ -788,21 +857,9 @@ document.getElementById('pause-btn').onclick = () => {
 };
 document.getElementById('mini-playpause').onclick = () => document.getElementById('pause-btn').onclick();
 
-document.getElementById('skip-btn').onclick = () => {
-  if(currentIndex === -1) return;
-  tasks[currentIndex].done = true;
-  sessionCompleted.push({ ...tasks[currentIndex] });
-  save();
-  const next = findNextIndex(currentIndex + 1);
-  if(next === -1){
-    clearInterval(timerInterval);
-    timerState = 'done'; currentIndex = -1;
-  } else {
-    currentIndex = next;
-    secondsLeft = tasks[currentIndex].mins * 60;
-  }
-  refreshTimerDisplays();
-};
+document.getElementById('done-current-btn').onclick = completeCurrentTask;
+document.getElementById('mini-done').onclick = completeCurrentTask;
+document.getElementById('skip-btn').onclick = skipCurrentTask;
 
 document.getElementById('stop-btn').onclick = closeTimerFully;
 
@@ -980,6 +1037,91 @@ document.getElementById('done-remove-btn').onclick = () => {
   btn.disabled = true;
 };
 document.getElementById('done-close-btn').onclick = closeTimerFully;
+
+/* ---------- priority board ---------- */
+document.getElementById('open-board-btn').onclick = () => {
+  renderBoard();
+  document.getElementById('board-screen').classList.remove('hidden');
+};
+document.getElementById('board-close-btn').onclick = () => {
+  document.getElementById('board-screen').classList.add('hidden');
+};
+
+function renderBoard(){
+  const body = document.getElementById('board-body');
+  body.innerHTML = '';
+  PRIORITIES.forEach(p => {
+    const zoneTasks = tasks.filter(t => t.priority === p);
+    const zone = document.createElement('div');
+    zone.className = 'priority-zone';
+    zone.dataset.priority = p;
+    zone.style.borderColor = `var(--${p})`;
+    zone.innerHTML = `
+      <div class="priority-zone-header">
+        <span class="priority-zone-label" style="background:var(--${p})">${PRIORITY_LABELS[p]}</span>
+        <span class="priority-zone-count">${zoneTasks.length} task${zoneTasks.length !== 1 ? 's' : ''}</span>
+      </div>
+      <div class="zone-chips" data-priority="${p}"></div>
+    `;
+    body.appendChild(zone);
+    const chipsEl = zone.querySelector('.zone-chips');
+    if(zoneTasks.length === 0){
+      chipsEl.innerHTML = '<div class="board-empty">Drop a task here</div>';
+    } else {
+      zoneTasks.forEach(t => {
+        const chip = document.createElement('div');
+        chip.className = 'board-chip';
+        chip.dataset.id = t.id;
+        chip.innerHTML = `<span>${t.name}</span><span class="mins">${t.mins} min</span>`;
+        chip.onpointerdown = onChipDragStart;
+        chipsEl.appendChild(chip);
+      });
+    }
+  });
+}
+
+let chipDragEl = null, chipDragId = null, chipStartX = 0, chipStartY = 0;
+
+function onChipDragStart(e){
+  chipDragEl = e.currentTarget;
+  chipDragId = chipDragEl.dataset.id;
+  chipStartX = e.clientX; chipStartY = e.clientY;
+  chipDragEl.classList.add('dragging');
+  chipDragEl.style.position = 'relative';
+  chipDragEl.style.zIndex = '50';
+  chipDragEl.style.pointerEvents = 'none'; // so elementFromPoint sees the zone underneath, not the chip itself
+  try { chipDragEl.setPointerCapture(e.pointerId); } catch(err) {}
+  document.addEventListener('pointermove', onChipDragMove);
+  document.addEventListener('pointerup', onChipDragEnd);
+  document.addEventListener('pointercancel', onChipDragEnd);
+}
+function onChipDragMove(e){
+  if(!chipDragEl) return;
+  const dx = e.clientX - chipStartX, dy = e.clientY - chipStartY;
+  chipDragEl.style.transform = `translate(${dx}px, ${dy}px)`;
+  document.querySelectorAll('.priority-zone').forEach(z => z.classList.remove('drag-over'));
+  const target = document.elementFromPoint(e.clientX, e.clientY);
+  const zone = target ? target.closest('.priority-zone') : null;
+  if(zone) zone.classList.add('drag-over');
+}
+function onChipDragEnd(e){
+  document.removeEventListener('pointermove', onChipDragMove);
+  document.removeEventListener('pointerup', onChipDragEnd);
+  document.removeEventListener('pointercancel', onChipDragEnd);
+  if(!chipDragEl) return;
+  const target = document.elementFromPoint(e.clientX, e.clientY);
+  const zone = target ? target.closest('.priority-zone') : null;
+  document.querySelectorAll('.priority-zone').forEach(z => z.classList.remove('drag-over'));
+  if(zone){
+    const newPriority = zone.dataset.priority;
+    const t = tasks.find(t => t.id === chipDragId);
+    if(t && t.priority !== newPriority){ t.priority = newPriority; save(); }
+  }
+  chipDragEl.style.pointerEvents = '';
+  chipDragEl = null; chipDragId = null;
+  renderBoard();
+  render();
+}
 
 render();
 </script>
