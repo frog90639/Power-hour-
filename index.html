@@ -15,7 +15,21 @@
     background:var(--bg); color:var(--text); min-height:100vh; padding:20px;
   }
   h1{font-size:1.4rem; margin:0 0 4px;}
-  .sub{color:var(--muted); font-size:0.85rem; margin-bottom:20px;}
+  .sub{color:var(--muted); font-size:0.85rem; margin-bottom:12px;}
+
+.total-bar{
+  background:var(--card); border:1px solid #2a2e37; border-radius:10px;
+  padding:10px 14px; margin-bottom:16px; display:flex; align-items:center; gap:10px;
+}
+.total-bar .label{font-size:0.9rem; color:var(--muted); white-space:nowrap;}
+.total-bar .amount{font-weight:700; font-size:0.95rem; white-space:nowrap;}
+.total-bar .amount.over{color:var(--danger);}
+.total-bar .amount.ok{color:var(--accent);}
+.total-bar .track{
+  flex:1; height:8px; background:#2a2e37; border-radius:5px; overflow:hidden;
+}
+.total-bar .fill{height:100%; background:var(--accent); transition:width .2s;}
+.total-bar .fill.over{background:var(--danger);}
 
   .add-row{
     display:flex; gap:8px; margin-bottom:16px; align-items:center; flex-wrap:wrap;
@@ -56,6 +70,12 @@
   li.task .name{flex:1;}
   li.task .mins{color:var(--muted); font-size:0.85rem; flex-shrink:0;}
   li.task .del{background:none; border:none; color:var(--muted); font-size:1.1rem; cursor:pointer;}
+  li.task .handle{
+    cursor:grab; color:var(--muted); font-size:1.1rem; padding:0 2px; flex-shrink:0;
+    touch-action:none; user-select:none;
+  }
+  li.task.dragging{opacity:0.5; border-color:var(--accent);}
+  li.task.drag-placeholder{border:1px dashed var(--accent); background:transparent;}
 
   .timer-card{
     background:var(--card); border-radius:16px; padding:24px; text-align:center;
@@ -80,6 +100,12 @@
 
 <h1>⏱️ Power Hour</h1>
 <div class="sub">Add tasks in 5-min blocks, then run through them one at a time.</div>
+
+<div class="total-bar">
+  <span class="label">Assigned</span>
+  <div class="track"><div class="fill" id="total-fill"></div></div>
+  <span class="amount" id="total-amount">0 / 60 min</span>
+</div>
 
 <div class="add-row">
   <input type="text" id="task-input" placeholder="What are you working on?">
@@ -134,7 +160,9 @@ function render(){
   tasks.forEach((t, i) => {
     const li = document.createElement('li');
     li.className = 'task' + (t.done ? ' done' : '') + (i === currentIndex ? ' current' : '');
+    li.dataset.i = i;
     li.innerHTML = `
+      <span class="handle">⋮⋮</span>
       <input type="checkbox" ${t.done ? 'checked' : ''} data-i="${i}">
       <span class="name">${t.name}</span>
       <span class="mins">${t.mins} min</span>
@@ -142,6 +170,21 @@ function render(){
     `;
     taskList.appendChild(li);
   });
+  attachDragHandlers();
+  updateTotalBar();
+}
+
+function updateTotalBar(){
+  const total = tasks.reduce((sum, t) => sum + t.mins, 0);
+  const fill = document.getElementById('total-fill');
+  const amount = document.getElementById('total-amount');
+  const pct = Math.min(100, (total / 60) * 100);
+  fill.style.width = pct + '%';
+  amount.textContent = `${total} / 60 min`;
+  const over = total > 60;
+  fill.classList.toggle('over', over);
+  amount.classList.toggle('over', over);
+  amount.classList.toggle('ok', !over);
 }
 
 taskList.addEventListener('click', e => {
@@ -306,6 +349,91 @@ document.getElementById('reset-btn').onclick = () => {
   save();
   resetTimer();
 };
+
+function attachDragHandlers(){
+  document.querySelectorAll('.handle').forEach(handle => {
+    handle.onpointerdown = onDragStart;
+  });
+}
+
+let dragEl = null, dragStartY = 0, dragStartIndex = 0, placeholderIndex = 0;
+
+function onDragStart(e){
+  const li = e.target.closest('li.task');
+  if(!li) return;
+  e.preventDefault();
+  dragEl = li;
+  dragStartIndex = parseInt(li.dataset.i);
+  placeholderIndex = dragStartIndex;
+  dragStartY = e.clientY;
+  li.classList.add('dragging');
+  li.style.position = 'relative';
+  li.style.zIndex = '10';
+  document.addEventListener('pointermove', onDragMove);
+  document.addEventListener('pointerup', onDragEnd);
+}
+
+function onDragMove(e){
+  if(!dragEl) return;
+  const dy = e.clientY - dragStartY;
+  dragEl.style.transform = `translateY(${dy}px)`;
+
+  const siblings = [...taskList.querySelectorAll('li.task:not(.dragging)')];
+  const dragRect = dragEl.getBoundingClientRect();
+  const dragMid = dragRect.top + dragRect.height / 2;
+
+  let newIndex = placeholderIndex;
+  for(let i = 0; i < siblings.length; i++){
+    const rect = siblings[i].getBoundingClientRect();
+    const mid = rect.top + rect.height / 2;
+    const sibIndex = parseInt(siblings[i].dataset.i);
+    if(dragMid < mid){
+      newIndex = sibIndex;
+      break;
+    }
+    newIndex = sibIndex + (sibIndex < placeholderIndex ? 0 : 1);
+  }
+  newIndex = Math.max(0, Math.min(tasks.length - 1, newIndex));
+
+  if(newIndex !== placeholderIndex){
+    const [moved] = tasks.splice(placeholderIndex, 1);
+    tasks.splice(newIndex, 0, moved);
+    if(currentIndex === placeholderIndex) currentIndex = newIndex;
+    else if(currentIndex > placeholderIndex && currentIndex <= newIndex) currentIndex--;
+    else if(currentIndex < placeholderIndex && currentIndex >= newIndex) currentIndex++;
+    placeholderIndex = newIndex;
+    dragStartY = e.clientY;
+    dragEl.style.transform = 'translateY(0)';
+    save();
+    renderKeepDragging();
+  }
+}
+
+function renderKeepDragging(){
+  const draggingEl = dragEl;
+  render();
+  const newEl = taskList.querySelector(`li.task[data-i="${placeholderIndex}"]`);
+  if(newEl){
+    dragEl = newEl;
+    dragEl.classList.add('dragging');
+    dragEl.style.position = 'relative';
+    dragEl.style.zIndex = '10';
+  }
+}
+
+function onDragEnd(){
+  if(dragEl){
+    dragEl.classList.remove('dragging');
+    dragEl.style.transform = '';
+    dragEl.style.position = '';
+    dragEl.style.zIndex = '';
+  }
+  dragEl = null;
+  document.removeEventListener('pointermove', onDragMove);
+  document.removeEventListener('pointerup', onDragEnd);
+  save();
+  render();
+}
 
 render();
 </script>
