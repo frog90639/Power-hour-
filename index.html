@@ -26,12 +26,6 @@
     flex:1; min-width:150px; padding:12px 14px; border-radius:10px; border:1px solid #2a2e37;
     background:var(--card); color:var(--text); font-size:1rem;
   }
-  .mic-btn{
-    width:46px; height:46px; border-radius:50%; flex-shrink:0; border:1px solid #2a2e37;
-    background:var(--card); color:var(--text); font-size:1.2rem; cursor:pointer;
-  }
-  .mic-btn.listening{background:var(--danger); animation:pulse 1s infinite;}
-  @keyframes pulse{0%{opacity:1;}50%{opacity:.5;}100%{opacity:1;}}
 
   .time-stepper{
     display:flex; align-items:center; gap:4px; background:var(--card);
@@ -60,6 +54,11 @@
     font-size:0.68rem; color:var(--muted); background:#2a2e37; padding:2px 8px;
     border-radius:10px; flex-shrink:0; white-space:nowrap;
   }
+  .recurring-toggle{
+    display:flex; align-items:center; gap:8px; font-size:0.82rem; color:var(--muted); cursor:pointer;
+  }
+  .recurring-toggle input[type=checkbox]{width:18px; height:18px; flex-shrink:0;}
+  .recurring-badge{font-size:0.75rem; flex-shrink:0;}
 
   .budget-card{background:var(--card); border:1px solid #2a2e37; border-radius:14px; padding:14px; margin-bottom:16px;}
   .add-task-card{background:var(--card); border:1px solid #2a2e37; border-radius:14px; padding:14px; margin-bottom:8px;}
@@ -191,8 +190,7 @@
 
 <div class="add-task-card" id="add-task-card">
   <div class="add-row">
-    <input type="text" id="task-input" placeholder="What are you working on?">
-    <button class="mic-btn" id="mic-btn" title="Voice input">🎤</button>
+    <input type="text" id="task-input" placeholder="What are you working on?" style="width:100%;">
   </div>
   <div class="add-row" style="flex-wrap:nowrap; overflow-x:auto; margin-bottom:0;">
     <div class="time-stepper">
@@ -206,6 +204,10 @@
     <span style="color:var(--muted); font-size:0.85rem;">Tag:</span>
     <div class="tag-picker" id="add-tag-picker"></div>
   </div>
+  <label class="recurring-toggle" id="add-recurring-toggle" style="margin-top:10px;">
+    <input type="checkbox" id="add-recurring-checkbox">
+    <span>🔁 Recurring — comes back each time I reset the day</span>
+  </label>
   <button class="add-btn full" id="add-btn" style="margin-top:12px;">Add task</button>
 </div>
 <button id="bulk-add-btn" style="width:100%; margin-top:6px; background:none; border:1px solid #2a2e37; color:var(--muted); padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;">＋ Bulk add (paste a list)</button>
@@ -290,6 +292,10 @@
     </div>
     <div class="modal-row priority-picker" id="edit-priority-picker"></div>
     <div class="modal-row tag-picker" id="edit-tag-picker"></div>
+    <label class="modal-row recurring-toggle" id="edit-recurring-toggle">
+      <input type="checkbox" id="edit-recurring-checkbox">
+      <span>🔁 Recurring — comes back each time I reset the day</span>
+    </label>
     <div class="modal-actions">
       <button id="edit-cancel-btn">Cancel</button>
       <button id="edit-save-btn" class="add-btn">Save</button>
@@ -368,8 +374,8 @@ const TAG_ICONS = {nohands:'🎧', errands:'🏃', movearound:'🚶'};
 
 let tasks = JSON.parse(localStorage.getItem('powerHourTasks') || '[]');
 tasks.sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority));
-let pendingMins = 5, pendingPriority = 'p3', pendingTag = null;
-let editMins = 5, editPriority = 'p3', editTag = null, editTaskId = null;
+let pendingMins = 5, pendingPriority = 'p3', pendingTag = null, pendingRecurring = false;
+let editMins = 5, editPriority = 'p3', editTag = null, editRecurring = false, editTaskId = null;
 let currentIndex = -1, secondsLeft = 0, timerInterval = null, sessionTaskIds = null, sessionCompleted = [], sessionSkipped = [];
 let timerState = 'idle'; // idle | running | paused | done
 
@@ -447,6 +453,7 @@ function render(){
           <input type="checkbox" ${t.done ? 'checked' : ''}>
           <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
           <span class="name">${t.name}</span>
+          ${t.recurring ? '<span class="recurring-badge" title="Recurring">🔁</span>' : ''}
           ${t.tag ? `<span class="tag-badge">${TAG_ICONS[t.tag]} ${TAG_LABELS[t.tag]}</span>` : ''}
           <span class="mins">${t.mins} min</span>
         </div>
@@ -492,27 +499,16 @@ taskInput.addEventListener('keydown', e => { if(e.key === 'Enter') addTask(); })
 function addTask(){
   const name = taskInput.value.trim();
   if(!name) return;
-  tasks.push({ id: uid(), name, mins: pendingMins, priority: pendingPriority, tag: pendingTag, done: false });
+  const recurringCb = document.getElementById('add-recurring-checkbox');
+  tasks.push({ id: uid(), name, mins: pendingMins, priority: pendingPriority, tag: pendingTag, recurring: recurringCb.checked, done: false });
   taskInput.value = '';
   pendingMins = 5; pendingPriority = 'p3'; pendingTag = null;
+  recurringCb.checked = false;
   minsDisplay.textContent = '5 min';
   refreshAddPriorityPicker();
   refreshAddTagPicker();
   save(); render();
 }
-
-/* ---------- voice input ---------- */
-const micBtn = document.getElementById('mic-btn');
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-if(SpeechRecognition){
-  const recog = new SpeechRecognition();
-  recog.continuous = false; recog.interimResults = false; recog.lang = 'en-US';
-  let listening = false;
-  micBtn.onclick = () => { if(listening) return; listening = true; micBtn.classList.add('listening'); recog.start(); };
-  recog.onresult = e => { taskInput.value = e.results[0][0].transcript; };
-  recog.onend = () => { listening = false; micBtn.classList.remove('listening'); };
-  recog.onerror = () => { listening = false; micBtn.classList.remove('listening'); };
-} else { micBtn.style.display = 'none'; }
 
 /* ---------- drag reorder (vertical, via handle) ---------- */
 function attachDragHandlers(){
@@ -651,6 +647,7 @@ function openEditModal(id){
   editPriority = t.priority;
   editTag = t.tag || null;
   document.getElementById('edit-mins-display').textContent = editMins + ' min';
+  document.getElementById('edit-recurring-checkbox').checked = !!t.recurring;
   refreshEditPriorityPicker();
   refreshEditTagPicker();
   editModal.classList.remove('hidden');
@@ -676,6 +673,7 @@ document.getElementById('edit-save-btn').onclick = () => {
     t.mins = editMins;
     t.priority = editPriority;
     t.tag = editTag;
+    t.recurring = document.getElementById('edit-recurring-checkbox').checked;
     save(); render(); refreshTimerDisplays();
   }
   editModal.classList.add('hidden'); editTaskId = null;
@@ -1061,7 +1059,9 @@ document.getElementById('done-export-btn').onclick = () => {
 };
 document.getElementById('done-remove-btn').onclick = () => {
   if(document.getElementById('done-remove-btn').disabled) return;
-  tasks = tasks.filter(t => !t.done);
+  tasks = tasks
+    .map(t => (t.done && t.recurring) ? { ...t, done: false } : t)
+    .filter(t => !t.done);
   save();
   refreshTimerDisplays();
   const btn = document.getElementById('done-remove-btn');
@@ -1107,8 +1107,10 @@ document.getElementById('report-export-btn').onclick = () => {
 };
 document.getElementById('report-clear-btn').onclick = () => {
   if(document.getElementById('report-clear-btn').disabled) return;
-  if(!confirm('Clear all completed tasks for today?')) return;
-  tasks = tasks.filter(t => !t.done);
+  if(!confirm('Clear all completed tasks for today? Recurring ones will come back fresh instead of being removed.')) return;
+  tasks = tasks
+    .map(t => (t.done && t.recurring) ? { ...t, done: false } : t)
+    .filter(t => !t.done);
   save(); render();
   document.getElementById('report-modal').classList.add('hidden');
 };
