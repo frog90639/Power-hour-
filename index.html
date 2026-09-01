@@ -167,6 +167,7 @@
   .board-chip.dragging{opacity:0.35;}
   .board-chip .mins{color:var(--muted); font-size:0.78rem; flex-shrink:0;}
   .board-empty{color:var(--muted); font-size:0.8rem; padding:4px 2px;}
+  .board-chip-placeholder{height:38px; border:2px dashed var(--accent); border-radius:10px; margin-bottom:8px; opacity:0.6;}
 
   /* mini bar */
   .mini-bar{
@@ -1105,7 +1106,7 @@ function renderBoard(){
   });
 }
 
-let chipDragEl = null, chipDragId = null, chipStartX = 0, chipStartY = 0;
+let chipDragEl = null, chipDragId = null, chipStartX = 0, chipStartY = 0, dragPlaceholder = null;
 
 function onChipDragStart(e){
   chipDragEl = e.currentTarget;
@@ -1116,6 +1117,8 @@ function onChipDragStart(e){
   chipDragEl.style.zIndex = '50';
   chipDragEl.style.pointerEvents = 'none'; // so elementFromPoint sees the zone underneath, not the chip itself
   try { chipDragEl.setPointerCapture(e.pointerId); } catch(err) {}
+  dragPlaceholder = document.createElement('div');
+  dragPlaceholder.className = 'board-chip-placeholder';
   document.addEventListener('pointermove', onChipDragMove);
   document.addEventListener('pointerup', onChipDragEnd);
   document.addEventListener('pointercancel', onChipDragEnd);
@@ -1127,12 +1130,22 @@ function onChipDragMove(e){
   document.querySelectorAll('.priority-zone').forEach(z => z.classList.remove('drag-over'));
   const target = document.elementFromPoint(e.clientX, e.clientY);
   const zone = target ? target.closest('.priority-zone') : null;
-  if(zone) zone.classList.add('drag-over');
+  if(zone){
+    zone.classList.add('drag-over');
+    const emptyMsg = zone.querySelector('.board-empty');
+    if(emptyMsg) emptyMsg.remove();
+    const chipsEl = zone.querySelector('.zone-chips');
+    if(dragPlaceholder.parentElement !== chipsEl) chipsEl.appendChild(dragPlaceholder);
+  } else if(dragPlaceholder.parentElement){
+    dragPlaceholder.remove();
+  }
 }
 function onChipDragEnd(e){
   document.removeEventListener('pointermove', onChipDragMove);
   document.removeEventListener('pointerup', onChipDragEnd);
   document.removeEventListener('pointercancel', onChipDragEnd);
+  if(dragPlaceholder && dragPlaceholder.parentElement) dragPlaceholder.remove();
+  dragPlaceholder = null;
   if(!chipDragEl) return;
   const target = document.elementFromPoint(e.clientX, e.clientY);
   const zone = target ? target.closest('.priority-zone') : null;
