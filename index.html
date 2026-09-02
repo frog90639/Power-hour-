@@ -967,11 +967,23 @@ document.getElementById('export-copy-btn').onclick = () => {
 
 /* ---------- "I have X minutes" → review selection ---------- */
 let reviewBudget = 0;
-let budgetTagFilter = null;
+let budgetTagFilters = new Set(); // empty = no filter, show tasks with any/no tag
 
+function buildMultiTagPicker(container, selectedSet, onToggle){
+  container.innerHTML = '';
+  TAGS.forEach(tag => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tag-btn' + (selectedSet.has(tag) ? ' selected' : '');
+    btn.textContent = TAG_ICONS[tag] + ' ' + TAG_LABELS[tag];
+    btn.onclick = () => onToggle(tag);
+    container.appendChild(btn);
+  });
+}
 function refreshBudgetTagPicker(){
-  buildTagPicker(document.getElementById('budget-tag-picker'), budgetTagFilter, t => {
-    budgetTagFilter = t; refreshBudgetTagPicker();
+  buildMultiTagPicker(document.getElementById('budget-tag-picker'), budgetTagFilters, tag => {
+    if(budgetTagFilters.has(tag)) budgetTagFilters.delete(tag); else budgetTagFilters.add(tag);
+    refreshBudgetTagPicker();
   });
 }
 refreshBudgetTagPicker();
@@ -985,7 +997,7 @@ document.getElementById('budget-build-btn').onclick = () => {
 function openReviewModal(budget){
   reviewBudget = budget;
   let pending = tasks.filter(t => !t.done); // current order reflects whichever quick sort is active
-  if(budgetTagFilter) pending = pending.filter(t => t.tag === budgetTagFilter);
+  if(budgetTagFilters.size > 0) pending = pending.filter(t => t.tag && budgetTagFilters.has(t.tag));
   const selected = pickTasksForBudget(pending, budget);
   renderReviewList(pending, selected);
   updateReviewTotal();
