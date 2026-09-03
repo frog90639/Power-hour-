@@ -142,7 +142,7 @@
     display:flex; flex-direction:column;
     padding:calc(20px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
   }
-  .board-body{flex:1; overflow-y:auto; padding-bottom:20px;}
+  .board-body{flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-bottom:20px;}
   .priority-zone{border:2px solid #2a2e37; border-radius:14px; padding:12px; margin-bottom:12px; min-height:64px; transition:background 0.15s, box-shadow 0.15s;}
   .priority-zone.drag-over{background:rgba(255,255,255,0.05); box-shadow:0 0 0 2px var(--accent) inset;}
   .priority-zone-header{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
@@ -387,6 +387,8 @@ tasks.sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.prior
 let pendingMins = 5, pendingPriority = 'p3', pendingTag = null, pendingRecurring = false;
 let editMins = 5, editPriority = 'p3', editTag = null, editRecurring = false, editTaskId = null;
 let currentIndex = -1, secondsLeft = 0, timerInterval = null, sessionTaskIds = null, sessionCompleted = [], sessionSkipped = [];
+let taskEndTime = null; // epoch ms the current task is due to finish — source of truth for timing, survives backgrounding/reload
+let currentView = 'maximized'; // 'maximized' | 'minimized' — for restoring the right screen
 let timerState = 'idle'; // idle | running | paused | done
 
 const taskInput = document.getElementById('task-input');
@@ -723,8 +725,13 @@ function beginRun(){
     sessionSkipped = [];
     currentIndex = findNextIndex(0);
     if(currentIndex === -1){ timerState = 'done'; }
-    else { secondsLeft = tasks[currentIndex].mins * 60; timerState = 'running'; startInterval(); }
+    else {
+      taskEndTime = Date.now() + tasks[currentIndex].mins * 60 * 1000;
+      secondsLeft = tasks[currentIndex].mins * 60;
+      timerState = 'running'; startInterval();
+    }
   }
+  persistSession();
   showMaximized();
 }
 
@@ -734,8 +741,9 @@ function startInterval(){
 }
 function tick(){
   if(timerState !== 'running') return;
-  secondsLeft--;
-  if(secondsLeft < 0){ skipCurrentTask(); return; } // time ran out without an explicit Done — ask about it later
+  const remaining = Math.round((taskEndTime - Date.now()) / 1000);
+  if(remaining <= 0){ skipCurrentTask(); return; } // time ran out without an explicit Done — ask about it later
+  secondsLeft = remaining;
   refreshTimerDisplays();
 }
 
@@ -757,13 +765,84 @@ function advanceAfterCurrent(){
   const next = findNextIndex(currentIndex + 1);
   if(next === -1){
     clearInterval(timerInterval);
-    timerState = 'done'; currentIndex = -1;
+    timerState = 'done'; currentIndex = -1; taskEndTime = null;
   } else {
     currentIndex = next;
+    taskEndTime = Date.now() + tasks[currentIndex].mins * 60 * 1000;
     secondsLeft = tasks[currentIndex].mins * 60;
   }
+  persistSession();
   refreshTimerDisplays();
 }
+
+/* ---------- session persistence — survives backgrounding, reload, or the tab being killed ---------- */
+function persistSession(){
+  if(timerState === 'idle'){
+    localStorage.removeItem('powerHourSession');
+    return;
+  }
+  const activeTaskId = (currentIndex !== -1 && tasks[currentIndex]) ? tasks[currentIndex].id : null;
+  localStorage.setItem('powerHourSession', JSON.stringify({
+    timerState, activeTaskId, taskEndTime, secondsLeft,
+    sessionTaskIds, sessionCompleted, sessionSkipped, view: currentView
+  }));
+}
+
+function restoreSession(){
+  let raw;
+  try { raw = JSON.parse(localStorage.getItem('powerHourSession') || 'null'); } catch(err) { raw = null; }
+  if(!raw || raw.timerState === 'idle') return;
+
+  sessionTaskIds = raw.sessionTaskIds || null;
+  sessionCompleted = raw.sessionCompleted || [];
+  sessionSkipped = raw.sessionSkipped || [];
+  currentView = raw.view === 'minimized' ? 'minimized' : 'maximized';
+
+  if(raw.timerState === 'done'){
+    timerState = 'done'; currentIndex = -1; taskEndTime = null;
+  } else {
+    currentIndex = tasks.findIndex(t => t.id === raw.activeTaskId);
+    if(currentIndex === -1){ localStorage.removeItem('powerHourSession'); return; }
+
+    if(raw.timerState === 'paused'){
+      timerState = 'paused';
+      secondsLeft = raw.secondsLeft;
+      taskEndTime = null;
+    } else {
+      // running — fast-forward through any tasks that fully elapsed while away, exactly as if it had kept running
+      timerState = 'running';
+      let endTime = raw.taskEndTime;
+      let guard = 0;
+      while(Date.now() >= endTime && guard < 1000){
+        guard++;
+        sessionSkipped.push({ ...tasks[currentIndex] });
+        const next = findNextIndex(currentIndex + 1);
+        if(next === -1){ timerState = 'done'; currentIndex = -1; endTime = null; break; }
+        currentIndex = next;
+        endTime += tasks[currentIndex].mins * 60 * 1000;
+      }
+      if(timerState === 'running'){
+        taskEndTime = endTime;
+        secondsLeft = Math.max(0, Math.round((taskEndTime - Date.now()) / 1000));
+        startInterval();
+      } else {
+        taskEndTime = null;
+      }
+    }
+  }
+
+  persistSession();
+  if(currentView === 'minimized' && timerState !== 'done'){ showMinimized(); }
+  else { showMaximized(); }
+}
+
+/* resync immediately when the tab/app comes back to the foreground, rather than waiting for the next tick */
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible' && timerState === 'running') tick();
+});
+window.addEventListener('pageshow', () => {
+  if(timerState === 'running') tick();
+});
 
 function refreshTimerDisplays(){
   render();
@@ -852,22 +931,27 @@ function refreshTimerDisplays(){
 }
 
 function showMaximized(){
+  currentView = 'maximized';
   timerScreen.classList.remove('hidden');
   miniBar.classList.add('hidden');
   refreshTimerDisplays();
+  persistSession();
 }
 function showMinimized(){
+  currentView = 'minimized';
   timerScreen.classList.add('hidden');
   if(timerState !== 'idle'){ miniBar.classList.remove('hidden'); }
   refreshTimerDisplays();
+  persistSession();
 }
 function closeTimerFully(){
   clearInterval(timerInterval);
-  timerState = 'idle'; currentIndex = -1; secondsLeft = 0; sessionTaskIds = null;
+  timerState = 'idle'; currentIndex = -1; secondsLeft = 0; sessionTaskIds = null; taskEndTime = null;
   timerScreen.classList.add('hidden');
   miniBar.classList.add('hidden');
   document.getElementById('pause-btn').classList.remove('hidden');
   document.getElementById('skip-btn').classList.remove('hidden');
+  persistSession();
   render();
 }
 
@@ -877,8 +961,17 @@ document.getElementById('mini-expand-area').onclick = showMaximized;
 document.getElementById('close-timer-btn').onclick = closeTimerFully;
 
 document.getElementById('pause-btn').onclick = () => {
-  if(timerState === 'running'){ timerState = 'paused'; clearInterval(timerInterval); }
-  else if(timerState === 'paused'){ timerState = 'running'; startInterval(); }
+  if(timerState === 'running'){
+    secondsLeft = Math.max(0, Math.round((taskEndTime - Date.now()) / 1000));
+    taskEndTime = null;
+    timerState = 'paused';
+    clearInterval(timerInterval);
+  } else if(timerState === 'paused'){
+    taskEndTime = Date.now() + secondsLeft * 1000;
+    timerState = 'running';
+    startInterval();
+  }
+  persistSession();
   refreshTimerDisplays();
 };
 document.getElementById('mini-playpause').onclick = () => document.getElementById('pause-btn').onclick();
@@ -1231,6 +1324,7 @@ function onChipDragEnd(e){
   render();
 }
 
+restoreSession();
 render();
 </script>
 </body>
