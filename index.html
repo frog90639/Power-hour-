@@ -1176,6 +1176,7 @@ document.getElementById('done-export-btn').onclick = () => {
 };
 document.getElementById('done-remove-btn').onclick = () => {
   if(document.getElementById('done-remove-btn').disabled) return;
+  tasks.forEach(t => { if(t.done && !t.recurring) deletedCompleted.push({ ...t }); });
   tasks = tasks
     .map(t => (t.done && t.recurring) ? { ...t, done: false } : t)
     .filter(t => !t.done);
