@@ -152,10 +152,17 @@
   .board-chip{
     background:var(--card); border:1px solid #2a2e37; border-radius:10px; padding:10px 12px;
     margin-bottom:8px; font-size:0.88rem; cursor:grab; touch-action:none; user-select:none;
-    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    display:flex; align-items:center; gap:8px;
   }
   .board-chip.dragging{opacity:0.35;}
   .board-chip .mins{color:var(--muted); font-size:0.78rem; flex-shrink:0;}
+  .board-chip-check{width:19px; height:19px; flex-shrink:0;}
+  .board-chip-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .board-chip-btn{
+    flex-shrink:0; width:28px; height:28px; border-radius:8px; border:1px solid #2a2e37;
+    background:none; color:var(--muted); font-size:0.85rem; cursor:pointer; touch-action:auto;
+  }
+  .board-chip-del{color:var(--danger); border-color:var(--danger);}
   .board-empty{color:var(--muted); font-size:0.8rem; padding:4px 2px;}
   .board-chip-placeholder{height:38px; border:2px dashed var(--accent); border-radius:10px; margin-bottom:8px; opacity:0.6;}
 
@@ -482,9 +489,13 @@ function render(){
 taskList.addEventListener('change', e => {
   if(e.target.type !== 'checkbox') return;
   const id = e.target.closest('.task-item').dataset.id;
+  toggleTaskDone(id, e.target.checked);
+});
+
+/* shared by the main list checkbox and the priority board checkbox */
+function toggleTaskDone(id, checked){
   const t = tasks.find(t => t.id === id);
   if(!t) return;
-  const checked = e.target.checked;
   const sessionActive = timerState === 'running' || timerState === 'paused';
 
   if(checked && !t.done){
@@ -501,7 +512,7 @@ taskList.addEventListener('change', e => {
   }
   save(); render();
   if(sessionActive) refreshTimerDisplays();
-});
+}
 
 /* ---------- add task ---------- */
 document.getElementById('plus-btn').onclick = () => { pendingMins += 5; minsDisplay.textContent = pendingMins + ' min'; };
@@ -648,6 +659,7 @@ function deleteTaskById(id){
   if(currentIndex === idx){ currentIndex = -1; }
   else if(currentIndex > idx){ currentIndex--; }
   save(); render(); refreshTimerDisplays();
+  if(typeof renderBoard === 'function' && !document.getElementById('board-screen').classList.contains('hidden')) renderBoard();
 }
 
 /* ---------- edit modal ---------- */
@@ -689,6 +701,7 @@ document.getElementById('edit-save-btn').onclick = () => {
     t.tag = editTag;
     t.recurring = document.getElementById('edit-recurring-checkbox').checked;
     save(); render(); refreshTimerDisplays();
+    if(typeof renderBoard === 'function' && !document.getElementById('board-screen').classList.contains('hidden')) renderBoard();
   }
   editModal.classList.add('hidden'); editTaskId = null;
 };
@@ -1262,17 +1275,45 @@ function renderBoard(){
         const chip = document.createElement('div');
         chip.className = 'board-chip';
         chip.dataset.id = t.id;
-        chip.innerHTML = `<span>${t.name}</span><span class="mins">${t.mins} min</span>`;
+        chip.innerHTML = `
+          <input type="checkbox" class="board-chip-check">
+          <span class="board-chip-name">${t.name}</span>
+          <span class="mins">${t.mins} min</span>
+          <button type="button" class="board-chip-btn board-chip-edit" title="Edit">✎</button>
+          <button type="button" class="board-chip-btn board-chip-del" title="Delete">✕</button>
+        `;
         chip.onpointerdown = onChipDragStart;
+        chip.querySelector('.board-chip-check').onchange = (e) => { e.stopPropagation(); boardMarkDone(t.id); };
+        chip.querySelector('.board-chip-edit').onpointerdown = (e) => e.stopPropagation();
+        chip.querySelector('.board-chip-edit').onclick = (e) => { e.stopPropagation(); openEditModal(t.id); };
+        chip.querySelector('.board-chip-del').onpointerdown = (e) => e.stopPropagation();
+        chip.querySelector('.board-chip-del').onclick = (e) => { e.stopPropagation(); deleteTaskById(t.id); };
         chipsEl.appendChild(chip);
       });
     }
   });
 }
 
+function boardMarkDone(id){
+  const t = tasks.find(x => x.id === id);
+  if(!t || t.done) return;
+  const sessionActive = timerState === 'running' || timerState === 'paused';
+  if(sessionActive && currentIndex !== -1 && tasks[currentIndex] && tasks[currentIndex].id === id){
+    completeCurrentTask();
+  } else {
+    t.done = true;
+    if(sessionActive) sessionCompleted.push({ ...t });
+    save();
+  }
+  renderBoard();
+  render();
+  if(sessionActive) refreshTimerDisplays();
+}
+
 let chipDragEl = null, chipDragId = null, chipStartX = 0, chipStartY = 0, dragPlaceholder = null;
 
 function onChipDragStart(e){
+  if(e.target.closest('.board-chip-check, .board-chip-btn')) return;
   chipDragEl = e.currentTarget;
   chipDragId = chipDragEl.dataset.id;
   chipStartX = e.clientX; chipStartY = e.clientY;
@@ -1299,7 +1340,15 @@ function onChipDragMove(e){
     const emptyMsg = zone.querySelector('.board-empty');
     if(emptyMsg) emptyMsg.remove();
     const chipsEl = zone.querySelector('.zone-chips');
-    if(dragPlaceholder.parentElement !== chipsEl) chipsEl.appendChild(dragPlaceholder);
+    // position the placeholder among the real siblings based on vertical position, so you can see exactly where it'll land
+    const siblings = [...chipsEl.querySelectorAll('.board-chip')].filter(c => c !== chipDragEl);
+    let before = null;
+    for(const sib of siblings){
+      const rect = sib.getBoundingClientRect();
+      if(e.clientY < rect.top + rect.height / 2){ before = sib; break; }
+    }
+    if(before) chipsEl.insertBefore(dragPlaceholder, before);
+    else chipsEl.appendChild(dragPlaceholder);
   } else if(dragPlaceholder.parentElement){
     dragPlaceholder.remove();
   }
@@ -1308,16 +1357,33 @@ function onChipDragEnd(e){
   document.removeEventListener('pointermove', onChipDragMove);
   document.removeEventListener('pointerup', onChipDragEnd);
   document.removeEventListener('pointercancel', onChipDragEnd);
+  const placeholderParent = dragPlaceholder ? dragPlaceholder.parentElement : null;
+  const insertBeforeEl = placeholderParent ? dragPlaceholder.nextElementSibling : null;
+  const insertBeforeId = insertBeforeEl && insertBeforeEl.classList.contains('board-chip') ? insertBeforeEl.dataset.id : null;
   if(dragPlaceholder && dragPlaceholder.parentElement) dragPlaceholder.remove();
   dragPlaceholder = null;
   if(!chipDragEl) return;
   const target = document.elementFromPoint(e.clientX, e.clientY);
   const zone = target ? target.closest('.priority-zone') : null;
   document.querySelectorAll('.priority-zone').forEach(z => z.classList.remove('drag-over'));
-  if(zone){
+
+  if(zone && placeholderParent){
     const newPriority = zone.dataset.priority;
-    const t = tasks.find(t => t.id === chipDragId);
-    if(t && t.priority !== newPriority){ t.priority = newPriority; save(); }
+    const fromIdx = tasks.findIndex(t => t.id === chipDragId);
+    if(fromIdx !== -1){
+      const [moved] = tasks.splice(fromIdx, 1);
+      moved.priority = newPriority;
+      if(insertBeforeId){
+        const insertIdx = tasks.findIndex(t => t.id === insertBeforeId);
+        tasks.splice(insertIdx === -1 ? tasks.length : insertIdx, 0, moved);
+      } else {
+        // append after the last existing task of this priority, so it lands at the bottom of that zone
+        let lastIdx = -1;
+        for(let i = 0; i < tasks.length; i++){ if(tasks[i].priority === newPriority) lastIdx = i; }
+        tasks.splice(lastIdx === -1 ? tasks.length : lastIdx + 1, 0, moved);
+      }
+      save(); // re-sorts by priority only — same-priority relative order (what we just set) is preserved
+    }
   }
   chipDragEl.style.pointerEvents = '';
   chipDragEl = null; chipDragId = null;
