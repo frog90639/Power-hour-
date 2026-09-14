@@ -10,6 +10,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Power Hour">
 <meta name="theme-color" content="#0f1115">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <style>
   :root{
     --bg:#0f1115; --card:#1a1d24; --accent:#6ee7b7; --accent2:#f97316;
@@ -22,6 +25,9 @@
     background:var(--bg); color:var(--text); min-height:100vh;
     padding:calc(20px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
     overscroll-behavior:none;
+  }
+  body.body-locked{
+    position:fixed; inset:0; overflow:hidden; padding:0; width:100%;
   }
   h1{font-size:1.4rem; margin:0 0 4px;}
   .sub{color:var(--muted); font-size:0.85rem; margin-bottom:12px;}
@@ -68,6 +74,13 @@
   .recurring-badge{font-size:0.75rem; flex-shrink:0;}
 
   .budget-card{background:var(--card); border:1px solid #2a2e37; border-radius:14px; padding:14px; margin-bottom:16px;}
+  .steps-bar-track{display:flex; height:14px; border-radius:8px; overflow:hidden; background:#2a2e37; margin:12px 0 8px;}
+  .steps-bar-segment{height:100%; transition:width 0.2s;}
+  .steps-completed{background:var(--accent);}
+  .steps-planned{background:var(--accent2);}
+  .steps-legend{display:flex; gap:14px; flex-wrap:wrap; font-size:0.72rem; color:var(--muted); margin-bottom:6px;}
+  .steps-dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px;}
+  .steps-summary{font-size:0.8rem; color:var(--muted);}
   .add-task-card{background:var(--card); border:1px solid #2a2e37; border-radius:14px; padding:14px; margin-bottom:8px;}
   .add-task-card .add-row{margin-bottom:10px;}
   .budget-row{display:flex; align-items:center; gap:8px; font-size:0.95rem; flex-wrap:wrap;}
@@ -184,11 +197,18 @@
   .modal-actions{display:flex; gap:10px; margin-top:8px;}
   .modal-actions button{flex:1; padding:12px; border-radius:10px; border:none; font-size:1rem; font-weight:600; cursor:pointer;}
   #edit-cancel-btn{background:#2a2e37; color:var(--text);}
+  .settings-item{
+    width:100%; text-align:left; background:none; border:1px solid #2a2e37; color:var(--text);
+    padding:14px; border-radius:10px; font-size:0.95rem; cursor:pointer; margin-bottom:8px;
+  }
 </style>
 </head>
 <body>
 
-<h1>⏱️ Power Hour</h1>
+<div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+  <h1 style="margin:0;">⏱️ Power Hour</h1>
+  <button class="icon-btn" id="open-settings-btn" title="Settings">⚙️</button>
+</div>
 <div class="sub">Add tasks in 5-min blocks, set priority, then run through them one at a time.</div>
 
 <div class="budget-card" id="budget-card">
@@ -202,6 +222,23 @@
     <span>minutes</span>
     <button class="add-btn" id="budget-build-btn" style="margin-left:auto; white-space:nowrap;">Pick tasks</button>
   </div>
+</div>
+
+<div class="budget-card" id="steps-card">
+  <div class="budget-row">
+    <span>👣 Step goal</span>
+    <input type="number" id="step-goal-input" min="0" step="500" style="margin-left:auto; width:90px;">
+  </div>
+  <div class="steps-bar-track" id="steps-bar-track">
+    <div class="steps-bar-segment steps-completed" id="steps-completed-bar"></div>
+    <div class="steps-bar-segment steps-planned" id="steps-planned-bar"></div>
+  </div>
+  <div class="steps-legend">
+    <span><i class="steps-dot" style="background:var(--accent);"></i> Completed</span>
+    <span><i class="steps-dot" style="background:var(--accent2);"></i> Planned</span>
+    <span><i class="steps-dot" style="background:#2a2e37;"></i> Yet to plan</span>
+  </div>
+  <div class="steps-summary" id="steps-summary"></div>
 </div>
 
 <div class="add-task-card" id="add-task-card">
@@ -220,14 +257,16 @@
     <span style="color:var(--muted); font-size:0.85rem;">Tag:</span>
     <div class="tag-picker" id="add-tag-picker"></div>
   </div>
+  <div class="budget-row" id="add-steps-row" style="margin-top:10px; display:none;">
+    <span style="color:var(--muted); font-size:0.85rem;">👣 Est. steps</span>
+    <input type="number" id="add-steps-input" min="0" step="100" placeholder="e.g. 800" style="margin-left:auto; width:100px;">
+  </div>
   <label class="recurring-toggle" id="add-recurring-toggle" style="margin-top:10px;">
     <input type="checkbox" id="add-recurring-checkbox">
     <span>🔁 Recurring — comes back each time I reset the day</span>
   </label>
   <button class="add-btn full" id="add-btn" style="margin-top:12px;">Add task</button>
 </div>
-<button id="bulk-add-btn" style="width:100%; margin-top:6px; background:none; border:1px solid #2a2e37; color:var(--muted); padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;">＋ Bulk add (paste a list)</button>
-<button id="export-btn" style="width:100%; margin-top:6px; background:none; border:1px solid #2a2e37; color:var(--muted); padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;">⇧ Export tasks</button>
 <button id="open-board-btn" style="width:100%; margin-top:6px; background:none; border:1px solid #2a2e37; color:var(--muted); padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;">🎯 Priority board</button>
 <button id="open-report-btn" style="width:100%; margin-top:6px; background:none; border:1px solid #2a2e37; color:var(--muted); padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;">📋 Completed report</button>
 
@@ -308,6 +347,10 @@
     </div>
     <div class="modal-row priority-picker" id="edit-priority-picker"></div>
     <div class="modal-row tag-picker" id="edit-tag-picker"></div>
+    <div class="modal-row budget-row" id="edit-steps-row" style="display:none;">
+      <span style="color:var(--muted); font-size:0.85rem;">👣 Est. steps</span>
+      <input type="number" id="edit-steps-input" min="0" step="100" style="margin-left:auto; width:100px;">
+    </div>
     <label class="modal-row recurring-toggle" id="edit-recurring-toggle">
       <input type="checkbox" id="edit-recurring-checkbox">
       <span>🔁 Recurring — comes back each time I reset the day</span>
@@ -338,6 +381,16 @@
 </div>
 
 <!-- export modal -->
+<!-- settings -->
+<div class="modal hidden" id="settings-modal">
+  <div class="modal-card">
+    <h3>Settings</h3>
+    <button id="settings-bulk-add-btn" class="settings-item">＋ Bulk add (paste a list)</button>
+    <button id="settings-export-btn" class="settings-item">⇧ Export tasks</button>
+    <button id="settings-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
 <div class="modal hidden" id="export-modal">
   <div class="modal-card">
     <h3>Export tasks</h3>
@@ -389,6 +442,7 @@ const TAG_LABELS = {nohands:'No hands', errands:'Errands', movearound:'Move arou
 const TAG_ICONS = {nohands:'🎧', errands:'🏃', movearound:'🚶'};
 
 let tasks = JSON.parse(localStorage.getItem('powerHourTasks') || '[]');
+let stepGoal = parseInt(localStorage.getItem('powerHourStepGoal') || '10000') || 0;
 let deletedCompleted = JSON.parse(localStorage.getItem('powerHourDeletedCompleted') || '[]'); // completed tasks that were swiped away, kept for the report until Clear day
 tasks.sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority));
 let pendingMins = 5, pendingPriority = 'p3', pendingTag = null, pendingRecurring = false;
@@ -449,6 +503,7 @@ function refreshAddTagPicker(){
   buildTagPicker(document.getElementById('add-tag-picker'), pendingTag, t => {
     pendingTag = t; refreshAddTagPicker();
   });
+  document.getElementById('add-steps-row').style.display = (pendingTag === 'errands') ? 'flex' : 'none';
 }
 refreshAddTagPicker();
 
@@ -475,6 +530,7 @@ function render(){
           <span class="name">${t.name}</span>
           ${t.recurring ? '<span class="recurring-badge" title="Recurring">🔁</span>' : ''}
           ${t.tag ? `<span class="tag-badge">${TAG_ICONS[t.tag]} ${TAG_LABELS[t.tag]}</span>` : ''}
+          ${t.steps ? `<span class="tag-badge">👣 ${t.steps}</span>` : ''}
           <span class="mins">${t.mins} min</span>
         </div>
       `;
@@ -483,6 +539,30 @@ function render(){
   }
   attachDragHandlers();
   attachSwipeHandlers();
+  updateStepsBar();
+}
+
+/* ---------- steps tracker (Errand tasks only) ---------- */
+const stepGoalInput = document.getElementById('step-goal-input');
+stepGoalInput.value = stepGoal;
+stepGoalInput.onchange = () => {
+  stepGoal = parseInt(stepGoalInput.value) || 0;
+  localStorage.setItem('powerHourStepGoal', stepGoal);
+  updateStepsBar();
+};
+
+function updateStepsBar(){
+  const errandTasks = tasks.filter(t => t.tag === 'errands' && t.steps > 0);
+  const completedSteps = errandTasks.filter(t => t.done).reduce((s, t) => s + t.steps, 0);
+  const plannedSteps = errandTasks.filter(t => !t.done).reduce((s, t) => s + t.steps, 0);
+  const goal = stepGoal > 0 ? stepGoal : 1;
+  const completedPct = Math.min(100, (completedSteps / goal) * 100);
+  const plannedPct = Math.min(100 - completedPct, (plannedSteps / goal) * 100);
+  document.getElementById('steps-completed-bar').style.width = completedPct + '%';
+  document.getElementById('steps-planned-bar').style.width = plannedPct + '%';
+  const yetToPlan = Math.max(0, stepGoal - completedSteps - plannedSteps);
+  document.getElementById('steps-summary').textContent =
+    `${completedSteps.toLocaleString()} completed • ${plannedSteps.toLocaleString()} planned • ${yetToPlan.toLocaleString()} yet to plan (goal ${stepGoal.toLocaleString()})`;
 }
 
 /* checkbox toggle */
@@ -524,10 +604,13 @@ function addTask(){
   const name = taskInput.value.trim();
   if(!name) return;
   const recurringCb = document.getElementById('add-recurring-checkbox');
-  tasks.push({ id: uid(), name, mins: pendingMins, priority: pendingPriority, tag: pendingTag, recurring: recurringCb.checked, done: false });
+  const stepsInput = document.getElementById('add-steps-input');
+  const steps = pendingTag === 'errands' ? (parseInt(stepsInput.value) || 0) : 0;
+  tasks.push({ id: uid(), name, mins: pendingMins, priority: pendingPriority, tag: pendingTag, steps, recurring: recurringCb.checked, done: false });
   taskInput.value = '';
   pendingMins = 5; pendingPriority = 'p3'; pendingTag = null;
   recurringCb.checked = false;
+  stepsInput.value = '';
   minsDisplay.textContent = '5 min';
   refreshAddPriorityPicker();
   refreshAddTagPicker();
@@ -674,6 +757,8 @@ function openEditModal(id){
   editTag = t.tag || null;
   document.getElementById('edit-mins-display').textContent = editMins + ' min';
   document.getElementById('edit-recurring-checkbox').checked = !!t.recurring;
+  document.getElementById('edit-steps-input').value = t.steps || '';
+  document.getElementById('edit-steps-row').style.display = (editTag === 'errands') ? 'flex' : 'none';
   refreshEditPriorityPicker();
   refreshEditTagPicker();
   editModal.classList.remove('hidden');
@@ -686,6 +771,7 @@ function refreshEditPriorityPicker(){
 function refreshEditTagPicker(){
   buildTagPicker(document.getElementById('edit-tag-picker'), editTag, t => {
     editTag = t; refreshEditTagPicker();
+    document.getElementById('edit-steps-row').style.display = (editTag === 'errands') ? 'flex' : 'none';
   });
 }
 document.getElementById('edit-plus-btn').onclick = () => { editMins += 5; document.getElementById('edit-mins-display').textContent = editMins + ' min'; };
@@ -699,6 +785,7 @@ document.getElementById('edit-save-btn').onclick = () => {
     t.mins = editMins;
     t.priority = editPriority;
     t.tag = editTag;
+    t.steps = editTag === 'errands' ? (parseInt(document.getElementById('edit-steps-input').value) || 0) : 0;
     t.recurring = document.getElementById('edit-recurring-checkbox').checked;
     save(); render(); refreshTimerDisplays();
     if(typeof renderBoard === 'function' && !document.getElementById('board-screen').classList.contains('hidden')) renderBoard();
@@ -709,6 +796,20 @@ document.getElementById('edit-save-btn').onclick = () => {
 /* ---------- timer ---------- */
 const timerScreen = document.getElementById('timer-screen');
 const miniBar = document.getElementById('mini-bar');
+
+/* locks background page scroll while a full-screen overlay is open, so touch input
+   can't leak through to the page underneath and cause a confusing double-scroll feel */
+let savedScrollY = 0;
+function lockBodyScroll(){
+  savedScrollY = window.scrollY;
+  document.body.style.top = `-${savedScrollY}px`;
+  document.body.classList.add('body-locked');
+}
+function unlockBodyScroll(){
+  document.body.classList.remove('body-locked');
+  document.body.style.top = '';
+  window.scrollTo(0, savedScrollY);
+}
 
 function formatTime(s){
   s = Math.max(0, s);
@@ -947,6 +1048,7 @@ function showMaximized(){
   currentView = 'maximized';
   timerScreen.classList.remove('hidden');
   miniBar.classList.add('hidden');
+  lockBodyScroll();
   refreshTimerDisplays();
   persistSession();
 }
@@ -954,6 +1056,7 @@ function showMinimized(){
   currentView = 'minimized';
   timerScreen.classList.add('hidden');
   if(timerState !== 'idle'){ miniBar.classList.remove('hidden'); }
+  unlockBodyScroll();
   refreshTimerDisplays();
   persistSession();
 }
@@ -964,6 +1067,7 @@ function closeTimerFully(){
   miniBar.classList.add('hidden');
   document.getElementById('pause-btn').classList.remove('hidden');
   document.getElementById('skip-btn').classList.remove('hidden');
+  unlockBodyScroll();
   persistSession();
   render();
 }
@@ -995,10 +1099,19 @@ document.getElementById('skip-btn').onclick = skipCurrentTask;
 
 document.getElementById('stop-btn').onclick = closeTimerFully;
 
+/* ---------- settings ---------- */
+document.getElementById('open-settings-btn').onclick = () => {
+  document.getElementById('settings-modal').classList.remove('hidden');
+};
+document.getElementById('settings-close-btn').onclick = () => {
+  document.getElementById('settings-modal').classList.add('hidden');
+};
+
 /* ---------- bulk add ---------- */
 const bulkModal = document.getElementById('bulk-modal');
-document.getElementById('bulk-add-btn').onclick = () => {
+document.getElementById('settings-bulk-add-btn').onclick = () => {
   document.getElementById('bulk-textarea').value = '';
+  document.getElementById('settings-modal').classList.add('hidden');
   bulkModal.classList.remove('hidden');
 };
 document.getElementById('bulk-cancel-btn').onclick = () => bulkModal.classList.add('hidden');
@@ -1022,6 +1135,10 @@ function parseTaskLine(raw){
   const tMatch = text.match(/(\d+)\s*(minutes|mins|minute|min|m)\b/i);
   if(tMatch){ mins = parseInt(tMatch[1]); text = text.replace(tMatch[0], ' '); }
 
+  let steps = 0;
+  const stepsMatch = text.match(/(\d+)\s*steps?\b/i);
+  if(stepsMatch){ steps = parseInt(stepsMatch[1]); text = text.replace(stepsMatch[0], ' '); }
+
   let segments = text.split(/[,\u2013\u2014-]/).map(s => s.trim());
   if(mins === null){
     for(let i = segments.length - 1; i >= 0; i--){
@@ -1034,7 +1151,7 @@ function parseTaskLine(raw){
   if(mins === null || mins <= 0) mins = 5;
   mins = Math.max(5, Math.round(mins / 5) * 5);
   if(!priority) priority = 'p3';
-  return { name, mins, priority, tag };
+  return { name, mins, priority, tag, steps };
 }
 
 document.getElementById('bulk-save-btn').onclick = () => {
@@ -1046,16 +1163,17 @@ document.getElementById('bulk-save-btn').onclick = () => {
     if(doneMatch){ done = true; line = line.slice(doneMatch[0].length); }
     const parsed = parseTaskLine(line);
     if(!parsed.name) return;
-    tasks.push({ id: uid(), name: parsed.name, mins: parsed.mins, priority: parsed.priority, tag: parsed.tag, done });
+    tasks.push({ id: uid(), name: parsed.name, mins: parsed.mins, priority: parsed.priority, tag: parsed.tag, steps: parsed.steps || 0, done });
   });
   save(); render();
   bulkModal.classList.add('hidden');
 };
 
 /* ---------- export ---------- */
-document.getElementById('export-btn').onclick = () => {
-  const lines = tasks.map(t => `${t.done ? '[x] ' : ''}${t.name}, ${t.mins}, ${t.priority}${t.tag ? ', ' + t.tag : ''}`);
+document.getElementById('settings-export-btn').onclick = () => {
+  const lines = tasks.map(t => `${t.done ? '[x] ' : ''}${t.name}, ${t.mins}, ${t.priority}${t.tag ? ', ' + t.tag : ''}${t.steps ? ', ' + t.steps + ' steps' : ''}`);
   document.getElementById('export-textarea').value = lines.join('\n');
+  document.getElementById('settings-modal').classList.add('hidden');
   document.getElementById('export-modal').classList.remove('hidden');
 };
 document.getElementById('export-close-btn').onclick = () => document.getElementById('export-modal').classList.add('hidden');
@@ -1183,7 +1301,7 @@ document.getElementById('review-start-btn').onclick = () => {
 
 /* ---------- session completion actions ---------- */
 document.getElementById('done-export-btn').onclick = () => {
-  const lines = sessionCompleted.map(t => `[x] ${t.name}, ${t.mins}, ${t.priority}${t.tag ? ', ' + t.tag : ''}`);
+  const lines = sessionCompleted.map(t => `[x] ${t.name}, ${t.mins}, ${t.priority}${t.tag ? ', ' + t.tag : ''}${t.steps ? ', ' + t.steps + ' steps' : ''}`);
   document.getElementById('export-textarea').value = lines.join('\n');
   document.getElementById('export-modal').classList.remove('hidden');
 };
@@ -1205,9 +1323,11 @@ document.getElementById('done-close-btn').onclick = closeTimerFully;
 document.getElementById('open-board-btn').onclick = () => {
   renderBoard();
   document.getElementById('board-screen').classList.remove('hidden');
+  lockBodyScroll();
 };
 document.getElementById('board-close-btn').onclick = () => {
   document.getElementById('board-screen').classList.add('hidden');
+  unlockBodyScroll();
 };
 
 /* ---------- completed report ---------- */
@@ -1235,7 +1355,7 @@ document.getElementById('open-report-btn').onclick = () => {
 document.getElementById('report-close-btn').onclick = () => document.getElementById('report-modal').classList.add('hidden');
 document.getElementById('report-export-btn').onclick = () => {
   const completed = getAllCompleted();
-  const lines = completed.map(t => `[x] ${t.name}, ${t.mins}, ${t.priority}${t.tag ? ', ' + t.tag : ''}`);
+  const lines = completed.map(t => `[x] ${t.name}, ${t.mins}, ${t.priority}${t.tag ? ', ' + t.tag : ''}${t.steps ? ', ' + t.steps + ' steps' : ''}`);
   document.getElementById('export-textarea').value = lines.join('\n');
   document.getElementById('export-modal').classList.remove('hidden');
 };
