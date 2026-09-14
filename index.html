@@ -73,7 +73,6 @@
   .recurring-toggle input[type=checkbox]{width:18px; height:18px; flex-shrink:0;}
   .recurring-badge{font-size:0.75rem; flex-shrink:0;}
 
-  .budget-card{background:var(--card); border:1px solid #2a2e37; border-radius:14px; padding:14px; margin-bottom:16px;}
   .steps-bar-track{display:flex; height:14px; border-radius:8px; overflow:hidden; background:#2a2e37; margin:12px 0 8px;}
   .steps-bar-segment{height:100%; transition:width 0.2s;}
   .steps-completed{background:var(--accent);}
@@ -81,8 +80,11 @@
   .steps-legend{display:flex; gap:14px; flex-wrap:wrap; font-size:0.72rem; color:var(--muted); margin-bottom:6px;}
   .steps-dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px;}
   .steps-summary{font-size:0.8rem; color:var(--muted);}
-  .add-task-card{background:var(--card); border:1px solid #2a2e37; border-radius:14px; padding:14px; margin-bottom:8px;}
-  .add-task-card .add-row{margin-bottom:10px;}
+  .pace-suggestion{
+    background:rgba(249,115,22,0.12); border:1px solid var(--accent2); border-radius:10px;
+    padding:12px; margin-bottom:14px;
+  }
+  .pace-suggestion p{margin:0 0 10px; font-size:0.85rem; color:var(--text);}
   .budget-row{display:flex; align-items:center; gap:8px; font-size:0.95rem; flex-wrap:wrap;}
   .budget-row input[type=number]{
     width:70px; padding:10px; border-radius:8px; border:1px solid #2a2e37; background:var(--bg);
@@ -98,27 +100,7 @@
   .add-btn.full{width:100%; margin-top:4px;}
 
   /* task list */
-  ul#task-list{list-style:none; padding:0; margin:0 0 20px;}
-  li.task-item{position:relative; border-radius:10px; margin-bottom:8px; overflow:hidden;}
-  .swipe-bg{position:absolute; inset:0; display:flex; border-radius:10px; overflow:hidden;}
-  .swipe-edit, .swipe-delete{flex:1; display:flex; align-items:center; font-weight:600; font-size:0.9rem; opacity:0;}
-  .swipe-edit{background:var(--edit); color:#fff; justify-content:flex-start; padding-left:16px;}
-  .swipe-delete{background:var(--danger); color:#fff; justify-content:flex-end; padding-right:16px;}
-
-  .swipe-content{
-    position:relative; display:flex; align-items:center; gap:10px; background:var(--card);
-    border-radius:10px; padding:12px 14px; border:1px solid #2a2e37; border-left:5px solid var(--muted);
-    touch-action:pan-y; z-index:1;
-  }
-  .swipe-content.done{opacity:0.4; text-decoration:line-through;}
-  .swipe-content.current{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent);}
-  .swipe-content input[type=checkbox]{width:20px; height:20px; flex-shrink:0;}
-  .swipe-content .name{flex:1;}
-  .swipe-content .mins{color:var(--muted); font-size:0.85rem; flex-shrink:0;}
   .priority-badge{font-size:0.65rem; font-weight:700; color:var(--muted); flex-shrink:0;}
-  .handle{cursor:grab; color:var(--muted); font-size:1.1rem; padding:0 2px; flex-shrink:0; touch-action:none; user-select:none;}
-  li.task-item.dragging .swipe-content{opacity:0.5; border-color:var(--accent);}
-
   .empty{color:var(--muted); text-align:center; padding:20px 0;}
 
   /* launcher */
@@ -149,13 +131,21 @@
   #report-clear-btn:disabled{opacity:0.4; cursor:default;}
   .up-next{color:var(--muted); font-size:0.85rem;}
 
-  /* priority board */
-  .board-screen{
-    position:fixed; inset:0; background:var(--bg); z-index:200;
-    display:flex; flex-direction:column;
-    padding:calc(20px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
+  /* top action row */
+  .top-action-row{display:flex; align-items:center; gap:10px; margin:14px 0 18px;}
+  .icon-btn-accent{background:var(--card); border-color:#2a2e37; font-size:1.3rem; flex-shrink:0;}
+  .mini-steps-bar{
+    flex:1; height:42px; border-radius:10px; background:var(--card); border:1px solid #2a2e37;
+    position:relative; overflow:hidden; cursor:pointer; padding:0; display:flex; align-items:center;
   }
-  .board-body{flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-bottom:20px;}
+  .mini-steps-track{position:absolute; inset:0; display:flex;}
+  .mini-steps-segment{height:100%;}
+  .mini-steps-completed{background:rgba(110,231,183,0.28);}
+  .mini-steps-planned{background:rgba(249,115,22,0.28);}
+  .mini-steps-label{position:relative; z-index:1; font-size:0.82rem; font-weight:600; white-space:nowrap; padding:0 14px; color:var(--text);}
+
+  /* priority board (now the main page content) */
+  .board-body{padding-bottom:20px;}
   .priority-zone{border:2px solid #2a2e37; border-radius:14px; padding:12px; margin-bottom:12px; min-height:64px; transition:background 0.15s, box-shadow 0.15s;}
   .priority-zone.drag-over{background:rgba(255,255,255,0.05); box-shadow:0 0 0 2px var(--accent) inset;}
   .priority-zone-header{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
@@ -209,68 +199,107 @@
   <h1 style="margin:0;">⏱️ Power Hour</h1>
   <button class="icon-btn" id="open-settings-btn" title="Settings">⚙️</button>
 </div>
-<div class="sub">Add tasks in 5-min blocks, set priority, then run through them one at a time.</div>
+<div class="sub">Drag a task between boxes to reprioritize, or within one to reorder.</div>
 
-<div class="budget-card" id="budget-card">
-  <div class="budget-row">
-    <span style="color:var(--muted); font-size:0.85rem;">Filter:</span>
-    <div class="tag-picker" id="budget-tag-picker"></div>
-  </div>
-  <div class="budget-row" style="margin-top:10px;">
-    <span>I have</span>
-    <input type="number" id="budget-input" min="5" step="5" value="60">
-    <span>minutes</span>
-    <button class="add-btn" id="budget-build-btn" style="margin-left:auto; white-space:nowrap;">Pick tasks</button>
-  </div>
-</div>
-
-<div class="budget-card" id="steps-card">
-  <div class="budget-row">
-    <span>👣 Step goal</span>
-    <input type="number" id="step-goal-input" min="0" step="500" style="margin-left:auto; width:90px;">
-  </div>
-  <div class="steps-bar-track" id="steps-bar-track">
-    <div class="steps-bar-segment steps-completed" id="steps-completed-bar"></div>
-    <div class="steps-bar-segment steps-planned" id="steps-planned-bar"></div>
-  </div>
-  <div class="steps-legend">
-    <span><i class="steps-dot" style="background:var(--accent);"></i> Completed</span>
-    <span><i class="steps-dot" style="background:var(--accent2);"></i> Planned</span>
-    <span><i class="steps-dot" style="background:#2a2e37;"></i> Yet to plan</span>
-  </div>
-  <div class="steps-summary" id="steps-summary"></div>
-</div>
-
-<div class="add-task-card" id="add-task-card">
-  <div class="add-row">
-    <input type="text" id="task-input" placeholder="What are you working on?" style="width:100%;">
-  </div>
-  <div class="add-row" style="flex-wrap:nowrap; overflow-x:auto; margin-bottom:0;">
-    <div class="time-stepper">
-      <button id="minus-btn">−</button>
-      <span id="mins-display">5 min</span>
-      <button id="plus-btn">+</button>
+<div class="top-action-row">
+  <button class="icon-btn icon-btn-accent" id="open-add-btn" title="Add task">➕</button>
+  <button class="mini-steps-bar" id="mini-steps-bar" title="Steps">
+    <div class="mini-steps-track">
+      <div class="mini-steps-segment mini-steps-completed" id="mini-steps-completed-fill"></div>
+      <div class="mini-steps-segment mini-steps-planned" id="mini-steps-planned-fill"></div>
     </div>
-    <div class="priority-picker" id="add-priority-picker"></div>
-  </div>
-  <div class="budget-row" style="margin-top:10px;">
-    <span style="color:var(--muted); font-size:0.85rem;">Tag:</span>
-    <div class="tag-picker" id="add-tag-picker"></div>
-  </div>
-  <div class="budget-row" id="add-steps-row" style="margin-top:10px; display:none;">
-    <span style="color:var(--muted); font-size:0.85rem;">👣 Est. steps</span>
-    <input type="number" id="add-steps-input" min="0" step="100" placeholder="e.g. 800" style="margin-left:auto; width:100px;">
-  </div>
-  <label class="recurring-toggle" id="add-recurring-toggle" style="margin-top:10px;">
-    <input type="checkbox" id="add-recurring-checkbox">
-    <span>🔁 Recurring — comes back each time I reset the day</span>
-  </label>
-  <button class="add-btn full" id="add-btn" style="margin-top:12px;">Add task</button>
+    <span class="mini-steps-label" id="mini-steps-label">👣 0 / 10,000</span>
+  </button>
+  <button class="icon-btn icon-btn-accent" id="open-pick-btn" title="Pick tasks for my time">🎯</button>
 </div>
-<button id="open-board-btn" style="width:100%; margin-top:6px; background:none; border:1px solid #2a2e37; color:var(--muted); padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;">🎯 Priority board</button>
-<button id="open-report-btn" style="width:100%; margin-top:6px; background:none; border:1px solid #2a2e37; color:var(--muted); padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;">📋 Completed report</button>
 
-<ul id="task-list" style="margin-top:16px;"></ul>
+<div class="board-body" id="board-body"></div>
+
+<!-- add task modal -->
+<div class="modal hidden" id="add-modal">
+  <div class="modal-card">
+    <h3>Add task</h3>
+    <div class="modal-row">
+      <input type="text" id="task-input" placeholder="What are you working on?" style="width:100%;">
+    </div>
+    <div class="modal-row" style="display:flex; flex-wrap:nowrap; overflow-x:auto; gap:8px;">
+      <div class="time-stepper">
+        <button id="minus-btn">−</button>
+        <span id="mins-display">5 min</span>
+        <button id="plus-btn">+</button>
+      </div>
+      <div class="priority-picker" id="add-priority-picker"></div>
+    </div>
+    <div class="modal-row budget-row">
+      <span style="color:var(--muted); font-size:0.85rem;">Tag:</span>
+      <div class="tag-picker" id="add-tag-picker"></div>
+    </div>
+    <div class="modal-row budget-row" id="add-steps-row" style="display:none;">
+      <span style="color:var(--muted); font-size:0.85rem;">👣 Est. steps</span>
+      <input type="number" id="add-steps-input" min="0" step="100" placeholder="e.g. 800" style="margin-left:auto; width:100px;">
+    </div>
+    <label class="modal-row recurring-toggle" id="add-recurring-toggle">
+      <input type="checkbox" id="add-recurring-checkbox">
+      <span>🔁 Recurring — comes back each time I reset the day</span>
+    </label>
+    <div class="modal-actions">
+      <button id="add-modal-close-btn">Close</button>
+      <button id="add-btn" class="add-btn">Add task</button>
+    </div>
+  </div>
+</div>
+
+<!-- pick tasks modal -->
+<div class="modal hidden" id="pick-modal">
+  <div class="modal-card">
+    <h3>Pick tasks for my time</h3>
+    <div class="modal-row budget-row">
+      <span style="color:var(--muted); font-size:0.85rem;">Filter:</span>
+      <div class="tag-picker" id="budget-tag-picker"></div>
+    </div>
+    <div class="modal-row budget-row">
+      <span>I have</span>
+      <input type="number" id="budget-input" min="5" step="5" value="60">
+      <span>minutes</span>
+    </div>
+    <div class="modal-actions">
+      <button id="pick-modal-close-btn">Cancel</button>
+      <button class="add-btn" id="budget-build-btn">Pick tasks</button>
+    </div>
+  </div>
+</div>
+
+<!-- steps edit modal -->
+<div class="modal hidden" id="steps-edit-modal">
+  <div class="modal-card">
+    <h3>👣 Steps</h3>
+    <div class="steps-bar-track" id="steps-bar-track">
+      <div class="steps-bar-segment steps-completed" id="steps-completed-bar"></div>
+      <div class="steps-bar-segment steps-planned" id="steps-planned-bar"></div>
+    </div>
+    <div class="steps-legend">
+      <span><i class="steps-dot" style="background:var(--accent);"></i> Taken</span>
+      <span><i class="steps-dot" style="background:var(--accent2);"></i> Planned</span>
+      <span><i class="steps-dot" style="background:#2a2e37;"></i> Yet to plan</span>
+    </div>
+    <div class="steps-summary" id="steps-summary" style="margin-bottom:14px;"></div>
+    <div class="pace-suggestion hidden" id="pace-suggestion">
+      <p id="pace-suggestion-text" style="margin:0;"></p>
+    </div>
+    <div class="modal-row budget-row">
+      <span>Step goal</span>
+      <input type="number" id="step-goal-input" min="0" step="500" style="margin-left:auto; width:100px;">
+    </div>
+    <div class="modal-row budget-row">
+      <span>Steps taken today</span>
+      <input type="number" id="actual-steps-input" min="0" step="100" style="margin-left:auto; width:100px;">
+    </div>
+    <div class="modal-actions">
+      <button id="steps-edit-close-btn">Close</button>
+      <button id="steps-edit-save-btn" class="add-btn">Save</button>
+    </div>
+  </div>
+</div>
 
 <!-- full screen timer -->
 <div class="timer-screen hidden" id="timer-screen">
@@ -310,16 +339,6 @@
       </div>
     </div>
   </div>
-</div>
-
-<!-- priority board -->
-<div class="board-screen hidden" id="board-screen">
-  <div class="timer-screen-header">
-    <span class="title">Priority board</span>
-    <button class="icon-btn" id="board-close-btn">✕</button>
-  </div>
-  <p style="color:var(--muted); font-size:0.8rem; margin:0 0 12px;">Drag a task into a different box to change its priority.</p>
-  <div class="board-body" id="board-body"></div>
 </div>
 
 <!-- minimized bar -->
@@ -385,6 +404,7 @@
 <div class="modal hidden" id="settings-modal">
   <div class="modal-card">
     <h3>Settings</h3>
+    <button id="settings-report-btn" class="settings-item">📋 Completed report</button>
     <button id="settings-bulk-add-btn" class="settings-item">＋ Bulk add (paste a list)</button>
     <button id="settings-export-btn" class="settings-item">⇧ Export tasks</button>
     <button id="settings-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
@@ -443,6 +463,7 @@ const TAG_ICONS = {nohands:'🎧', errands:'🏃', movearound:'🚶'};
 
 let tasks = JSON.parse(localStorage.getItem('powerHourTasks') || '[]');
 let stepGoal = parseInt(localStorage.getItem('powerHourStepGoal') || '10000') || 0;
+let actualSteps = parseInt(localStorage.getItem('powerHourActualSteps') || '0') || 0;
 let deletedCompleted = JSON.parse(localStorage.getItem('powerHourDeletedCompleted') || '[]'); // completed tasks that were swiped away, kept for the report until Clear day
 tasks.sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority));
 let pendingMins = 5, pendingPriority = 'p3', pendingTag = null, pendingRecurring = false;
@@ -453,7 +474,6 @@ let currentView = 'maximized'; // 'maximized' | 'minimized' — for restoring th
 let timerState = 'idle'; // idle | running | paused | done
 
 const taskInput = document.getElementById('task-input');
-const taskList = document.getElementById('task-list');
 const minsDisplay = document.getElementById('mins-display');
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -507,72 +527,112 @@ function refreshAddTagPicker(){
 }
 refreshAddTagPicker();
 
-/* ---------- render task list ---------- */
+/* ---------- render (drives the priority board, which is now the whole task list) ---------- */
 function render(){
-  taskList.innerHTML = '';
-  if(tasks.length === 0){
-    taskList.innerHTML = '<div class="empty">No tasks yet — add one above.</div>';
-  } else {
-    tasks.forEach((t, i) => {
-      const li = document.createElement('li');
-      li.className = 'task-item';
-      li.dataset.id = t.id;
-      li.dataset.i = i;
-      li.innerHTML = `
-        <div class="swipe-bg">
-          <div class="swipe-edit">✎ Edit</div>
-          <div class="swipe-delete">🗑 Delete</div>
-        </div>
-        <div class="swipe-content ${t.done ? 'done' : ''} ${i === currentIndex ? 'current' : ''}" style="border-left-color:var(--${t.priority})">
-          <span class="handle">⋮⋮</span>
-          <input type="checkbox" ${t.done ? 'checked' : ''}>
-          <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
-          <span class="name">${t.name}</span>
-          ${t.recurring ? '<span class="recurring-badge" title="Recurring">🔁</span>' : ''}
-          ${t.tag ? `<span class="tag-badge">${TAG_ICONS[t.tag]} ${TAG_LABELS[t.tag]}</span>` : ''}
-          ${t.steps ? `<span class="tag-badge">👣 ${t.steps}</span>` : ''}
-          <span class="mins">${t.mins} min</span>
-        </div>
-      `;
-      taskList.appendChild(li);
-    });
-  }
-  attachDragHandlers();
-  attachSwipeHandlers();
+  renderBoard();
   updateStepsBar();
 }
 
-/* ---------- steps tracker (Errand tasks only) ---------- */
+/* ---------- steps tracker (Errand tasks; "completed" = manually confirmed steps taken) ---------- */
 const stepGoalInput = document.getElementById('step-goal-input');
+const actualStepsInput = document.getElementById('actual-steps-input');
 stepGoalInput.value = stepGoal;
-stepGoalInput.onchange = () => {
-  stepGoal = parseInt(stepGoalInput.value) || 0;
-  localStorage.setItem('powerHourStepGoal', stepGoal);
-  updateStepsBar();
-};
+actualStepsInput.value = actualSteps;
+
+/* Compares elapsed time in a "waking day" (7am-10pm) against step progress so far,
+   to flag when a walk should be added to stay on pace for the goal. */
+function getElapsedDayFraction(){
+  const now = new Date();
+  const dayStart = new Date(now); dayStart.setHours(7, 0, 0, 0);
+  const dayEnd = new Date(now); dayEnd.setHours(22, 0, 0, 0);
+  return Math.max(0, Math.min(1, (now - dayStart) / (dayEnd - dayStart)));
+}
+
+/* Decides whether a walk needs adding — based on progress EXCLUDING any existing
+   auto-walk task, so the presence of that task never talks itself out of existing. */
+function getStepPace(){
+  const elapsedFraction = getElapsedDayFraction();
+  const otherPlannedSteps = tasks.filter(t => t.tag === 'errands' && t.steps > 0 && !t.done && !t.autoWalk).reduce((s, t) => s + t.steps, 0);
+  const otherProgress = actualSteps + otherPlannedSteps;
+  const remainingGoal = Math.max(0, stepGoal - otherProgress);
+  // only start flagging once a reasonable chunk of the day has passed, so it doesn't nag first thing in the morning
+  const behind = stepGoal > 0 && elapsedFraction >= 0.4 && otherProgress < stepGoal * elapsedFraction && remainingGoal > 0;
+  return { behind, suggestedSteps: Math.round(remainingGoal / 100) * 100 };
+}
+
+/* Adds, resizes, or removes the single auto-managed walk task to match the current shortfall. */
+function syncAutoWalk(pace){
+  const autoWalkTask = tasks.find(t => t.autoWalk && !t.done);
+  let changed = false;
+  if(pace.behind && pace.suggestedSteps > 0){
+    if(autoWalkTask){
+      if(autoWalkTask.steps !== pace.suggestedSteps){
+        autoWalkTask.steps = pace.suggestedSteps;
+        autoWalkTask.mins = Math.max(5, Math.round((pace.suggestedSteps / 100) / 5) * 5);
+        changed = true;
+      }
+    } else {
+      tasks.push({
+        id: uid(), name: 'Walk', mins: Math.max(5, Math.round((pace.suggestedSteps / 100) / 5) * 5),
+        priority: 'p3', tag: 'errands', steps: pace.suggestedSteps, recurring: false, done: false, autoWalk: true
+      });
+      changed = true;
+    }
+  } else if(autoWalkTask){
+    const idx = tasks.findIndex(t => t.id === autoWalkTask.id);
+    if(idx !== -1){ tasks.splice(idx, 1); changed = true; }
+  }
+  if(changed){ save(); renderBoard(); }
+}
 
 function updateStepsBar(){
-  const errandTasks = tasks.filter(t => t.tag === 'errands' && t.steps > 0);
-  const completedSteps = errandTasks.filter(t => t.done).reduce((s, t) => s + t.steps, 0);
-  const plannedSteps = errandTasks.filter(t => !t.done).reduce((s, t) => s + t.steps, 0);
+  syncAutoWalk(getStepPace());
+
+  const plannedSteps = tasks.filter(t => t.tag === 'errands' && t.steps > 0 && !t.done).reduce((s, t) => s + t.steps, 0);
   const goal = stepGoal > 0 ? stepGoal : 1;
-  const completedPct = Math.min(100, (completedSteps / goal) * 100);
+  const completedPct = Math.min(100, (actualSteps / goal) * 100);
   const plannedPct = Math.min(100 - completedPct, (plannedSteps / goal) * 100);
   document.getElementById('steps-completed-bar').style.width = completedPct + '%';
   document.getElementById('steps-planned-bar').style.width = plannedPct + '%';
-  const yetToPlan = Math.max(0, stepGoal - completedSteps - plannedSteps);
+  document.getElementById('mini-steps-completed-fill').style.width = completedPct + '%';
+  document.getElementById('mini-steps-planned-fill').style.width = plannedPct + '%';
+  const yetToPlan = Math.max(0, stepGoal - actualSteps - plannedSteps);
   document.getElementById('steps-summary').textContent =
-    `${completedSteps.toLocaleString()} completed • ${plannedSteps.toLocaleString()} planned • ${yetToPlan.toLocaleString()} yet to plan (goal ${stepGoal.toLocaleString()})`;
+    `${actualSteps.toLocaleString()} taken • ${plannedSteps.toLocaleString()} planned • ${yetToPlan.toLocaleString()} yet to plan (goal ${stepGoal.toLocaleString()})`;
+
+  const elapsedFraction = getElapsedDayFraction();
+  const fullProgress = actualSteps + plannedSteps;
+  const stillBehind = stepGoal > 0 && elapsedFraction >= 0.4 && fullProgress < stepGoal * elapsedFraction;
+  document.getElementById('mini-steps-label').textContent = `${stillBehind ? '⚠️ ' : ''}👣 ${actualSteps.toLocaleString()} / ${stepGoal.toLocaleString()}`;
+
+  const autoWalkTask = tasks.find(t => t.autoWalk && !t.done);
+  const note = document.getElementById('pace-suggestion');
+  if(autoWalkTask){
+    note.classList.remove('hidden');
+    document.getElementById('pace-suggestion-text').textContent =
+      `🚶 Added a ${autoWalkTask.steps.toLocaleString()}-step walk automatically to help you hit today's goal — it'll be removed on its own if you no longer need it.`;
+  } else {
+    note.classList.add('hidden');
+  }
 }
 
-/* checkbox toggle */
-taskList.addEventListener('change', e => {
-  if(e.target.type !== 'checkbox') return;
-  const id = e.target.closest('.task-item').dataset.id;
-  toggleTaskDone(id, e.target.checked);
-});
+document.getElementById('mini-steps-bar').onclick = () => {
+  stepGoalInput.value = stepGoal;
+  actualStepsInput.value = actualSteps;
+  updateStepsBar();
+  document.getElementById('steps-edit-modal').classList.remove('hidden');
+};
+document.getElementById('steps-edit-close-btn').onclick = () => document.getElementById('steps-edit-modal').classList.add('hidden');
+document.getElementById('steps-edit-save-btn').onclick = () => {
+  stepGoal = parseInt(stepGoalInput.value) || 0;
+  actualSteps = parseInt(actualStepsInput.value) || 0;
+  localStorage.setItem('powerHourStepGoal', stepGoal);
+  localStorage.setItem('powerHourActualSteps', actualSteps);
+  updateStepsBar();
+  document.getElementById('steps-edit-modal').classList.add('hidden');
+};
 
-/* shared by the main list checkbox and the priority board checkbox */
+/* shared by the priority board's checkbox */
 function toggleTaskDone(id, checked){
   const t = tasks.find(t => t.id === id);
   if(!t) return;
@@ -617,123 +677,9 @@ function addTask(){
   save(); render();
 }
 
-/* ---------- drag reorder (vertical, via handle) ---------- */
-function attachDragHandlers(){
-  document.querySelectorAll('.handle').forEach(h => { h.onpointerdown = onDragStart; });
-}
-let dragEl=null, dragStartY=0, dragOrigIndex=0, dragNewIndex=0, rowHeight=0;
+document.getElementById('open-add-btn').onclick = () => document.getElementById('add-modal').classList.remove('hidden');
+document.getElementById('add-modal-close-btn').onclick = () => document.getElementById('add-modal').classList.add('hidden');
 
-function onDragStart(e){
-  const li = e.target.closest('li.task-item');
-  if(!li) return;
-  e.preventDefault();
-  dragEl = li;
-  dragOrigIndex = parseInt(li.dataset.i);
-  dragNewIndex = dragOrigIndex;
-  dragStartY = e.clientY;
-  const style = getComputedStyle(li);
-  rowHeight = li.offsetHeight + parseFloat(style.marginBottom || 0);
-  li.classList.add('dragging');
-  li.style.zIndex = '20';
-  li.style.position = 'relative';
-  document.addEventListener('pointermove', onDragMove);
-  document.addEventListener('pointerup', onDragEnd);
-}
-function onDragMove(e){
-  if(!dragEl || !rowHeight) return;
-  const dy = e.clientY - dragStartY;
-  dragEl.style.transform = `translateY(${dy}px)`;
-  let newIndex = dragOrigIndex + Math.round(dy / rowHeight);
-  newIndex = Math.max(0, Math.min(tasks.length - 1, newIndex));
-  if(newIndex === dragNewIndex) return;
-  dragNewIndex = newIndex;
-  taskList.querySelectorAll('li.task-item').forEach(sib => {
-    if(sib === dragEl) return;
-    const idx = parseInt(sib.dataset.i);
-    let shift = 0;
-    if(dragOrigIndex < dragNewIndex){ if(idx > dragOrigIndex && idx <= dragNewIndex) shift = -1; }
-    else if(dragOrigIndex > dragNewIndex){ if(idx >= dragNewIndex && idx < dragOrigIndex) shift = 1; }
-    sib.style.transition = 'transform 0.15s';
-    sib.style.transform = shift ? `translateY(${shift*rowHeight}px)` : '';
-  });
-}
-function onDragEnd(){
-  document.removeEventListener('pointermove', onDragMove);
-  document.removeEventListener('pointerup', onDragEnd);
-  if(!dragEl) return;
-  if(dragNewIndex !== dragOrigIndex){
-    const [moved] = tasks.splice(dragOrigIndex, 1);
-    tasks.splice(dragNewIndex, 0, moved);
-    if(currentIndex === dragOrigIndex) currentIndex = dragNewIndex;
-    else if(currentIndex !== -1){
-      if(currentIndex > dragOrigIndex && currentIndex <= dragNewIndex) currentIndex--;
-      else if(currentIndex < dragOrigIndex && currentIndex >= dragNewIndex) currentIndex++;
-    }
-    save();
-  }
-  dragEl.classList.remove('dragging');
-  dragEl.style.transform = ''; dragEl.style.zIndex = '';
-  dragEl = null;
-  render();
-}
-
-/* ---------- swipe (horizontal, edit / delete) ---------- */
-function attachSwipeHandlers(){
-  document.querySelectorAll('.swipe-content').forEach(el => { el.onpointerdown = onSwipeStart; });
-}
-let swipeEl=null, swipeWrapper=null, swipeStartX=0, swipeStartY=0, swipeDX=0, swipeActive=false, swipeTaskId=null;
-
-function onSwipeStart(e){
-  if(e.target.closest('.handle')) return;
-  if(e.target.tagName === 'INPUT') return;
-  swipeEl = e.currentTarget;
-  swipeWrapper = swipeEl.closest('.task-item');
-  swipeTaskId = swipeWrapper.dataset.id;
-  swipeStartX = e.clientX; swipeStartY = e.clientY;
-  swipeDX = 0; swipeActive = false;
-  try { swipeEl.setPointerCapture(e.pointerId); } catch(err) {}
-  document.addEventListener('pointermove', onSwipeMove);
-  document.addEventListener('pointerup', onSwipeEnd);
-  document.addEventListener('pointercancel', onSwipeEnd);
-}
-function onSwipeMove(e){
-  if(!swipeEl) return;
-  const dx = e.clientX - swipeStartX;
-  const dy = e.clientY - swipeStartY;
-  if(!swipeActive){
-    // wait until movement is clearly more horizontal than vertical before committing;
-    // real fingers drift diagonally, so don't bail out on a little vertical noise.
-    if(Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2){ swipeActive = true; }
-    else { return; }
-  }
-  swipeDX = dx;
-  const clamped = Math.max(-140, Math.min(140, dx));
-  swipeEl.style.transform = `translateX(${clamped}px)`;
-  swipeWrapper.querySelector('.swipe-edit').style.opacity = clamped > 20 ? Math.min(1, clamped/100) : 0;
-  swipeWrapper.querySelector('.swipe-delete').style.opacity = clamped < -20 ? Math.min(1, -clamped/100) : 0;
-}
-function onSwipeEnd(){
-  if(swipeEl && swipeActive){
-    const threshold = 90;
-    if(swipeDX < -threshold){ deleteTaskById(swipeTaskId); }
-    else if(swipeDX > threshold){ openEditModal(swipeTaskId); resetSwipeEl(); }
-    else { resetSwipeEl(); }
-  }
-  cleanupSwipe();
-}
-function resetSwipeEl(){
-  if(!swipeEl) return;
-  swipeEl.style.transition = 'transform 0.2s';
-  swipeEl.style.transform = 'translateX(0)';
-  const w = swipeWrapper;
-  setTimeout(() => { if(w){ w.querySelectorAll('.swipe-edit,.swipe-delete').forEach(x=>x.style.opacity=0); } }, 200);
-}
-function cleanupSwipe(){
-  document.removeEventListener('pointermove', onSwipeMove);
-  document.removeEventListener('pointerup', onSwipeEnd);
-  document.removeEventListener('pointercancel', onSwipeEnd);
-  swipeEl = null; swipeWrapper = null; swipeActive = false; swipeDX = 0;
-}
 function deleteTaskById(id){
   const idx = tasks.findIndex(t => t.id === id);
   if(idx === -1) return;
@@ -742,7 +688,6 @@ function deleteTaskById(id){
   if(currentIndex === idx){ currentIndex = -1; }
   else if(currentIndex > idx){ currentIndex--; }
   save(); render(); refreshTimerDisplays();
-  if(typeof renderBoard === 'function' && !document.getElementById('board-screen').classList.contains('hidden')) renderBoard();
 }
 
 /* ---------- edit modal ---------- */
@@ -787,8 +732,8 @@ document.getElementById('edit-save-btn').onclick = () => {
     t.tag = editTag;
     t.steps = editTag === 'errands' ? (parseInt(document.getElementById('edit-steps-input').value) || 0) : 0;
     t.recurring = document.getElementById('edit-recurring-checkbox').checked;
+    t.autoWalk = false; // a manual edit means the user now owns this task, not the auto-pace system
     save(); render(); refreshTimerDisplays();
-    if(typeof renderBoard === 'function' && !document.getElementById('board-screen').classList.contains('hidden')) renderBoard();
   }
   editModal.classList.add('hidden'); editTaskId = null;
 };
@@ -1215,6 +1160,7 @@ refreshBudgetTagPicker();
 document.getElementById('budget-build-btn').onclick = () => {
   const budget = parseInt(document.getElementById('budget-input').value);
   if(!budget || budget <= 0) return;
+  document.getElementById('pick-modal').classList.add('hidden');
   openReviewModal(budget);
 };
 
@@ -1319,22 +1265,19 @@ document.getElementById('done-remove-btn').onclick = () => {
 };
 document.getElementById('done-close-btn').onclick = closeTimerFully;
 
-/* ---------- priority board ---------- */
-document.getElementById('open-board-btn').onclick = () => {
-  renderBoard();
-  document.getElementById('board-screen').classList.remove('hidden');
-  lockBodyScroll();
+/* ---------- pick tasks modal ---------- */
+document.getElementById('open-pick-btn').onclick = () => {
+  document.getElementById('pick-modal').classList.remove('hidden');
 };
-document.getElementById('board-close-btn').onclick = () => {
-  document.getElementById('board-screen').classList.add('hidden');
-  unlockBodyScroll();
+document.getElementById('pick-modal-close-btn').onclick = () => {
+  document.getElementById('pick-modal').classList.add('hidden');
 };
 
 /* ---------- completed report ---------- */
 function getAllCompleted(){
   return [...tasks.filter(t => t.done), ...deletedCompleted];
 }
-document.getElementById('open-report-btn').onclick = () => {
+document.getElementById('settings-report-btn').onclick = () => {
   const completed = getAllCompleted();
   const totalMins = completed.reduce((s, t) => s + t.mins, 0);
   document.getElementById('report-summary').textContent =
@@ -1350,6 +1293,7 @@ document.getElementById('open-report-btn').onclick = () => {
     </div>
   `).join('');
   document.getElementById('report-clear-btn').disabled = completed.length === 0;
+  document.getElementById('settings-modal').classList.add('hidden');
   document.getElementById('report-modal').classList.remove('hidden');
 };
 document.getElementById('report-close-btn').onclick = () => document.getElementById('report-modal').classList.add('hidden');
@@ -1366,6 +1310,9 @@ document.getElementById('report-clear-btn').onclick = () => {
     .map(t => (t.done && t.recurring) ? { ...t, done: false } : t)
     .filter(t => !t.done);
   deletedCompleted = [];
+  actualSteps = 0;
+  localStorage.setItem('powerHourActualSteps', '0');
+  actualStepsInput.value = 0;
   save(); render();
   document.getElementById('report-modal').classList.add('hidden');
 };
@@ -1398,6 +1345,7 @@ function renderBoard(){
         chip.innerHTML = `
           <input type="checkbox" class="board-chip-check">
           <span class="board-chip-name">${t.name}</span>
+          ${t.autoWalk ? '<span class="tag-badge" title="Added automatically to help hit your step goal">🤖 auto</span>' : ''}
           <span class="mins">${t.mins} min</span>
           <button type="button" class="board-chip-btn board-chip-edit" title="Edit">✎</button>
           <button type="button" class="board-chip-btn board-chip-del" title="Delete">✕</button>
@@ -1442,6 +1390,7 @@ function onChipDragStart(e){
   chipDragEl.style.zIndex = '50';
   chipDragEl.style.pointerEvents = 'none'; // so elementFromPoint sees the zone underneath, not the chip itself
   try { chipDragEl.setPointerCapture(e.pointerId); } catch(err) {}
+  lockBodyScroll(); // the board is now inline on the page (not a fixed overlay), so without this the page itself can scroll mid-drag and desync viewport coordinates
   dragPlaceholder = document.createElement('div');
   dragPlaceholder.className = 'board-chip-placeholder';
   document.addEventListener('pointermove', onChipDragMove);
@@ -1477,6 +1426,7 @@ function onChipDragEnd(e){
   document.removeEventListener('pointermove', onChipDragMove);
   document.removeEventListener('pointerup', onChipDragEnd);
   document.removeEventListener('pointercancel', onChipDragEnd);
+  unlockBodyScroll();
   const placeholderParent = dragPlaceholder ? dragPlaceholder.parentElement : null;
   const insertBeforeEl = placeholderParent ? dragPlaceholder.nextElementSibling : null;
   const insertBeforeId = insertBeforeEl && insertBeforeEl.classList.contains('board-chip') ? insertBeforeEl.dataset.id : null;
@@ -1487,7 +1437,7 @@ function onChipDragEnd(e){
   const zone = target ? target.closest('.priority-zone') : null;
   document.querySelectorAll('.priority-zone').forEach(z => z.classList.remove('drag-over'));
 
-  if(zone && placeholderParent){
+  if(zone){
     const newPriority = zone.dataset.priority;
     const fromIdx = tasks.findIndex(t => t.id === chipDragId);
     if(fromIdx !== -1){
