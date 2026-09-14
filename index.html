@@ -127,6 +127,7 @@
   #done-export-btn, #done-close-btn{background:#2a2e37; color:var(--text);}
   #done-remove-btn:disabled{opacity:0.4; cursor:default;}
   #report-export-btn{background:#2a2e37; color:var(--text);}
+  #escalation-close-btn, #escalation-reset-btn{background:#2a2e37; color:var(--text); font-size:0.85rem;}
   #report-clear-btn{background:var(--danger); color:#fff;}
   #report-clear-btn:disabled{opacity:0.4; cursor:default;}
   .up-next{color:var(--muted); font-size:0.85rem;}
@@ -407,9 +408,71 @@
   <div class="modal-card">
     <h3>Settings</h3>
     <button id="settings-report-btn" class="settings-item">📋 Completed report</button>
+    <button id="settings-aging-btn" class="settings-item">⏳ Aging tasks</button>
+    <button id="settings-escalation-btn" class="settings-item">📈 Escalation timing</button>
+    <button id="settings-daylog-btn" class="settings-item">📅 Day log</button>
     <button id="settings-bulk-add-btn" class="settings-item">＋ Bulk add (paste a list)</button>
     <button id="settings-export-btn" class="settings-item">⇧ Export tasks</button>
     <button id="settings-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
+<!-- aging tasks -->
+<div class="modal hidden" id="aging-modal">
+  <div class="modal-card" style="max-height:80vh; overflow-y:auto;">
+    <h3>⏳ Aging tasks</h3>
+    <p style="color:var(--muted); font-size:0.8rem; margin-top:-8px;">
+      Pending tasks, oldest first. Lower-priority tasks get more patience before bumping up; higher-priority ones escalate faster.
+    </p>
+    <div id="aging-list"></div>
+    <button id="aging-close-btn" style="width:100%; margin-top:10px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
+<!-- escalation timing settings -->
+<div class="modal hidden" id="escalation-modal">
+  <div class="modal-card">
+    <h3>📈 Escalation timing</h3>
+    <p style="color:var(--muted); font-size:0.8rem; margin-top:-8px;">
+      Days a pending task can sit at each priority before it bumps up one level. Lower priorities default to more patience.
+    </p>
+    <div class="modal-row budget-row">
+      <span style="color:var(--p5); font-weight:700;">P5 → P4</span>
+      <input type="number" id="esc-p5-input" min="1" step="1" style="margin-left:auto; width:80px;">
+      <span style="color:var(--muted); font-size:0.85rem;">days</span>
+    </div>
+    <div class="modal-row budget-row">
+      <span style="color:var(--p4); font-weight:700;">P4 → P3</span>
+      <input type="number" id="esc-p4-input" min="1" step="1" style="margin-left:auto; width:80px;">
+      <span style="color:var(--muted); font-size:0.85rem;">days</span>
+    </div>
+    <div class="modal-row budget-row">
+      <span style="color:var(--p3); font-weight:700;">P3 → P2</span>
+      <input type="number" id="esc-p3-input" min="1" step="1" style="margin-left:auto; width:80px;">
+      <span style="color:var(--muted); font-size:0.85rem;">days</span>
+    </div>
+    <div class="modal-row budget-row">
+      <span style="color:var(--p2); font-weight:700;">P2 → P1</span>
+      <input type="number" id="esc-p2-input" min="1" step="1" style="margin-left:auto; width:80px;">
+      <span style="color:var(--muted); font-size:0.85rem;">days</span>
+    </div>
+    <div class="modal-actions">
+      <button id="escalation-close-btn">Close</button>
+      <button id="escalation-reset-btn">Reset to default</button>
+      <button id="escalation-save-btn" class="add-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- day log -->
+<div class="modal hidden" id="daylog-modal">
+  <div class="modal-card" style="max-height:80vh; overflow-y:auto;">
+    <h3>📅 Day log</h3>
+    <p style="color:var(--muted); font-size:0.8rem; margin-top:-8px;">
+      One entry each time you hit Clear day — most recent first.
+    </p>
+    <div id="daylog-list"></div>
+    <button id="daylog-close-btn" style="width:100%; margin-top:10px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
   </div>
 </div>
 
@@ -464,9 +527,11 @@ const TAG_LABELS = {nohands:'No hands', errands:'Errands', movearound:'Move arou
 const TAG_ICONS = {nohands:'🎧', errands:'🏃', movearound:'🚶'};
 
 let tasks = JSON.parse(localStorage.getItem('powerHourTasks') || '[]');
+tasks.forEach(t => { if(!t.createdAt) t.createdAt = Date.now(); }); // backfill for tasks saved before staleness tracking existed
 let stepGoal = parseInt(localStorage.getItem('powerHourStepGoal') || '10000') || 0;
 let actualSteps = parseInt(localStorage.getItem('powerHourActualSteps') || '0') || 0;
 let deletedCompleted = JSON.parse(localStorage.getItem('powerHourDeletedCompleted') || '[]'); // completed tasks that were swiped away, kept for the report until Clear day
+let dayLog = JSON.parse(localStorage.getItem('powerHourDayLog') || '[]'); // persistent archive, one entry per day you hit Clear day
 tasks.sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority));
 let pendingMins = 5, pendingPriority = 'p3', pendingTag = null, pendingRecurring = false;
 let editMins = 5, editPriority = 'p3', editTag = null, editRecurring = false, editTaskId = null;
@@ -530,10 +595,49 @@ function refreshAddTagPicker(){
 refreshAddTagPicker();
 
 /* ---------- render (drives the priority board, which is now the whole task list) ---------- */
+/* Default days-at-this-level before bumping to the next priority up. Lower priority
+   (further from P1) gets more patience; closer to P1, it escalates faster. Customizable in Settings. */
+const DEFAULT_ESCALATION_DAYS = { p5: 21, p4: 14, p3: 10, p2: 7 };
+let escalationDays = { ...DEFAULT_ESCALATION_DAYS, ...JSON.parse(localStorage.getItem('powerHourEscalationDays') || '{}') };
+
+function saveEscalationDays(){
+  localStorage.setItem('powerHourEscalationDays', JSON.stringify(escalationDays));
+}
+
+/* Bumps a task up one priority level once it's sat pending untouched for that level's
+   configured number of days, capping at P1. The clock resets whenever the task is
+   manually edited, dragged to a new priority, added, or (for recurring tasks) cycles
+   back via Clear day. */
+function escalateStaleTasks(){
+  const now = Date.now();
+  let changed = false;
+  tasks.forEach(t => {
+    if(t.done) return;
+    if(!t.createdAt) t.createdAt = now;
+    if(t.priority === 'p1') return;
+    const thresholdMs = (escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14) * 24 * 60 * 60 * 1000;
+    if(now - t.createdAt >= thresholdMs){
+      const idx = PRIORITIES.indexOf(t.priority);
+      if(idx > 0){
+        t.priority = PRIORITIES[idx - 1];
+        t.createdAt = now; // restart the clock at the new priority level
+        t.escalated = true;
+        changed = true;
+      }
+    }
+  });
+  if(changed) save();
+  return changed;
+}
+
 function render(){
+  escalateStaleTasks();
   renderBoard();
   updateStepsBar();
 }
+
+/* also sweep for staleness on an hourly timer, in case the app/tab is left open for a long stretch */
+setInterval(() => { if(escalateStaleTasks()) render(); }, 60 * 60 * 1000);
 
 /* ---------- steps tracker (Errand tasks; "completed" = manually confirmed steps taken) ---------- */
 const stepGoalInput = document.getElementById('step-goal-input');
@@ -668,7 +772,7 @@ function addTask(){
   const recurringCb = document.getElementById('add-recurring-checkbox');
   const stepsInput = document.getElementById('add-steps-input');
   const steps = pendingTag === 'errands' ? (parseInt(stepsInput.value) || 0) : 0;
-  tasks.push({ id: uid(), name, mins: pendingMins, priority: pendingPriority, tag: pendingTag, steps, recurring: recurringCb.checked, done: false });
+  tasks.push({ id: uid(), name, mins: pendingMins, priority: pendingPriority, tag: pendingTag, steps, recurring: recurringCb.checked, done: false, createdAt: Date.now() });
   taskInput.value = '';
   pendingMins = 5; pendingPriority = 'p3'; pendingTag = null;
   recurringCb.checked = false;
@@ -738,6 +842,8 @@ document.getElementById('edit-save-btn').onclick = () => {
     t.steps = editTag === 'errands' ? (parseInt(document.getElementById('edit-steps-input').value) || 0) : 0;
     t.recurring = document.getElementById('edit-recurring-checkbox').checked;
     t.autoWalk = false; // a manual edit means the user now owns this task, not the auto-pace system
+    t.createdAt = Date.now(); // touching it manually resets the staleness clock
+    t.escalated = false;
     save(); render(); refreshTimerDisplays();
   }
   editModal.classList.add('hidden'); editTaskId = null;
@@ -1113,7 +1219,7 @@ document.getElementById('bulk-save-btn').onclick = () => {
     if(doneMatch){ done = true; line = line.slice(doneMatch[0].length); }
     const parsed = parseTaskLine(line);
     if(!parsed.name) return;
-    tasks.push({ id: uid(), name: parsed.name, mins: parsed.mins, priority: parsed.priority, tag: parsed.tag, steps: parsed.steps || 0, done });
+    tasks.push({ id: uid(), name: parsed.name, mins: parsed.mins, priority: parsed.priority, tag: parsed.tag, steps: parsed.steps || 0, done, createdAt: Date.now() });
   });
   save(); render();
   bulkModal.classList.add('hidden');
@@ -1260,7 +1366,7 @@ document.getElementById('done-remove-btn').onclick = () => {
   if(document.getElementById('done-remove-btn').disabled) return;
   tasks.forEach(t => { if(t.done && !t.recurring) deletedCompleted.push({ ...t }); });
   tasks = tasks
-    .map(t => (t.done && t.recurring) ? { ...t, done: false } : t)
+    .map(t => (t.done && t.recurring) ? { ...t, done: false, createdAt: Date.now(), escalated: false } : t)
     .filter(t => !t.done);
   save();
   refreshTimerDisplays();
@@ -1302,6 +1408,85 @@ document.getElementById('settings-report-btn').onclick = () => {
   document.getElementById('report-modal').classList.remove('hidden');
 };
 document.getElementById('report-close-btn').onclick = () => document.getElementById('report-modal').classList.add('hidden');
+
+/* ---------- aging tasks ---------- */
+document.getElementById('settings-aging-btn').onclick = () => {
+  const pending = tasks.filter(t => !t.done).sort((a, b) => a.createdAt - b.createdAt);
+  const list = document.getElementById('aging-list');
+  if(pending.length === 0){
+    list.innerHTML = '<div class="empty">Nothing pending.</div>';
+  } else {
+    const now = Date.now();
+    list.innerHTML = pending.map(t => {
+      const ageDays = Math.floor((now - t.createdAt) / (24 * 60 * 60 * 1000));
+      const thresholdDays = escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14;
+      const daysLeft = Math.ceil(thresholdDays - (now - t.createdAt) / (24 * 60 * 60 * 1000));
+      let statusText;
+      if(t.priority === 'p1'){ statusText = `${ageDays}d old — already top priority`; }
+      else if(daysLeft <= 0){ statusText = `${ageDays}d old — escalating`; }
+      else { statusText = `${ageDays}d old — bumps up in ${daysLeft}d`; }
+      return `
+        <div class="review-item">
+          <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
+          <span class="name">${t.name}</span>
+          <span class="mins" style="flex-shrink:0;">${statusText}</span>
+        </div>
+      `;
+    }).join('');
+  }
+  document.getElementById('settings-modal').classList.add('hidden');
+  document.getElementById('aging-modal').classList.remove('hidden');
+};
+document.getElementById('aging-close-btn').onclick = () => document.getElementById('aging-modal').classList.add('hidden');
+
+/* ---------- escalation timing settings ---------- */
+document.getElementById('settings-escalation-btn').onclick = () => {
+  document.getElementById('esc-p5-input').value = escalationDays.p5;
+  document.getElementById('esc-p4-input').value = escalationDays.p4;
+  document.getElementById('esc-p3-input').value = escalationDays.p3;
+  document.getElementById('esc-p2-input').value = escalationDays.p2;
+  document.getElementById('settings-modal').classList.add('hidden');
+  document.getElementById('escalation-modal').classList.remove('hidden');
+};
+document.getElementById('escalation-close-btn').onclick = () => document.getElementById('escalation-modal').classList.add('hidden');
+document.getElementById('escalation-save-btn').onclick = () => {
+  escalationDays = {
+    p5: Math.max(1, parseInt(document.getElementById('esc-p5-input').value) || DEFAULT_ESCALATION_DAYS.p5),
+    p4: Math.max(1, parseInt(document.getElementById('esc-p4-input').value) || DEFAULT_ESCALATION_DAYS.p4),
+    p3: Math.max(1, parseInt(document.getElementById('esc-p3-input').value) || DEFAULT_ESCALATION_DAYS.p3),
+    p2: Math.max(1, parseInt(document.getElementById('esc-p2-input').value) || DEFAULT_ESCALATION_DAYS.p2),
+  };
+  saveEscalationDays();
+  render();
+  document.getElementById('escalation-modal').classList.add('hidden');
+};
+document.getElementById('escalation-reset-btn').onclick = () => {
+  document.getElementById('esc-p5-input').value = DEFAULT_ESCALATION_DAYS.p5;
+  document.getElementById('esc-p4-input').value = DEFAULT_ESCALATION_DAYS.p4;
+  document.getElementById('esc-p3-input').value = DEFAULT_ESCALATION_DAYS.p3;
+  document.getElementById('esc-p2-input').value = DEFAULT_ESCALATION_DAYS.p2;
+};
+
+/* ---------- day log ---------- */
+document.getElementById('settings-daylog-btn').onclick = () => {
+  const list = document.getElementById('daylog-list');
+  if(dayLog.length === 0){
+    list.innerHTML = '<div class="empty">No days logged yet — this fills in each time you hit Clear day.</div>';
+  } else {
+    list.innerHTML = [...dayLog].reverse().map(entry => `
+      <div class="review-item" style="flex-direction:column; align-items:flex-start; gap:4px;">
+        <div style="display:flex; justify-content:space-between; width:100%; font-weight:600;">
+          <span>${entry.date}</span>
+          <span style="color:var(--muted); font-weight:400;">${entry.completedCount} task${entry.completedCount !== 1 ? 's' : ''} • ${entry.totalMins} min</span>
+        </div>
+        <div style="color:var(--muted); font-size:0.8rem;">👣 ${entry.actualSteps.toLocaleString()} / ${entry.stepGoal.toLocaleString()} steps</div>
+      </div>
+    `).join('');
+  }
+  document.getElementById('settings-modal').classList.add('hidden');
+  document.getElementById('daylog-modal').classList.remove('hidden');
+};
+document.getElementById('daylog-close-btn').onclick = () => document.getElementById('daylog-modal').classList.add('hidden');
 document.getElementById('report-export-btn').onclick = () => {
   const completed = getAllCompleted();
   const lines = completed.map(t => `[x] ${t.name}, ${t.mins}, ${t.priority}${t.tag ? ', ' + t.tag : ''}${t.steps ? ', ' + t.steps + ' steps' : ''}`);
@@ -1311,8 +1496,21 @@ document.getElementById('report-export-btn').onclick = () => {
 document.getElementById('report-clear-btn').onclick = () => {
   if(document.getElementById('report-clear-btn').disabled) return;
   if(!confirm('Clear all completed tasks for today? Recurring ones will come back fresh instead of being removed.')) return;
+
+  const completedToday = getAllCompleted();
+  dayLog.push({
+    date: new Date().toISOString().slice(0, 10),
+    completedCount: completedToday.length,
+    totalMins: completedToday.reduce((s, t) => s + t.mins, 0),
+    actualSteps,
+    stepGoal,
+    tasks: completedToday.map(t => ({ name: t.name, mins: t.mins, priority: t.priority, tag: t.tag, steps: t.steps || 0 }))
+  });
+  if(dayLog.length > 90) dayLog = dayLog.slice(-90); // keep roughly the last 3 months
+  localStorage.setItem('powerHourDayLog', JSON.stringify(dayLog));
+
   tasks = tasks
-    .map(t => (t.done && t.recurring) ? { ...t, done: false } : t)
+    .map(t => (t.done && t.recurring) ? { ...t, done: false, createdAt: Date.now(), escalated: false } : t)
     .filter(t => !t.done);
   deletedCompleted = [];
   actualSteps = 0;
@@ -1351,6 +1549,8 @@ function renderBoard(){
           <input type="checkbox" class="board-chip-check">
           <span class="board-chip-name">${t.name}</span>
           ${t.autoWalk ? '<span class="tag-badge" title="Added automatically to help hit your step goal">🤖 auto</span>' : ''}
+          ${t.escalated ? '<span class="tag-badge" title="Bumped up — this sat pending for 2+ weeks">⏫ overdue</span>' : ''}
+          ${(!t.escalated && t.priority !== 'p1' && (((escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14) * 24 * 60 * 60 * 1000) - (Date.now() - t.createdAt)) <= 3 * 24 * 60 * 60 * 1000) ? '<span class="tag-badge" title="Will bump up in a few days if still pending">⏳ aging</span>' : ''}
           <span class="mins">${t.mins} min</span>
           <button type="button" class="board-chip-btn board-chip-edit" title="Edit">✎</button>
           <button type="button" class="board-chip-btn board-chip-del" title="Delete">✕</button>
@@ -1447,6 +1647,7 @@ function onChipDragEnd(e){
     const fromIdx = tasks.findIndex(t => t.id === chipDragId);
     if(fromIdx !== -1){
       const [moved] = tasks.splice(fromIdx, 1);
+      if(moved.priority !== newPriority){ moved.createdAt = Date.now(); moved.escalated = false; }
       moved.priority = newPriority;
       if(insertBeforeId){
         const insertIdx = tasks.findIndex(t => t.id === insertBeforeId);
