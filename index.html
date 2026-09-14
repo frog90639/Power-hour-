@@ -140,8 +140,8 @@
   }
   .mini-steps-track{position:absolute; inset:0; display:flex;}
   .mini-steps-segment{height:100%;}
-  .mini-steps-completed{background:rgba(110,231,183,0.28);}
-  .mini-steps-planned{background:rgba(249,115,22,0.28);}
+  .mini-steps-completed{background:rgba(110,231,183,0.55);}
+  .mini-steps-planned{background:rgba(249,115,22,0.55);}
   .mini-steps-label{position:relative; z-index:1; font-size:0.82rem; font-weight:600; white-space:nowrap; padding:0 14px; color:var(--text);}
 
   /* priority board (now the main page content) */
@@ -181,6 +181,8 @@
 
   /* modal */
   .modal{position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:300; display:flex; align-items:flex-end; justify-content:center;}
+  #add-modal{transition:opacity 0.12s;}
+  #add-modal:not(.modal-open){opacity:0; pointer-events:none;}
   .modal-card{background:var(--card); border-radius:16px 16px 0 0; padding:20px; width:100%; max-width:480px; border:1px solid #2a2e37;}
   .modal-card h3{margin:0 0 14px;}
   .modal-row{margin-bottom:12px;}
@@ -216,7 +218,7 @@
 <div class="board-body" id="board-body"></div>
 
 <!-- add task modal -->
-<div class="modal hidden" id="add-modal">
+<div class="modal" id="add-modal">
   <div class="modal-card">
     <h3>Add task</h3>
     <div class="modal-row">
@@ -677,8 +679,11 @@ function addTask(){
   save(); render();
 }
 
-document.getElementById('open-add-btn').onclick = () => document.getElementById('add-modal').classList.remove('hidden');
-document.getElementById('add-modal-close-btn').onclick = () => document.getElementById('add-modal').classList.add('hidden');
+document.getElementById('open-add-btn').onclick = () => {
+  document.getElementById('add-modal').classList.add('modal-open');
+  taskInput.focus();
+};
+document.getElementById('add-modal-close-btn').onclick = () => document.getElementById('add-modal').classList.remove('modal-open');
 
 function deleteTaskById(id){
   const idx = tasks.findIndex(t => t.id === id);
