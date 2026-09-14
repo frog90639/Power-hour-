@@ -456,6 +456,11 @@
       <input type="number" id="esc-p2-input" min="1" step="1" style="margin-left:auto; width:80px;">
       <span style="color:var(--muted); font-size:0.85rem;">days</span>
     </div>
+    <div class="modal-row budget-row">
+      <span style="color:var(--p1); font-weight:700;">P1 → ❗ must do</span>
+      <input type="number" id="esc-p1-input" min="1" step="1" style="margin-left:auto; width:80px;">
+      <span style="color:var(--muted); font-size:0.85rem;">days</span>
+    </div>
     <div class="modal-actions">
       <button id="escalation-close-btn">Close</button>
       <button id="escalation-reset-btn">Reset to default</button>
@@ -597,7 +602,7 @@ refreshAddTagPicker();
 /* ---------- render (drives the priority board, which is now the whole task list) ---------- */
 /* Default days-at-this-level before bumping to the next priority up. Lower priority
    (further from P1) gets more patience; closer to P1, it escalates faster. Customizable in Settings. */
-const DEFAULT_ESCALATION_DAYS = { p5: 21, p4: 14, p3: 10, p2: 7 };
+const DEFAULT_ESCALATION_DAYS = { p5: 21, p4: 14, p3: 10, p2: 7, p1: 2 };
 let escalationDays = { ...DEFAULT_ESCALATION_DAYS, ...JSON.parse(localStorage.getItem('powerHourEscalationDays') || '{}') };
 
 function saveEscalationDays(){
@@ -605,8 +610,9 @@ function saveEscalationDays(){
 }
 
 /* Bumps a task up one priority level once it's sat pending untouched for that level's
-   configured number of days, capping at P1. The clock resets whenever the task is
-   manually edited, dragged to a new priority, added, or (for recurring tasks) cycles
+   configured number of days. P1 has nowhere higher to go, so instead it gets flagged
+   "must do" once it's been sitting there too long. The clock resets whenever the task
+   is manually edited, dragged to a new priority, added, or (for recurring tasks) cycles
    back via Clear day. */
 function escalateStaleTasks(){
   const now = Date.now();
@@ -614,7 +620,15 @@ function escalateStaleTasks(){
   tasks.forEach(t => {
     if(t.done) return;
     if(!t.createdAt) t.createdAt = now;
-    if(t.priority === 'p1') return;
+    if(t.priority === 'p1'){
+      if(t.mustDo) return; // already flagged, nothing further to do
+      const mustDoMs = (escalationDays.p1 || DEFAULT_ESCALATION_DAYS.p1) * 24 * 60 * 60 * 1000;
+      if(now - t.createdAt >= mustDoMs){
+        t.mustDo = true;
+        changed = true;
+      }
+      return;
+    }
     const thresholdMs = (escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14) * 24 * 60 * 60 * 1000;
     if(now - t.createdAt >= thresholdMs){
       const idx = PRIORITIES.indexOf(t.priority);
@@ -844,6 +858,7 @@ document.getElementById('edit-save-btn').onclick = () => {
     t.autoWalk = false; // a manual edit means the user now owns this task, not the auto-pace system
     t.createdAt = Date.now(); // touching it manually resets the staleness clock
     t.escalated = false;
+    t.mustDo = false;
     save(); render(); refreshTimerDisplays();
   }
   editModal.classList.add('hidden'); editTaskId = null;
@@ -1422,7 +1437,11 @@ document.getElementById('settings-aging-btn').onclick = () => {
       const thresholdDays = escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14;
       const daysLeft = Math.ceil(thresholdDays - (now - t.createdAt) / (24 * 60 * 60 * 1000));
       let statusText;
-      if(t.priority === 'p1'){ statusText = `${ageDays}d old — already top priority`; }
+      if(t.priority === 'p1'){
+        if(t.mustDo){ statusText = `${ageDays}d old — flagged must do`; }
+        else if(daysLeft <= 0){ statusText = `${ageDays}d old — flagging as must do`; }
+        else { statusText = `${ageDays}d old — must do in ${daysLeft}d`; }
+      }
       else if(daysLeft <= 0){ statusText = `${ageDays}d old — escalating`; }
       else { statusText = `${ageDays}d old — bumps up in ${daysLeft}d`; }
       return `
@@ -1445,6 +1464,7 @@ document.getElementById('settings-escalation-btn').onclick = () => {
   document.getElementById('esc-p4-input').value = escalationDays.p4;
   document.getElementById('esc-p3-input').value = escalationDays.p3;
   document.getElementById('esc-p2-input').value = escalationDays.p2;
+  document.getElementById('esc-p1-input').value = escalationDays.p1;
   document.getElementById('settings-modal').classList.add('hidden');
   document.getElementById('escalation-modal').classList.remove('hidden');
 };
@@ -1455,6 +1475,7 @@ document.getElementById('escalation-save-btn').onclick = () => {
     p4: Math.max(1, parseInt(document.getElementById('esc-p4-input').value) || DEFAULT_ESCALATION_DAYS.p4),
     p3: Math.max(1, parseInt(document.getElementById('esc-p3-input').value) || DEFAULT_ESCALATION_DAYS.p3),
     p2: Math.max(1, parseInt(document.getElementById('esc-p2-input').value) || DEFAULT_ESCALATION_DAYS.p2),
+    p1: Math.max(1, parseInt(document.getElementById('esc-p1-input').value) || DEFAULT_ESCALATION_DAYS.p1),
   };
   saveEscalationDays();
   render();
@@ -1465,6 +1486,7 @@ document.getElementById('escalation-reset-btn').onclick = () => {
   document.getElementById('esc-p4-input').value = DEFAULT_ESCALATION_DAYS.p4;
   document.getElementById('esc-p3-input').value = DEFAULT_ESCALATION_DAYS.p3;
   document.getElementById('esc-p2-input').value = DEFAULT_ESCALATION_DAYS.p2;
+  document.getElementById('esc-p1-input').value = DEFAULT_ESCALATION_DAYS.p1;
 };
 
 /* ---------- day log ---------- */
@@ -1550,6 +1572,7 @@ function renderBoard(){
           <span class="board-chip-name">${t.name}</span>
           ${t.autoWalk ? '<span class="tag-badge" title="Added automatically to help hit your step goal">🤖 auto</span>' : ''}
           ${t.escalated ? '<span class="tag-badge" title="Bumped up — this sat pending for 2+ weeks">⏫ overdue</span>' : ''}
+          ${t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff;" title="Sitting at P1 too long — this needs doing">❗ must do</span>' : ''}
           ${(!t.escalated && t.priority !== 'p1' && (((escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14) * 24 * 60 * 60 * 1000) - (Date.now() - t.createdAt)) <= 3 * 24 * 60 * 60 * 1000) ? '<span class="tag-badge" title="Will bump up in a few days if still pending">⏳ aging</span>' : ''}
           <span class="mins">${t.mins} min</span>
           <button type="button" class="board-chip-btn board-chip-edit" title="Edit">✎</button>
@@ -1647,7 +1670,7 @@ function onChipDragEnd(e){
     const fromIdx = tasks.findIndex(t => t.id === chipDragId);
     if(fromIdx !== -1){
       const [moved] = tasks.splice(fromIdx, 1);
-      if(moved.priority !== newPriority){ moved.createdAt = Date.now(); moved.escalated = false; }
+      if(moved.priority !== newPriority){ moved.createdAt = Date.now(); moved.escalated = false; moved.mustDo = false; }
       moved.priority = newPriority;
       if(insertBeforeId){
         const insertIdx = tasks.findIndex(t => t.id === insertBeforeId);
