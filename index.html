@@ -205,6 +205,22 @@
     width:100%; text-align:left; background:none; border:1px solid #2a2e37; color:var(--text);
     padding:14px; border-radius:10px; font-size:0.95rem; cursor:pointer; margin-bottom:8px;
   }
+
+  .calendar-nav{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
+  .cal-weekdays{display:grid; grid-template-columns:repeat(7,1fr); text-align:center; color:var(--muted); font-size:0.72rem; margin-bottom:4px;}
+  .cal-days{display:grid; grid-template-columns:repeat(7,1fr); gap:4px;}
+  .cal-cell{
+    aspect-ratio:1; border-radius:8px; border:1px solid transparent; background:none; color:var(--text);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-size:0.85rem; cursor:pointer; padding:0; gap:2px;
+  }
+  .cal-cell.empty{cursor:default;}
+  .cal-cell.cal-today{border-color:var(--accent); font-weight:700;}
+  .cal-cell.cal-selected{background:var(--edit); color:#fff;}
+  .cal-dot{width:5px; height:5px; border-radius:50%; background:var(--accent2); flex-shrink:0;}
+  .cal-selected .cal-dot{background:#fff;}
+  #calendar-day-detail{margin-top:14px;}
+  #calendar-day-detail .cal-day-label{font-weight:600; margin-bottom:8px;}
 </style>
 </head>
 <body>
@@ -440,6 +456,7 @@
     <button id="settings-report-btn" class="settings-item">📋 Completed report</button>
     <button id="settings-aging-btn" class="settings-item">⏳ Aging tasks</button>
     <button id="settings-escalation-btn" class="settings-item">📈 Escalation timing</button>
+    <button id="settings-calendar-btn" class="settings-item">🗓️ Calendar</button>
     <button id="settings-scheduled-btn" class="settings-item">📆 Scheduled for later</button>
     <button id="settings-daylog-btn" class="settings-item">📅 Day log</button>
     <button id="settings-bulk-add-btn" class="settings-item">＋ Bulk add (paste a list)</button>
@@ -457,6 +474,21 @@
     </p>
     <div id="aging-list"></div>
     <button id="aging-close-btn" style="width:100%; margin-top:10px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
+<!-- calendar -->
+<div class="modal hidden" id="calendar-modal">
+  <div class="modal-card" style="max-height:85vh; overflow-y:auto;">
+    <h3>🗓️ Calendar</h3>
+    <div class="calendar-nav">
+      <button type="button" id="cal-prev-btn" class="icon-btn">‹</button>
+      <span id="cal-month-label" style="font-weight:600;"></span>
+      <button type="button" id="cal-next-btn" class="icon-btn">›</button>
+    </div>
+    <div id="calendar-grid"></div>
+    <div id="calendar-day-detail"></div>
+    <button id="calendar-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
   </div>
 </div>
 
@@ -1559,6 +1591,91 @@ document.getElementById('settings-aging-btn').onclick = () => {
 document.getElementById('aging-close-btn').onclick = () => document.getElementById('aging-modal').classList.add('hidden');
 
 /* ---------- scheduled for later ---------- */
+/* ---------- calendar ---------- */
+let calendarViewDate = new Date();
+let calendarSelectedDate = null;
+
+document.getElementById('settings-calendar-btn').onclick = () => {
+  calendarViewDate = new Date();
+  calendarSelectedDate = null;
+  renderCalendar();
+  document.getElementById('settings-modal').classList.add('hidden');
+  document.getElementById('calendar-modal').classList.remove('hidden');
+};
+document.getElementById('calendar-close-btn').onclick = () => document.getElementById('calendar-modal').classList.add('hidden');
+document.getElementById('cal-prev-btn').onclick = () => {
+  calendarViewDate.setMonth(calendarViewDate.getMonth() - 1);
+  calendarSelectedDate = null;
+  renderCalendar();
+};
+document.getElementById('cal-next-btn').onclick = () => {
+  calendarViewDate.setMonth(calendarViewDate.getMonth() + 1);
+  calendarSelectedDate = null;
+  renderCalendar();
+};
+
+function renderCalendar(){
+  const year = calendarViewDate.getFullYear();
+  const month = calendarViewDate.getMonth();
+  document.getElementById('cal-month-label').textContent =
+    calendarViewDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+  const tasksByDate = {};
+  tasks.filter(t => !t.done && t.scheduledDate).forEach(t => {
+    (tasksByDate[t.scheduledDate] = tasksByDate[t.scheduledDate] || []).push(t);
+  });
+
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = todayStr();
+
+  let html = '<div class="cal-weekdays">' + ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => `<span>${d}</span>`).join('') + '</div>';
+  html += '<div class="cal-days">';
+  for(let i = 0; i < firstWeekday; i++) html += '<div class="cal-cell empty"></div>';
+  for(let d = 1; d <= daysInMonth; d++){
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const hasTasks = tasksByDate[dateStr] && tasksByDate[dateStr].length > 0;
+    const classes = ['cal-cell'];
+    if(dateStr === today) classes.push('cal-today');
+    if(dateStr === calendarSelectedDate) classes.push('cal-selected');
+    html += `<button type="button" class="${classes.join(' ')}" data-date="${dateStr}">
+      <span>${d}</span>${hasTasks ? '<span class="cal-dot"></span>' : ''}
+    </button>`;
+  }
+  html += '</div>';
+  document.getElementById('calendar-grid').innerHTML = html;
+
+  document.querySelectorAll('#calendar-grid .cal-cell[data-date]').forEach(cell => {
+    cell.onclick = () => {
+      calendarSelectedDate = cell.dataset.date;
+      renderCalendar();
+    };
+  });
+
+  const detail = document.getElementById('calendar-day-detail');
+  if(!calendarSelectedDate){ detail.innerHTML = ''; return; }
+  const dayTasks = tasksByDate[calendarSelectedDate] || [];
+  const label = new Date(calendarSelectedDate + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  detail.innerHTML = `<div class="cal-day-label">${label}</div>` + (
+    dayTasks.length === 0
+      ? '<div class="empty">Nothing scheduled.</div>'
+      : dayTasks.map(t => `
+        <div class="review-item">
+          <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
+          <span class="name">${t.name}</span>
+          <button type="button" class="board-chip-btn cal-edit" data-id="${t.id}" title="Edit">✎</button>
+          <button type="button" class="board-chip-btn cal-del" data-id="${t.id}" title="Delete" style="color:var(--danger); border-color:var(--danger);">✕</button>
+        </div>
+      `).join('')
+  );
+  detail.querySelectorAll('.cal-edit').forEach(btn => {
+    btn.onclick = () => { document.getElementById('calendar-modal').classList.add('hidden'); openEditModal(btn.dataset.id); };
+  });
+  detail.querySelectorAll('.cal-del').forEach(btn => {
+    btn.onclick = () => { deleteTaskById(btn.dataset.id); renderCalendar(); };
+  });
+}
+
 document.getElementById('settings-scheduled-btn').onclick = () => {
   const scheduled = tasks.filter(t => !t.done && isScheduledForFuture(t)).sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
   const list = document.getElementById('scheduled-list');
