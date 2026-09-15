@@ -58,6 +58,16 @@
   .priority-btn.p5{background:var(--p5);}
 
   .tag-picker{display:flex; gap:6px; overflow-x:auto; padding-bottom:2px;}
+  .more-options-toggle{
+    width:100%; text-align:left; background:none; border:none; color:var(--edit);
+    font-size:0.85rem; font-weight:600; padding:8px 0; cursor:pointer;
+  }
+  .time-limit-picker{display:flex; gap:6px; overflow-x:auto; margin-left:auto;}
+  .time-limit-btn{
+    flex-shrink:0; background:var(--card); border:1px solid #2a2e37; color:var(--muted);
+    padding:6px 12px; border-radius:20px; font-size:0.78rem; cursor:pointer; white-space:nowrap;
+  }
+  .time-limit-btn.selected{background:var(--edit); color:#fff; border-color:var(--edit);}
   .tag-btn{
     flex-shrink:0; background:var(--card); border:1px solid #2a2e37; color:var(--muted);
     padding:7px 12px; border-radius:20px; font-size:0.78rem; cursor:pointer; white-space:nowrap;
@@ -148,6 +158,8 @@
   /* priority board (now the main page content) */
   .board-body{padding-bottom:20px;}
   .priority-zone{border:2px solid #2a2e37; border-radius:14px; padding:12px; margin-bottom:12px; min-height:64px; transition:background 0.15s, box-shadow 0.15s;}
+  .priority-zone.zone-empty{padding:8px 12px; min-height:0;}
+  .priority-zone.zone-empty .priority-zone-header{margin-bottom:0;}
   .priority-zone.drag-over{background:rgba(255,255,255,0.05); box-shadow:0 0 0 2px var(--accent) inset;}
   .priority-zone-header{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
   .priority-zone-label{padding:2px 10px; border-radius:12px; font-size:0.78rem; font-weight:700; color:#0f1115;}
@@ -156,9 +168,11 @@
   .board-chip{
     background:var(--card); border:1px solid #2a2e37; border-radius:10px; padding:10px 12px;
     margin-bottom:8px; font-size:0.88rem; cursor:grab; touch-action:none; user-select:none;
-    display:flex; align-items:center; gap:8px;
+    display:flex; flex-direction:column; gap:6px;
   }
   .board-chip.dragging{opacity:0.35;}
+  .board-chip-row1{display:flex; align-items:center; gap:8px;}
+  .board-chip-row2{display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding-left:27px;}
   .board-chip .mins{color:var(--muted); font-size:0.78rem; flex-shrink:0;}
   .board-chip-check{width:19px; height:19px; flex-shrink:0;}
   .board-chip-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
@@ -168,7 +182,7 @@
   }
   .board-chip-del{color:var(--danger); border-color:var(--danger);}
   .board-empty{color:var(--muted); font-size:0.8rem; padding:4px 2px;}
-  .board-chip-placeholder{height:38px; border:2px dashed var(--accent); border-radius:10px; margin-bottom:8px; opacity:0.6;}
+  .board-chip-placeholder{min-height:38px; border:2px dashed var(--accent); border-radius:10px; margin-bottom:8px; opacity:0.6;}
 
   /* mini bar */
   .mini-bar{
@@ -205,6 +219,11 @@
     width:100%; text-align:left; background:none; border:1px solid #2a2e37; color:var(--text);
     padding:14px; border-radius:10px; font-size:0.95rem; cursor:pointer; margin-bottom:8px;
   }
+  .settings-group-label{
+    color:var(--muted); font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;
+    margin:14px 0 6px; padding-left:2px;
+  }
+  .settings-group-label:first-of-type{margin-top:4px;}
 
   .calendar-nav{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
   .cal-weekdays{display:grid; grid-template-columns:repeat(7,1fr); text-align:center; color:var(--muted); font-size:0.72rem; margin-bottom:4px;}
@@ -260,23 +279,34 @@
       </div>
       <div class="priority-picker" id="add-priority-picker"></div>
     </div>
-    <div class="modal-row budget-row">
-      <span style="color:var(--muted); font-size:0.85rem;">Tag:</span>
-      <div class="tag-picker" id="add-tag-picker"></div>
+    <button type="button" id="add-more-toggle" class="more-options-toggle">More options ▾</button>
+    <div id="add-more-options" class="hidden">
+      <div class="modal-row budget-row">
+        <span style="color:var(--muted); font-size:0.85rem;">Tag:</span>
+        <div class="tag-picker" id="add-tag-picker"></div>
+      </div>
+      <div class="modal-row budget-row" id="add-steps-row" style="display:none;">
+        <span style="color:var(--muted); font-size:0.85rem;">👣 Est. steps</span>
+        <input type="number" id="add-steps-input" min="0" step="100" placeholder="e.g. 800" style="margin-left:auto; width:100px;">
+      </div>
+      <div class="modal-row budget-row">
+        <span style="color:var(--muted); font-size:0.85rem;">⏰ Must be done by</span>
+        <div class="time-limit-picker" id="add-time-limit-picker"></div>
+      </div>
+      <div class="modal-row budget-row" id="add-time-specific-row" style="display:none;">
+        <span style="color:var(--muted); font-size:0.85rem;">At</span>
+        <input type="time" id="add-time-specific-input" style="margin-left:auto;">
+      </div>
+      <div class="modal-row budget-row">
+        <span style="color:var(--muted); font-size:0.85rem;">📆 Do this on</span>
+        <input type="date" id="add-date-input" style="margin-left:auto;">
+        <button type="button" id="add-date-clear-btn" class="board-chip-btn" title="Clear — do it today/whenever">✕</button>
+      </div>
+      <label class="modal-row recurring-toggle" id="add-recurring-toggle">
+        <input type="checkbox" id="add-recurring-checkbox">
+        <span>🔁 Recurring — comes back each time I reset the day</span>
+      </label>
     </div>
-    <div class="modal-row budget-row" id="add-steps-row" style="display:none;">
-      <span style="color:var(--muted); font-size:0.85rem;">👣 Est. steps</span>
-      <input type="number" id="add-steps-input" min="0" step="100" placeholder="e.g. 800" style="margin-left:auto; width:100px;">
-    </div>
-    <div class="modal-row budget-row">
-      <span style="color:var(--muted); font-size:0.85rem;">📆 Do this on</span>
-      <input type="date" id="add-date-input" style="margin-left:auto;">
-      <button type="button" id="add-date-clear-btn" class="board-chip-btn" title="Clear — do it today/whenever">✕</button>
-    </div>
-    <label class="modal-row recurring-toggle" id="add-recurring-toggle">
-      <input type="checkbox" id="add-recurring-checkbox">
-      <span>🔁 Recurring — comes back each time I reset the day</span>
-    </label>
     <div class="modal-actions">
       <button id="add-modal-close-btn">Close</button>
       <button id="add-btn" class="add-btn">Add task</button>
@@ -411,6 +441,14 @@
       <input type="number" id="edit-steps-input" min="0" step="100" style="margin-left:auto; width:100px;">
     </div>
     <div class="modal-row budget-row">
+      <span style="color:var(--muted); font-size:0.85rem;">⏰ Must be done by</span>
+      <div class="time-limit-picker" id="edit-time-limit-picker"></div>
+    </div>
+    <div class="modal-row budget-row" id="edit-time-specific-row" style="display:none;">
+      <span style="color:var(--muted); font-size:0.85rem;">At</span>
+      <input type="time" id="edit-time-specific-input" style="margin-left:auto;">
+    </div>
+    <div class="modal-row budget-row">
       <span style="color:var(--muted); font-size:0.85rem;">📆 Do this on</span>
       <input type="date" id="edit-date-input" style="margin-left:auto;">
       <button type="button" id="edit-date-clear-btn" class="board-chip-btn" title="Clear — do it today/whenever">✕</button>
@@ -451,13 +489,15 @@
 <!-- export modal -->
 <!-- settings -->
 <div class="modal hidden" id="settings-modal">
-  <div class="modal-card">
+  <div class="modal-card" style="max-height:80vh; overflow-y:auto;">
     <h3>Settings</h3>
+    <div class="settings-group-label">Views</div>
+    <button id="settings-calendar-btn" class="settings-item">🗓️ Calendar</button>
     <button id="settings-report-btn" class="settings-item">📋 Completed report</button>
     <button id="settings-aging-btn" class="settings-item">⏳ Aging tasks</button>
+    <div class="settings-group-label">Configure</div>
     <button id="settings-escalation-btn" class="settings-item">📈 Escalation timing</button>
-    <button id="settings-calendar-btn" class="settings-item">🗓️ Calendar</button>
-    <button id="settings-scheduled-btn" class="settings-item">📆 Scheduled for later</button>
+    <div class="settings-group-label">Data</div>
     <button id="settings-daylog-btn" class="settings-item">📅 Day log</button>
     <button id="settings-bulk-add-btn" class="settings-item">＋ Bulk add (paste a list)</button>
     <button id="settings-export-btn" class="settings-item">⇧ Export tasks</button>
@@ -489,18 +529,6 @@
     <div id="calendar-grid"></div>
     <div id="calendar-day-detail"></div>
     <button id="calendar-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
-  </div>
-</div>
-
-<!-- scheduled for later -->
-<div class="modal hidden" id="scheduled-modal">
-  <div class="modal-card" style="max-height:80vh; overflow-y:auto;">
-    <h3>📆 Scheduled for later</h3>
-    <p style="color:var(--muted); font-size:0.8rem; margin-top:-8px;">
-      These are hidden from the board until their day arrives.
-    </p>
-    <div id="scheduled-list"></div>
-    <button id="scheduled-close-btn" style="width:100%; margin-top:10px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
   </div>
 </div>
 
@@ -613,8 +641,8 @@ let actualSteps = parseInt(localStorage.getItem('powerHourActualSteps') || '0') 
 let deletedCompleted = JSON.parse(localStorage.getItem('powerHourDeletedCompleted') || '[]'); // completed tasks that were swiped away, kept for the report until Clear day
 let dayLog = JSON.parse(localStorage.getItem('powerHourDayLog') || '[]'); // persistent archive, one entry per day you hit Clear day
 tasks.sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority));
-let pendingMins = 5, pendingPriority = 'p3', pendingTag = null, pendingRecurring = false;
-let editMins = 5, editPriority = 'p3', editTag = null, editRecurring = false, editTaskId = null;
+let pendingMins = 5, pendingPriority = 'p3', pendingTag = null, pendingRecurring = false, pendingTimeLimit = null;
+let editMins = 5, editPriority = 'p3', editTag = null, editRecurring = false, editTaskId = null, editTimeLimit = null;
 let currentIndex = -1, secondsLeft = 0, timerInterval = null, sessionTaskIds = null, sessionCompleted = [], sessionSkipped = [];
 let taskEndTime = null; // epoch ms the current task is due to finish — source of truth for timing, survives backgrounding/reload
 let currentView = 'maximized'; // 'maximized' | 'minimized' — for restoring the right screen
@@ -669,6 +697,52 @@ function refreshAddPriorityPicker(){
 }
 refreshAddPriorityPicker();
 
+const TIME_LIMITS = ['am', 'pm', 'specific'];
+const TIME_LIMIT_LABELS = { am: '🌅 AM', pm: '🌆 PM', specific: '⏰ Specific' };
+
+function buildTimeLimitPicker(container, selected, onSelect){
+  container.innerHTML = '';
+  const anyBtn = document.createElement('button');
+  anyBtn.type = 'button';
+  anyBtn.className = 'time-limit-btn' + (!selected ? ' selected' : '');
+  anyBtn.textContent = 'Anytime';
+  anyBtn.onclick = () => onSelect(null);
+  container.appendChild(anyBtn);
+  TIME_LIMITS.forEach(key => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'time-limit-btn' + (key === selected ? ' selected' : '');
+    btn.textContent = TIME_LIMIT_LABELS[key];
+    btn.onclick = () => onSelect(key === selected ? null : key);
+    container.appendChild(btn);
+  });
+}
+
+/* t.timeConstraint is null | 'am' | 'pm' | 'HH:MM' (specific, 24hr) */
+function getTimeConstraintDeadlineMinutes(t){
+  if(!t.timeConstraint) return null;
+  if(t.timeConstraint === 'am') return 12 * 60;
+  if(t.timeConstraint === 'pm') return 18 * 60;
+  const m = t.timeConstraint.match(/^(\d{2}):(\d{2})$/);
+  return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : null;
+}
+function isPastTimeConstraint(t){
+  const deadline = getTimeConstraintDeadlineMinutes(t);
+  if(deadline === null) return false;
+  const now = new Date();
+  return (now.getHours() * 60 + now.getMinutes()) > deadline;
+}
+function formatTimeConstraint(t){
+  if(!t.timeConstraint) return '';
+  if(t.timeConstraint === 'am') return '🌅 AM';
+  if(t.timeConstraint === 'pm') return '🌆 PM';
+  const m = t.timeConstraint.match(/^(\d{2}):(\d{2})$/);
+  if(!m) return '';
+  let h = parseInt(m[1]); const mins = m[2]; const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `⏰ ${h}:${mins} ${ampm}`;
+}
+
 function buildTagPicker(container, selected, onSelect){
   container.innerHTML = '';
   TAGS.forEach(tag => {
@@ -688,6 +762,20 @@ function refreshAddTagPicker(){
 }
 refreshAddTagPicker();
 
+function refreshAddTimeLimitPicker(){
+  buildTimeLimitPicker(document.getElementById('add-time-limit-picker'), pendingTimeLimit, v => {
+    pendingTimeLimit = v; refreshAddTimeLimitPicker();
+  });
+  document.getElementById('add-time-specific-row').style.display = (pendingTimeLimit === 'specific') ? 'flex' : 'none';
+}
+refreshAddTimeLimitPicker();
+
+document.getElementById('add-more-toggle').onclick = () => {
+  const panel = document.getElementById('add-more-options');
+  const nowHidden = panel.classList.toggle('hidden');
+  document.getElementById('add-more-toggle').textContent = nowHidden ? 'More options ▾' : 'Fewer options ▴';
+};
+
 /* ---------- render (drives the priority board, which is now the whole task list) ---------- */
 /* Default days-at-this-level before bumping to the next priority up. Lower priority
    (further from P1) gets more patience; closer to P1, it escalates faster. Customizable in Settings. */
@@ -706,6 +794,8 @@ function saveEscalationDays(){
 function escalateStaleTasks(){
   const now = Date.now();
   let changed = false;
+  const escalatedNow = [];
+  const mustDoNow = [];
   tasks.forEach(t => {
     if(t.done) return;
     if(isScheduledForFuture(t)){ t.scheduleArrived = false; return; } // deliberately deferred — not neglected
@@ -722,11 +812,13 @@ function escalateStaleTasks(){
       guard++;
       const thresholdDays = escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14;
       if(daysSince(t.createdAt) >= thresholdDays){
+        const fromPriority = t.priority;
         const idx = PRIORITIES.indexOf(t.priority);
         t.priority = PRIORITIES[idx - 1];
         t.createdAt += thresholdDays * 24 * 60 * 60 * 1000; // carry the leftover age forward into the new level
         t.escalated = true;
         changed = true;
+        escalatedNow.push({ id: t.id, name: t.name, fromPriority, toPriority: t.priority });
       } else break;
     }
     if(t.priority === 'p1' && !t.mustDo){
@@ -734,11 +826,35 @@ function escalateStaleTasks(){
       if(daysSince(t.createdAt) >= mustDoDays){
         t.mustDo = true;
         changed = true;
+        mustDoNow.push({ id: t.id, name: t.name });
       }
     }
   });
   if(changed) save();
+  if(escalatedNow.length || mustDoNow.length) notifyEscalations(escalatedNow, mustDoNow);
   return changed;
+}
+
+/* surfaces a toast when the staleness system silently changes something, so it never feels mysterious */
+function notifyEscalations(escalatedNow, mustDoNow){
+  const total = escalatedNow.length + mustDoNow.length;
+  if(total === 0) return;
+  if(total === 1 && escalatedNow.length === 1){
+    const e = escalatedNow[0];
+    showToast(`⏫ Bumped to ${PRIORITY_LABELS[e.toPriority]}: ${e.name}`, 'Undo', () => revertEscalation(e.id, e.fromPriority));
+  } else if(total === 1 && mustDoNow.length === 1){
+    showToast(`❗ Flagged must do: ${mustDoNow[0].name}`, null, null);
+  } else {
+    showToast(`⏫ ${total} task${total > 1 ? 's' : ''} bumped up — see Aging tasks`, null, null);
+  }
+}
+function revertEscalation(id, fromPriority){
+  const t = tasks.find(x => x.id === id);
+  if(!t || t.done) return;
+  t.priority = fromPriority;
+  t.escalated = false;
+  t.createdAt = Date.now();
+  save(); render();
 }
 
 function render(){
@@ -883,17 +999,21 @@ function addTask(){
   const recurringCb = document.getElementById('add-recurring-checkbox');
   const stepsInput = document.getElementById('add-steps-input');
   const dateInput = document.getElementById('add-date-input');
+  const specificTimeInput = document.getElementById('add-time-specific-input');
   const steps = pendingTag === 'errands' ? (parseInt(stepsInput.value) || 0) : 0;
   const scheduledDate = dateInput.value || null;
-  tasks.push({ id: uid(), name, mins: pendingMins, priority: pendingPriority, tag: pendingTag, steps, recurring: recurringCb.checked, done: false, createdAt: Date.now(), scheduledDate });
+  const timeConstraint = pendingTimeLimit === 'specific' ? (specificTimeInput.value || null) : pendingTimeLimit;
+  tasks.push({ id: uid(), name, mins: pendingMins, priority: pendingPriority, tag: pendingTag, steps, recurring: recurringCb.checked, done: false, createdAt: Date.now(), scheduledDate, timeConstraint });
   taskInput.value = '';
-  pendingMins = 5; pendingPriority = 'p3'; pendingTag = null;
+  pendingMins = 5; pendingPriority = 'p3'; pendingTag = null; pendingTimeLimit = null;
   recurringCb.checked = false;
   stepsInput.value = '';
   dateInput.value = '';
+  specificTimeInput.value = '';
   minsDisplay.textContent = '5 min';
   refreshAddPriorityPicker();
   refreshAddTagPicker();
+  refreshAddTimeLimitPicker();
   save(); render();
 }
 document.getElementById('add-date-clear-btn').onclick = () => { document.getElementById('add-date-input').value = ''; };
@@ -930,8 +1050,20 @@ function openEditModal(id){
   document.getElementById('edit-steps-row').style.display = (editTag === 'errands') ? 'flex' : 'none';
   document.getElementById('edit-date-input').value = t.scheduledDate || '';
   document.getElementById('edit-age-input').value = Math.max(0, daysSince(t.createdAt || Date.now()));
+  if(t.timeConstraint === 'am' || t.timeConstraint === 'pm'){
+    editTimeLimit = t.timeConstraint;
+    document.getElementById('edit-time-specific-input').value = '';
+  } else if(t.timeConstraint){
+    editTimeLimit = 'specific';
+    document.getElementById('edit-time-specific-input').value = t.timeConstraint;
+  } else {
+    editTimeLimit = null;
+    document.getElementById('edit-time-specific-input').value = '';
+  }
+  document.getElementById('edit-time-specific-row').style.display = (editTimeLimit === 'specific') ? 'flex' : 'none';
   refreshEditPriorityPicker();
   refreshEditTagPicker();
+  refreshEditTimeLimitPicker();
   editModal.classList.remove('hidden');
 }
 document.getElementById('edit-date-clear-btn').onclick = () => { document.getElementById('edit-date-input').value = ''; };
@@ -944,6 +1076,12 @@ function refreshEditTagPicker(){
   buildTagPicker(document.getElementById('edit-tag-picker'), editTag, t => {
     editTag = t; refreshEditTagPicker();
     document.getElementById('edit-steps-row').style.display = (editTag === 'errands') ? 'flex' : 'none';
+  });
+}
+function refreshEditTimeLimitPicker(){
+  buildTimeLimitPicker(document.getElementById('edit-time-limit-picker'), editTimeLimit, v => {
+    editTimeLimit = v; refreshEditTimeLimitPicker();
+    document.getElementById('edit-time-specific-row').style.display = (editTimeLimit === 'specific') ? 'flex' : 'none';
   });
 }
 document.getElementById('edit-plus-btn').onclick = () => { editMins += 5; document.getElementById('edit-mins-display').textContent = editMins + ' min'; };
@@ -961,6 +1099,7 @@ document.getElementById('edit-save-btn').onclick = () => {
     t.recurring = document.getElementById('edit-recurring-checkbox').checked;
     t.scheduledDate = document.getElementById('edit-date-input').value || null;
     t.scheduleArrived = false;
+    t.timeConstraint = editTimeLimit === 'specific' ? (document.getElementById('edit-time-specific-input').value || null) : editTimeLimit;
     t.autoWalk = false; // a manual edit means the user now owns this task, not the auto-pace system
     const ageDays = Math.max(0, parseInt(document.getElementById('edit-age-input').value) || 0);
     const now = new Date();
@@ -1653,10 +1792,32 @@ function renderCalendar(){
   });
 
   const detail = document.getElementById('calendar-day-detail');
-  if(!calendarSelectedDate){ detail.innerHTML = ''; return; }
+  if(!calendarSelectedDate){
+    const upcoming = tasks.filter(t => !t.done && isScheduledForFuture(t)).sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
+    detail.innerHTML = '<div class="cal-day-label">Upcoming</div>' + (
+      upcoming.length === 0
+        ? '<div class="empty">Nothing scheduled for later.</div>'
+        : upcoming.map(t => `
+          <div class="review-item">
+            <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
+            <span class="name">${t.name}</span>
+            <span class="mins" style="flex-shrink:0;">${t.scheduledDate}</span>
+            <button type="button" class="board-chip-btn cal-edit" data-id="${t.id}" title="Edit">✎</button>
+            <button type="button" class="board-chip-btn cal-del" data-id="${t.id}" title="Delete" style="color:var(--danger); border-color:var(--danger);">✕</button>
+          </div>
+        `).join('')
+    );
+    detail.querySelectorAll('.cal-edit').forEach(btn => {
+      btn.onclick = () => { document.getElementById('calendar-modal').classList.add('hidden'); openEditModal(btn.dataset.id); };
+    });
+    detail.querySelectorAll('.cal-del').forEach(btn => {
+      btn.onclick = () => { deleteTaskById(btn.dataset.id); renderCalendar(); };
+    });
+    return;
+  }
   const dayTasks = tasksByDate[calendarSelectedDate] || [];
   const label = new Date(calendarSelectedDate + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
-  detail.innerHTML = `<div class="cal-day-label">${label}</div>` + (
+  detail.innerHTML = `<div class="cal-day-label">${label} <button type="button" id="cal-deselect-btn" class="board-chip-btn" title="Back to upcoming" style="margin-left:6px;">✕</button></div>` + (
     dayTasks.length === 0
       ? '<div class="empty">Nothing scheduled.</div>'
       : dayTasks.map(t => `
@@ -1668,6 +1829,7 @@ function renderCalendar(){
         </div>
       `).join('')
   );
+  document.getElementById('cal-deselect-btn').onclick = () => { calendarSelectedDate = null; renderCalendar(); };
   detail.querySelectorAll('.cal-edit').forEach(btn => {
     btn.onclick = () => { document.getElementById('calendar-modal').classList.add('hidden'); openEditModal(btn.dataset.id); };
   });
@@ -1675,33 +1837,6 @@ function renderCalendar(){
     btn.onclick = () => { deleteTaskById(btn.dataset.id); renderCalendar(); };
   });
 }
-
-document.getElementById('settings-scheduled-btn').onclick = () => {
-  const scheduled = tasks.filter(t => !t.done && isScheduledForFuture(t)).sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
-  const list = document.getElementById('scheduled-list');
-  if(scheduled.length === 0){
-    list.innerHTML = '<div class="empty">Nothing scheduled for later.</div>';
-  } else {
-    list.innerHTML = scheduled.map(t => `
-      <div class="review-item">
-        <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
-        <span class="name">${t.name}</span>
-        <span class="mins" style="flex-shrink:0;">${t.scheduledDate}</span>
-        <button type="button" class="board-chip-btn scheduled-edit" data-id="${t.id}" title="Edit">✎</button>
-        <button type="button" class="board-chip-btn scheduled-del" data-id="${t.id}" title="Delete" style="color:var(--danger); border-color:var(--danger);">✕</button>
-      </div>
-    `).join('');
-    list.querySelectorAll('.scheduled-edit').forEach(btn => {
-      btn.onclick = () => { document.getElementById('scheduled-modal').classList.add('hidden'); openEditModal(btn.dataset.id); };
-    });
-    list.querySelectorAll('.scheduled-del').forEach(btn => {
-      btn.onclick = () => { deleteTaskById(btn.dataset.id); document.getElementById('settings-scheduled-btn').click(); };
-    });
-  }
-  document.getElementById('settings-modal').classList.add('hidden');
-  document.getElementById('scheduled-modal').classList.remove('hidden');
-};
-document.getElementById('scheduled-close-btn').onclick = () => document.getElementById('scheduled-modal').classList.add('hidden');
 
 /* ---------- escalation timing settings ---------- */
 document.getElementById('settings-escalation-btn').onclick = () => {
@@ -1802,7 +1937,7 @@ function renderBoard(){
   PRIORITIES.forEach(p => {
     const zoneTasks = tasks.filter(t => t.priority === p && !t.done && !isScheduledForFuture(t));
     const zone = document.createElement('div');
-    zone.className = 'priority-zone';
+    zone.className = 'priority-zone' + (zoneTasks.length === 0 ? ' zone-empty' : '');
     zone.dataset.priority = p;
     zone.style.borderColor = `var(--${p})`;
     zone.innerHTML = `
@@ -1822,16 +1957,21 @@ function renderBoard(){
         chip.className = 'board-chip';
         chip.dataset.id = t.id;
         chip.innerHTML = `
-          <input type="checkbox" class="board-chip-check">
-          <span class="board-chip-name">${t.name}</span>
-          ${t.autoWalk ? '<span class="tag-badge" title="Added automatically to help hit your step goal">🤖 auto</span>' : ''}
-          ${t.escalated ? '<span class="tag-badge" title="Bumped up — this sat pending for 2+ weeks">⏫ overdue</span>' : ''}
-          ${t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff;" title="Sitting at P1 too long — this needs doing">❗ must do</span>' : ''}
-          ${t.scheduledDate ? `<span class="tag-badge" title="Scheduled for this day">📆 ${t.scheduledDate}</span>` : ''}
-          ${(!t.escalated && t.priority !== 'p1' && ((escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14) - daysSince(t.createdAt)) <= 3) ? '<span class="tag-badge" title="Will bump up in a few days if still pending">⏳ aging</span>' : ''}
-          <span class="mins">${t.mins} min</span>
-          <button type="button" class="board-chip-btn board-chip-edit" title="Edit">✎</button>
-          <button type="button" class="board-chip-btn board-chip-del" title="Delete">✕</button>
+          <div class="board-chip-row1">
+            <input type="checkbox" class="board-chip-check">
+            <span class="board-chip-name">${t.name}</span>
+          </div>
+          <div class="board-chip-row2">
+            ${t.autoWalk ? '<span class="tag-badge" title="Added automatically to help hit your step goal">🤖 auto</span>' : ''}
+            ${t.escalated ? '<span class="tag-badge" title="Bumped up — this sat pending for 2+ weeks">⏫</span>' : ''}
+            ${t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff;" title="Sitting at P1 too long — this needs doing">❗</span>' : ''}
+            ${t.timeConstraint ? `<span class="tag-badge" ${isPastTimeConstraint(t) ? 'style="background:var(--danger); color:#fff;"' : ''} title="Must be done by ${formatTimeConstraint(t)}${isPastTimeConstraint(t) ? ' — that time has passed' : ''}">${formatTimeConstraint(t)}</span>` : ''}
+            ${t.scheduledDate ? `<span class="tag-badge" title="Scheduled for ${t.scheduledDate}">📆</span>` : ''}
+            ${(!t.escalated && t.priority !== 'p1' && ((escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14) - daysSince(t.createdAt)) <= 3) ? '<span class="tag-badge" title="Will bump up in a few days if still pending">⏳</span>' : ''}
+            <span class="mins">${t.mins} min</span>
+            <button type="button" class="board-chip-btn board-chip-edit" title="Edit">✎</button>
+            <button type="button" class="board-chip-btn board-chip-del" title="Delete">✕</button>
+          </div>
         `;
         chip.onpointerdown = onChipDragStart;
         chip.querySelector('.board-chip-check').onchange = (e) => { e.stopPropagation(); boardMarkDone(t.id); };
@@ -1857,26 +1997,27 @@ function boardMarkDone(id){
     if(sessionActive) sessionCompleted.push({ ...t });
     save();
   }
-  showUndoToast(id, name);
+  showToast(`✓ Marked done: ${name}`, 'Undo', () => undoCompletedTask(id));
   renderBoard();
   render();
   if(sessionActive) refreshTimerDisplays();
 }
 
-let undoToastTimer = null;
-function showUndoToast(id, name){
-  document.getElementById('undo-toast-text').textContent = `✓ Marked done: ${name}`;
-  document.getElementById('undo-toast').dataset.id = id;
+let appToastTimer = null;
+function showToast(message, actionLabel, actionFn){
+  document.getElementById('undo-toast-text').textContent = message;
+  const btn = document.getElementById('undo-toast-btn');
+  if(actionLabel && actionFn){
+    btn.textContent = actionLabel;
+    btn.style.display = '';
+    btn.onclick = () => { clearTimeout(appToastTimer); document.getElementById('undo-toast').classList.add('hidden'); actionFn(); };
+  } else {
+    btn.style.display = 'none';
+  }
   document.getElementById('undo-toast').classList.remove('hidden');
-  clearTimeout(undoToastTimer);
-  undoToastTimer = setTimeout(() => { document.getElementById('undo-toast').classList.add('hidden'); }, 6000);
+  clearTimeout(appToastTimer);
+  appToastTimer = setTimeout(() => { document.getElementById('undo-toast').classList.add('hidden'); }, 6000);
 }
-document.getElementById('undo-toast-btn').onclick = () => {
-  const id = document.getElementById('undo-toast').dataset.id;
-  clearTimeout(undoToastTimer);
-  document.getElementById('undo-toast').classList.add('hidden');
-  undoCompletedTask(id);
-};
 
 let chipDragEl = null, chipDragId = null, chipStartX = 0, chipStartY = 0, dragPlaceholder = null;
 
