@@ -15,21 +15,22 @@
 <meta http-equiv="Expires" content="0">
 <style>
   :root{
-    --bg:#0f1115; --card:#1a1d24; --accent:#6ee7b7; --accent2:#f97316;
-    --text:#f2f3f5; --muted:#8a8f98; --danger:#ef4444; --edit:#3b82f6;
-    --p1:#ef4444; --p2:#f97316; --p3:#eab308; --p4:#3b82f6; --p5:#6ee7b7;
+    --bg:#15171D; --card:#1D2029; --card-raised:#242833; --accent:#5EA88A; --accent2:#D98E4A;
+    --text:#EAEBEF; --muted:#8B90A0; --danger:#E0616B; --edit:#6F9BD6;
+    --p1:#E0616B; --p2:#D98E4A; --p3:#E0BE5C; --p4:#6F9BD6; --p5:#5EA88A;
+    --hairline:#2A2E3A;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   body{
     margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    background:var(--bg); color:var(--text); min-height:100vh;
+    background:var(--bg); color:var(--text); min-height:100vh; letter-spacing:-0.01em;
     padding:calc(20px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
     overscroll-behavior:none;
   }
   body.body-locked{
     position:fixed; inset:0; overflow:hidden; padding:0; width:100%;
   }
-  h1{font-size:1.4rem; margin:0 0 4px;}
+  h1{font-size:1.5rem; margin:0 0 4px; font-weight:700; letter-spacing:-0.02em;}
   .sub{color:var(--muted); font-size:0.85rem; margin-bottom:12px;}
   .hidden{display:none !important;}
 
@@ -155,34 +156,40 @@
   .mini-steps-planned{background:rgba(249,115,22,0.55);}
   .mini-steps-label{position:relative; z-index:1; font-size:0.82rem; font-weight:600; white-space:nowrap; padding:0 14px; color:var(--text);}
 
-  /* priority board (now the main page content) */
-  .board-body{padding-bottom:20px;}
-  .priority-zone{border:2px solid #2a2e37; border-radius:14px; padding:12px; margin-bottom:12px; min-height:64px; transition:background 0.15s, box-shadow 0.15s;}
-  .priority-zone.zone-empty{padding:8px 12px; min-height:0;}
-  .priority-zone.zone-empty .priority-zone-header{margin-bottom:0;}
-  .priority-zone.drag-over{background:rgba(255,255,255,0.05); box-shadow:0 0 0 2px var(--accent) inset;}
-  .priority-zone-header{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
-  .priority-zone-label{padding:2px 10px; border-radius:12px; font-size:0.78rem; font-weight:700; color:#0f1115;}
-  .priority-zone-count{color:var(--muted); font-size:0.78rem;}
-  .zone-chips{min-height:8px;}
-  .board-chip{
-    background:var(--card); border:1px solid #2a2e37; border-radius:10px; padding:10px 12px;
-    margin-bottom:8px; font-size:0.88rem; cursor:grab; touch-action:none; user-select:none;
-    display:flex; flex-direction:column; gap:6px;
+  /* task list — single priority-sorted list with inline dividers, replacing the old boxed board */
+  .task-list-container{padding-bottom:20px;}
+  .priority-divider{
+    display:flex; align-items:center; gap:8px; color:var(--muted); font-size:0.72rem;
+    font-weight:700; letter-spacing:0.04em; margin:18px 0 8px;
   }
-  .board-chip.dragging{opacity:0.35;}
-  .board-chip-row1{display:flex; align-items:center; gap:8px;}
-  .board-chip-row2{display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding-left:27px;}
-  .board-chip .mins{color:var(--muted); font-size:0.78rem; flex-shrink:0;}
-  .board-chip-check{width:19px; height:19px; flex-shrink:0;}
-  .board-chip-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .priority-divider:first-child{margin-top:0;}
+  .priority-divider-dot{width:8px; height:8px; border-radius:50%; flex-shrink:0;}
+
+  .task-row{position:relative; border-radius:12px; margin-bottom:8px; overflow:hidden;}
+  .task-row-bg{position:absolute; inset:0; display:flex; border-radius:12px; overflow:hidden;}
+  .task-row-bg-left, .task-row-bg-right{flex:1; display:flex; align-items:center; font-weight:600; font-size:0.85rem; opacity:0; color:#fff;}
+  .task-row-bg-left{background:var(--edit); justify-content:flex-start; padding-left:16px;}
+  .task-row-bg-right{background:var(--danger); justify-content:flex-end; padding-right:16px;}
+
+  .task-row-content{
+    position:relative; background:var(--card); border:1px solid var(--hairline); border-left:4px solid var(--muted);
+    border-radius:12px; padding:12px 14px; touch-action:none; z-index:1; cursor:pointer;
+  }
+  .task-row-content.longpress-active{box-shadow:0 0 0 2px var(--accent); transition:box-shadow 0.15s;}
+  .task-row-content.longpress-up{background:linear-gradient(0deg, rgba(111,155,214,0.18), rgba(111,155,214,0.18)), var(--card);}
+  .task-row-content.longpress-down{background:linear-gradient(0deg, rgba(217,142,74,0.18), rgba(217,142,74,0.18)), var(--card);}
+  .task-row-line1{display:flex; align-items:center; gap:10px;}
+  .task-row-line2{display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding-left:29px; margin-top:6px;}
+  .task-check{width:19px; height:19px; flex-shrink:0;}
+  .task-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.95rem;}
+  .task-row .mins{color:var(--muted); font-size:0.78rem; flex-shrink:0;}
+
+  /* small reusable icon-button, used in Calendar/Aging/Report lists (not on the main task rows anymore) */
   .board-chip-btn{
-    flex-shrink:0; width:28px; height:28px; border-radius:8px; border:1px solid #2a2e37;
+    flex-shrink:0; width:28px; height:28px; border-radius:8px; border:1px solid var(--hairline);
     background:none; color:var(--muted); font-size:0.85rem; cursor:pointer; touch-action:auto;
   }
   .board-chip-del{color:var(--danger); border-color:var(--danger);}
-  .board-empty{color:var(--muted); font-size:0.8rem; padding:4px 2px;}
-  .board-chip-placeholder{min-height:38px; border:2px dashed var(--accent); border-radius:10px; margin-bottom:8px; opacity:0.6;}
 
   /* mini bar */
   .mini-bar{
@@ -248,7 +255,7 @@
   <h1 style="margin:0;">⏱️ Power Hour</h1>
   <button class="icon-btn" id="open-settings-btn" title="Settings">⚙️</button>
 </div>
-<div class="sub">Drag a task between boxes to reprioritize, or within one to reorder.</div>
+<div class="sub">Tap a task to edit, swipe for quick actions, or press and hold to reprioritize.</div>
 
 <div class="top-action-row">
   <button class="icon-btn icon-btn-accent" id="open-add-btn" title="Add task">➕</button>
@@ -262,7 +269,7 @@
   <button class="icon-btn icon-btn-accent" id="open-pick-btn" title="Pick tasks for my time">🎯</button>
 </div>
 
-<div class="board-body" id="board-body"></div>
+<div class="task-list-container" id="task-list-container"></div>
 
 <!-- add task modal -->
 <div class="modal" id="add-modal">
@@ -497,6 +504,7 @@
     <button id="settings-aging-btn" class="settings-item">⏳ Aging tasks</button>
     <div class="settings-group-label">Configure</div>
     <button id="settings-escalation-btn" class="settings-item">📈 Escalation timing</button>
+    <button id="settings-gestures-btn" class="settings-item">👆 Gestures</button>
     <div class="settings-group-label">Data</div>
     <button id="settings-daylog-btn" class="settings-item">📅 Day log</button>
     <button id="settings-bulk-add-btn" class="settings-item">＋ Bulk add (paste a list)</button>
@@ -533,6 +541,29 @@
 </div>
 
 <!-- escalation timing settings -->
+<!-- gesture settings -->
+<div class="modal hidden" id="gestures-modal">
+  <div class="modal-card">
+    <h3>👆 Gestures</h3>
+    <p style="color:var(--muted); font-size:0.8rem; margin-top:-8px;">
+      Tap a task to edit it. Choose what swiping and pressing-and-holding do instead.
+    </p>
+    <div class="modal-row" style="flex-direction:column; align-items:flex-start; gap:8px;">
+      <span style="color:var(--muted); font-size:0.85rem;">Swipe right</span>
+      <div class="time-limit-picker" id="gesture-swipe-right" style="margin-left:0;"></div>
+    </div>
+    <div class="modal-row" style="flex-direction:column; align-items:flex-start; gap:8px;">
+      <span style="color:var(--muted); font-size:0.85rem;">Swipe left</span>
+      <div class="time-limit-picker" id="gesture-swipe-left" style="margin-left:0;"></div>
+    </div>
+    <div class="modal-row" style="flex-direction:column; align-items:flex-start; gap:8px;">
+      <span style="color:var(--muted); font-size:0.85rem;">Press &amp; hold, then drag up/down changes</span>
+      <div class="time-limit-picker" id="gesture-longpress" style="margin-left:0;"></div>
+    </div>
+    <button id="gestures-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
 <div class="modal hidden" id="escalation-modal">
   <div class="modal-card">
     <h3>📈 Escalation timing</h3>
@@ -859,7 +890,7 @@ function revertEscalation(id, fromPriority){
 
 function render(){
   escalateStaleTasks();
-  renderBoard();
+  renderTaskList();
   updateStepsBar();
 }
 
@@ -915,7 +946,7 @@ function syncAutoWalk(pace){
     const idx = tasks.findIndex(t => t.id === autoWalkTask.id);
     if(idx !== -1){ tasks.splice(idx, 1); changed = true; }
   }
-  if(changed){ save(); renderBoard(); }
+  if(changed){ save(); renderTaskList(); }
 }
 
 function updateStepsBar(){
@@ -1931,58 +1962,57 @@ document.getElementById('report-clear-btn').onclick = () => {
   document.getElementById('report-modal').classList.add('hidden');
 };
 
-function renderBoard(){
-  const body = document.getElementById('board-body');
-  body.innerHTML = '';
-  PRIORITIES.forEach(p => {
-    const zoneTasks = tasks.filter(t => t.priority === p && !t.done && !isScheduledForFuture(t));
-    const zone = document.createElement('div');
-    zone.className = 'priority-zone' + (zoneTasks.length === 0 ? ' zone-empty' : '');
-    zone.dataset.priority = p;
-    zone.style.borderColor = `var(--${p})`;
-    zone.innerHTML = `
-      <div class="priority-zone-header">
-        <span class="priority-zone-label" style="background:var(--${p})">${PRIORITY_LABELS[p]}</span>
-        <span class="priority-zone-count">${zoneTasks.length} task${zoneTasks.length !== 1 ? 's' : ''}</span>
-      </div>
-      <div class="zone-chips" data-priority="${p}"></div>
-    `;
-    body.appendChild(zone);
-    const chipsEl = zone.querySelector('.zone-chips');
-    if(zoneTasks.length === 0){
-      chipsEl.innerHTML = '<div class="board-empty">Drop a task here</div>';
-    } else {
-      zoneTasks.forEach(t => {
-        const chip = document.createElement('div');
-        chip.className = 'board-chip';
-        chip.dataset.id = t.id;
-        chip.innerHTML = `
-          <div class="board-chip-row1">
-            <input type="checkbox" class="board-chip-check">
-            <span class="board-chip-name">${t.name}</span>
-          </div>
-          <div class="board-chip-row2">
-            ${t.autoWalk ? '<span class="tag-badge" title="Added automatically to help hit your step goal">🤖 auto</span>' : ''}
-            ${t.escalated ? '<span class="tag-badge" title="Bumped up — this sat pending for 2+ weeks">⏫</span>' : ''}
-            ${t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff;" title="Sitting at P1 too long — this needs doing">❗</span>' : ''}
-            ${t.timeConstraint ? `<span class="tag-badge" ${isPastTimeConstraint(t) ? 'style="background:var(--danger); color:#fff;"' : ''} title="Must be done by ${formatTimeConstraint(t)}${isPastTimeConstraint(t) ? ' — that time has passed' : ''}">${formatTimeConstraint(t)}</span>` : ''}
-            ${t.scheduledDate ? `<span class="tag-badge" title="Scheduled for ${t.scheduledDate}">📆</span>` : ''}
-            ${(!t.escalated && t.priority !== 'p1' && ((escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14) - daysSince(t.createdAt)) <= 3) ? '<span class="tag-badge" title="Will bump up in a few days if still pending">⏳</span>' : ''}
-            <span class="mins">${t.mins} min</span>
-            <button type="button" class="board-chip-btn board-chip-edit" title="Edit">✎</button>
-            <button type="button" class="board-chip-btn board-chip-del" title="Delete">✕</button>
-          </div>
-        `;
-        chip.onpointerdown = onChipDragStart;
-        chip.querySelector('.board-chip-check').onchange = (e) => { e.stopPropagation(); boardMarkDone(t.id); };
-        chip.querySelector('.board-chip-edit').onpointerdown = (e) => e.stopPropagation();
-        chip.querySelector('.board-chip-edit').onclick = (e) => { e.stopPropagation(); openEditModal(t.id); };
-        chip.querySelector('.board-chip-del').onpointerdown = (e) => e.stopPropagation();
-        chip.querySelector('.board-chip-del').onclick = (e) => { e.stopPropagation(); deleteTaskById(t.id); };
-        chipsEl.appendChild(chip);
-      });
+function renderTaskList(){
+  const container = document.getElementById('task-list-container');
+  container.innerHTML = '';
+  const visible = tasks.filter(t => !t.done && !isScheduledForFuture(t));
+  if(visible.length === 0){
+    container.innerHTML = '<div class="empty">Nothing pending — add a task above.</div>';
+    return;
+  }
+  let lastPriority = null;
+  visible.forEach(t => {
+    if(t.priority !== lastPriority){
+      lastPriority = t.priority;
+      const header = document.createElement('div');
+      header.className = 'priority-divider';
+      header.innerHTML = `<span class="priority-divider-dot" style="background:var(--${t.priority})"></span>${PRIORITY_LABELS[t.priority]}`;
+      container.appendChild(header);
     }
+    container.appendChild(buildTaskRow(t));
   });
+}
+
+function buildTaskRow(t){
+  const wrap = document.createElement('div');
+  wrap.className = 'task-row';
+  wrap.dataset.id = t.id;
+  wrap.innerHTML = `
+    <div class="task-row-bg">
+      <div class="task-row-bg-left" id="rowbg-left-${t.id}">${GESTURE_ACTIONS[gestureSettings.swipeRight].label}</div>
+      <div class="task-row-bg-right" id="rowbg-right-${t.id}">${GESTURE_ACTIONS[gestureSettings.swipeLeft].label}</div>
+    </div>
+    <div class="task-row-content" style="border-left-color:var(--${t.priority})">
+      <div class="task-row-line1">
+        <input type="checkbox" class="task-check">
+        <span class="task-name">${t.name}</span>
+      </div>
+      <div class="task-row-line2">
+        ${t.autoWalk ? '<span class="tag-badge" title="Added automatically to help hit your step goal">🤖 auto</span>' : ''}
+        ${t.escalated ? '<span class="tag-badge" title="Bumped up — this sat pending for 2+ weeks">⏫</span>' : ''}
+        ${t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff;" title="Sitting at P1 too long — this needs doing">❗</span>' : ''}
+        ${t.timeConstraint ? `<span class="tag-badge" ${isPastTimeConstraint(t) ? 'style="background:var(--danger); color:#fff;"' : ''} title="Must be done by ${formatTimeConstraint(t)}${isPastTimeConstraint(t) ? ' — that time has passed' : ''}">${formatTimeConstraint(t)}</span>` : ''}
+        ${t.scheduledDate ? `<span class="tag-badge" title="Scheduled for ${t.scheduledDate}">📆</span>` : ''}
+        ${(!t.escalated && t.priority !== 'p1' && ((escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14) - daysSince(t.createdAt)) <= 3) ? '<span class="tag-badge" title="Will bump up in a few days if still pending">⏳</span>' : ''}
+        <span class="mins">${t.mins} min</span>
+      </div>
+    </div>
+  `;
+  wrap.querySelector('.task-check').onchange = (e) => { e.stopPropagation(); boardMarkDone(t.id); };
+  wrap.querySelector('.task-check').onclick = (e) => e.stopPropagation();
+  const content = wrap.querySelector('.task-row-content');
+  content.onpointerdown = (e) => onRowPointerDown(e, content, t.id);
+  return wrap;
 }
 
 function boardMarkDone(id){
@@ -1998,7 +2028,6 @@ function boardMarkDone(id){
     save();
   }
   showToast(`✓ Marked done: ${name}`, 'Undo', () => undoCompletedTask(id));
-  renderBoard();
   render();
   if(sessionActive) refreshTimerDisplays();
 }
@@ -2019,92 +2048,202 @@ function showToast(message, actionLabel, actionFn){
   appToastTimer = setTimeout(() => { document.getElementById('undo-toast').classList.add('hidden'); }, 6000);
 }
 
-let chipDragEl = null, chipDragId = null, chipStartX = 0, chipStartY = 0, dragPlaceholder = null;
+/* ---------- configurable gestures: swipe left/right, long-press + vertical drag ---------- */
+let gestureSettings = Object.assign({ swipeRight: 'complete', swipeLeft: 'delete', longPress: 'priority' }, JSON.parse(localStorage.getItem('powerHourGestures') || '{}'));
+function saveGestureSettings(){ localStorage.setItem('powerHourGestures', JSON.stringify(gestureSettings)); }
 
-function onChipDragStart(e){
-  if(e.target.closest('.board-chip-check, .board-chip-btn')) return;
-  chipDragEl = e.currentTarget;
-  chipDragId = chipDragEl.dataset.id;
-  chipStartX = e.clientX; chipStartY = e.clientY;
-  chipDragEl.classList.add('dragging');
-  chipDragEl.style.position = 'relative';
-  chipDragEl.style.zIndex = '50';
-  chipDragEl.style.pointerEvents = 'none'; // so elementFromPoint sees the zone underneath, not the chip itself
-  try { chipDragEl.setPointerCapture(e.pointerId); } catch(err) {}
-  lockBodyScroll(); // the board is now inline on the page (not a fixed overlay), so without this the page itself can scroll mid-drag and desync viewport coordinates
-  dragPlaceholder = document.createElement('div');
-  dragPlaceholder.className = 'board-chip-placeholder';
-  document.addEventListener('pointermove', onChipDragMove);
-  document.addEventListener('pointerup', onChipDragEnd);
-  document.addEventListener('pointercancel', onChipDragEnd);
+function snoozeTask(id){
+  const t = tasks.find(x => x.id === id);
+  if(!t) return;
+  const d = new Date(); d.setDate(d.getDate() + 1);
+  const newDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  t.scheduledDate = newDate; t.scheduleArrived = false;
+  save(); render();
+  showToast(`📆 Snoozed to tomorrow: ${t.name}`, 'Undo', () => { t.scheduledDate = null; save(); render(); });
 }
-function onChipDragMove(e){
-  if(!chipDragEl) return;
-  const dx = e.clientX - chipStartX, dy = e.clientY - chipStartY;
-  chipDragEl.style.transform = `translate(${dx}px, ${dy}px)`;
-  document.querySelectorAll('.priority-zone').forEach(z => z.classList.remove('drag-over'));
-  const target = document.elementFromPoint(e.clientX, e.clientY);
-  const zone = target ? target.closest('.priority-zone') : null;
-  if(zone){
-    zone.classList.add('drag-over');
-    const emptyMsg = zone.querySelector('.board-empty');
-    if(emptyMsg) emptyMsg.remove();
-    const chipsEl = zone.querySelector('.zone-chips');
-    // position the placeholder among the real siblings based on vertical position, so you can see exactly where it'll land
-    const siblings = [...chipsEl.querySelectorAll('.board-chip')].filter(c => c !== chipDragEl);
-    let before = null;
-    for(const sib of siblings){
-      const rect = sib.getBoundingClientRect();
-      if(e.clientY < rect.top + rect.height / 2){ before = sib; break; }
+function bumpPriority(id, dir){ // dir: -1 = toward P1 (up), +1 = toward P5 (down)
+  const t = tasks.find(x => x.id === id);
+  if(!t) return;
+  const idx = PRIORITIES.indexOf(t.priority);
+  const newIdx = Math.max(0, Math.min(PRIORITIES.length - 1, idx + dir));
+  if(newIdx === idx) return;
+  const from = t.priority;
+  t.priority = PRIORITIES[newIdx];
+  t.createdAt = Date.now(); t.escalated = false; t.mustDo = false;
+  save(); render();
+  showToast(`${dir < 0 ? '⬆' : '⬇'} Now ${PRIORITY_LABELS[t.priority]}: ${t.name}`, 'Undo', () => { t.priority = from; save(); render(); });
+}
+function shiftScheduleDate(id, dir){ // dir: -1 = earlier/up, +1 = later/down
+  const t = tasks.find(x => x.id === id);
+  if(!t) return;
+  const base = t.scheduledDate ? new Date(t.scheduledDate + 'T12:00:00') : new Date();
+  base.setDate(base.getDate() + dir);
+  const newDateStr = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}-${String(base.getDate()).padStart(2, '0')}`;
+  const cleared = newDateStr <= todayStr();
+  t.scheduledDate = cleared ? null : newDateStr;
+  t.scheduleArrived = false;
+  save(); render();
+  showToast(cleared ? `📆 Schedule cleared: ${t.name}` : `📆 Moved to ${t.scheduledDate}: ${t.name}`, null, null);
+}
+
+const GESTURE_ACTIONS = {
+  complete: { label: '✓ Complete', run: (id) => boardMarkDone(id) },
+  delete: { label: '🗑 Delete', run: (id) => deleteTaskById(id) },
+  snooze: { label: '📆 Snooze', run: (id) => snoozeTask(id) },
+  priorityUp: { label: '⬆ Priority up', run: (id) => bumpPriority(id, -1) },
+};
+
+function runGestureAction(key, id){
+  const action = GESTURE_ACTIONS[key];
+  if(action) action.run(id);
+}
+function runLongPressAction(direction, id){
+  const t = tasks.find(x => x.id === id);
+  if(!t) return;
+  const dir = direction === 'up' ? -1 : 1;
+  if(gestureSettings.longPress === 'priority') bumpPriority(id, dir);
+  else shiftScheduleDate(id, dir);
+}
+
+let rowGestureEl = null, rowGestureId = null, rowGestureMode = null;
+let rowGestureStartX = 0, rowGestureStartY = 0, rowGestureDX = 0, rowGestureDY = 0, rowGestureLastY = 0;
+let rowLongPressTimer = null;
+
+function onRowPointerDown(e, el, id){
+  if(e.target.type === 'checkbox') return;
+  rowGestureEl = el; rowGestureId = id;
+  rowGestureStartX = e.clientX; rowGestureStartY = e.clientY;
+  rowGestureDX = 0; rowGestureDY = 0;
+  rowGestureMode = null;
+  clearTimeout(rowLongPressTimer);
+  rowLongPressTimer = setTimeout(() => {
+    if(rowGestureMode === null && rowGestureEl){
+      rowGestureMode = 'longpress';
+      rowGestureEl.classList.add('longpress-active');
+      lockBodyScroll();
+      if(navigator.vibrate) navigator.vibrate(10);
     }
-    if(before) chipsEl.insertBefore(dragPlaceholder, before);
-    else chipsEl.appendChild(dragPlaceholder);
-  } else if(dragPlaceholder.parentElement){
-    dragPlaceholder.remove();
+  }, 450);
+  document.addEventListener('pointermove', onRowPointerMove);
+  document.addEventListener('pointerup', onRowPointerUp);
+  document.addEventListener('pointercancel', onRowPointerUp);
+}
+function onRowPointerMove(e){
+  if(!rowGestureEl) return;
+  const dx = e.clientX - rowGestureStartX, dy = e.clientY - rowGestureStartY;
+  rowGestureDX = dx; rowGestureDY = dy;
+
+  if(rowGestureMode === null){
+    if(Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2){
+      rowGestureMode = 'swipe';
+      clearTimeout(rowLongPressTimer);
+    } else if(Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)){
+      // ordinary page scroll intent, before the long-press timer fired — since touch-action
+      // is disabled on the row (to give the long-press gesture full control once active),
+      // we drive the scroll ourselves rather than losing it entirely.
+      clearTimeout(rowLongPressTimer);
+      rowGestureMode = 'scroll';
+      rowGestureLastY = e.clientY;
+    }
+    return;
+  }
+  if(rowGestureMode === 'scroll'){
+    window.scrollBy(0, -(e.clientY - rowGestureLastY));
+    rowGestureLastY = e.clientY;
+    return;
+  }
+  if(rowGestureMode === 'swipe'){
+    const clamped = Math.max(-140, Math.min(140, dx));
+    rowGestureEl.style.transform = `translateX(${clamped}px)`;
+    const bgLeft = document.getElementById('rowbg-left-' + rowGestureId);
+    const bgRight = document.getElementById('rowbg-right-' + rowGestureId);
+    if(bgLeft) bgLeft.style.opacity = clamped > 20 ? Math.min(1, clamped / 100) : 0;
+    if(bgRight) bgRight.style.opacity = clamped < -20 ? Math.min(1, -clamped / 100) : 0;
+  } else if(rowGestureMode === 'longpress'){
+    e.preventDefault();
+    const clamped = Math.max(-60, Math.min(60, dy));
+    rowGestureEl.style.transform = `translateY(${clamped}px)`;
+    rowGestureEl.classList.toggle('longpress-up', clamped < -30);
+    rowGestureEl.classList.toggle('longpress-down', clamped > 30);
   }
 }
-function onChipDragEnd(e){
-  document.removeEventListener('pointermove', onChipDragMove);
-  document.removeEventListener('pointerup', onChipDragEnd);
-  document.removeEventListener('pointercancel', onChipDragEnd);
-  unlockBodyScroll();
-  const placeholderParent = dragPlaceholder ? dragPlaceholder.parentElement : null;
-  const insertBeforeEl = placeholderParent ? dragPlaceholder.nextElementSibling : null;
-  const insertBeforeId = insertBeforeEl && insertBeforeEl.classList.contains('board-chip') ? insertBeforeEl.dataset.id : null;
-  if(dragPlaceholder && dragPlaceholder.parentElement) dragPlaceholder.remove();
-  dragPlaceholder = null;
-  if(!chipDragEl) return;
-  const target = document.elementFromPoint(e.clientX, e.clientY);
-  const zone = target ? target.closest('.priority-zone') : null;
-  document.querySelectorAll('.priority-zone').forEach(z => z.classList.remove('drag-over'));
+function onRowPointerUp(){
+  clearTimeout(rowLongPressTimer);
+  document.removeEventListener('pointermove', onRowPointerMove);
+  document.removeEventListener('pointerup', onRowPointerUp);
+  document.removeEventListener('pointercancel', onRowPointerUp);
+  if(!rowGestureEl) return;
 
-  if(zone){
-    const newPriority = zone.dataset.priority;
-    const fromIdx = tasks.findIndex(t => t.id === chipDragId);
-    if(fromIdx !== -1){
-      const [moved] = tasks.splice(fromIdx, 1);
-      if(moved.priority !== newPriority){ moved.createdAt = Date.now(); moved.escalated = false; moved.mustDo = false; }
-      moved.priority = newPriority;
-      if(insertBeforeId){
-        const insertIdx = tasks.findIndex(t => t.id === insertBeforeId);
-        tasks.splice(insertIdx === -1 ? tasks.length : insertIdx, 0, moved);
-      } else {
-        // append after the last existing task of this priority, so it lands at the bottom of that zone
-        let lastIdx = -1;
-        for(let i = 0; i < tasks.length; i++){ if(tasks[i].priority === newPriority) lastIdx = i; }
-        tasks.splice(lastIdx === -1 ? tasks.length : lastIdx + 1, 0, moved);
-      }
-      save(); // re-sorts by priority only — same-priority relative order (what we just set) is preserved
+  if(rowGestureMode === 'swipe'){
+    const threshold = 90;
+    const el = rowGestureEl, id = rowGestureId;
+    if(rowGestureDX < -threshold){ runGestureAction(gestureSettings.swipeLeft, id); }
+    else if(rowGestureDX > threshold){ runGestureAction(gestureSettings.swipeRight, id); }
+    resetRowTransform(el, id);
+  } else if(rowGestureMode === 'longpress'){
+    unlockBodyScroll();
+    const threshold = 30;
+    if(rowGestureDY < -threshold){ runLongPressAction('up', rowGestureId); }
+    else if(rowGestureDY > threshold){ runLongPressAction('down', rowGestureId); }
+    rowGestureEl.style.transform = '';
+    rowGestureEl.classList.remove('longpress-active', 'longpress-up', 'longpress-down');
+  } else if(rowGestureMode === 'scroll'){
+    // was just an ordinary scroll — nothing to do
+  } else {
+    if(Math.abs(rowGestureDX) < 8 && Math.abs(rowGestureDY) < 8){
+      openEditModal(rowGestureId);
     }
   }
-  chipDragEl.style.pointerEvents = '';
-  chipDragEl = null; chipDragId = null;
-  renderBoard();
-  render();
+  cleanupRowGesture();
+}
+function resetRowTransform(el, id){
+  el.style.transition = 'transform 0.2s';
+  el.style.transform = 'translateX(0)';
+  setTimeout(() => {
+    if(el) el.style.transition = '';
+    const bgLeft = document.getElementById('rowbg-left-' + id);
+    const bgRight = document.getElementById('rowbg-right-' + id);
+    if(bgLeft) bgLeft.style.opacity = 0;
+    if(bgRight) bgRight.style.opacity = 0;
+  }, 200);
+}
+function cleanupRowGesture(){
+  rowGestureEl = null; rowGestureId = null; rowGestureMode = null;
+}
+
+document.getElementById('settings-gestures-btn').onclick = () => {
+  refreshGestureSettingsUI();
+  document.getElementById('settings-modal').classList.add('hidden');
+  document.getElementById('gestures-modal').classList.remove('hidden');
+};
+document.getElementById('gestures-close-btn').onclick = () => document.getElementById('gestures-modal').classList.add('hidden');
+
+function refreshGestureSettingsUI(){
+  buildSegmented(document.getElementById('gesture-swipe-right'), [
+    { key: 'complete', label: '✓ Complete' }, { key: 'snooze', label: '📆 Snooze' }
+  ], gestureSettings.swipeRight, v => { gestureSettings.swipeRight = v; saveGestureSettings(); refreshGestureSettingsUI(); render(); });
+  buildSegmented(document.getElementById('gesture-swipe-left'), [
+    { key: 'delete', label: '🗑 Delete' }, { key: 'priorityUp', label: '⬆ Priority up' }
+  ], gestureSettings.swipeLeft, v => { gestureSettings.swipeLeft = v; saveGestureSettings(); refreshGestureSettingsUI(); render(); });
+  buildSegmented(document.getElementById('gesture-longpress'), [
+    { key: 'priority', label: 'Priority' }, { key: 'date', label: 'Schedule date' }
+  ], gestureSettings.longPress, v => { gestureSettings.longPress = v; saveGestureSettings(); refreshGestureSettingsUI(); });
+}
+function buildSegmented(container, options, selected, onSelect){
+  container.innerHTML = '';
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'time-limit-btn' + (opt.key === selected ? ' selected' : '');
+    btn.textContent = opt.label;
+    btn.onclick = () => onSelect(opt.key);
+    container.appendChild(btn);
+  });
 }
 
 restoreSession();
 render();
 </script>
+
 </body>
 </html>
