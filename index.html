@@ -21,9 +21,11 @@
     --hairline:#2A2E3A;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  input, textarea{-webkit-user-select:text; user-select:text; -webkit-touch-callout:default;}
   body{
     margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
     background:var(--bg); color:var(--text); min-height:100vh; letter-spacing:-0.01em;
+    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
     padding:calc(20px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
     overscroll-behavior:none;
   }
@@ -128,6 +130,7 @@
   .timer-priority-badge{font-size:0.8rem; font-weight:700; padding:4px 10px; border-radius:20px; margin-bottom:10px; color:#0f1115;}
   .timer-current{font-size:1rem; color:var(--muted); margin-bottom:6px;}
   .timer-task{font-size:1.8rem; font-weight:700; margin-bottom:18px; padding:0 10px;}
+  .timer-motivation{font-size:0.9rem; color:var(--accent2); font-weight:600; margin:-10px 0 18px; padding:0 16px; min-height:1.2em;}
   .timer-clock{font-size:4rem; font-variant-numeric:tabular-nums; font-weight:700; margin-bottom:24px;}
   .timer-controls{display:flex; gap:10px; justify-content:center; margin-bottom:20px; flex-wrap:wrap;}
   .timer-controls button{padding:14px 22px; border-radius:12px; border:none; font-size:1rem; font-weight:600; cursor:pointer;}
@@ -385,6 +388,7 @@
       <div class="timer-priority-badge" id="timer-priority-badge">P3</div>
       <div class="timer-current" id="timer-current">Task 1 of 1</div>
       <div class="timer-task" id="timer-task">—</div>
+      <div class="timer-motivation" id="timer-motivation"></div>
       <div class="timer-clock" id="timer-clock">00:00</div>
       <div class="up-next" id="up-next" style="margin-bottom:20px;"></div>
       <div class="timer-controls">
@@ -395,8 +399,8 @@
       </div>
     </div>
     <div id="timer-done-view" class="hidden">
-      <div style="font-size:3rem; margin-bottom:6px;">🎉</div>
-      <div class="timer-task">Well done!</div>
+      <div style="font-size:3rem; margin-bottom:6px;" id="done-emoji">🎉</div>
+      <div class="timer-task" id="done-headline">Well done!</div>
       <div id="done-summary" style="color:var(--muted); font-size:0.9rem; margin-bottom:16px;"></div>
       <div id="done-list" style="width:100%; max-width:420px; text-align:left; max-height:32vh; overflow-y:auto; margin-bottom:16px;"></div>
       <div id="skipped-section" class="hidden" style="width:100%; max-width:420px; text-align:left; margin-bottom:20px;">
@@ -634,7 +638,7 @@
 <!-- completed report modal -->
 <div class="modal hidden" id="report-modal">
   <div class="modal-card" style="max-height:80vh; overflow-y:auto;">
-    <h3>Completed report</h3>
+    <h3 id="report-headline">📋 Completed report</h3>
     <p id="report-summary" style="color:var(--muted); font-size:0.85rem; margin-top:-8px;"></p>
     <div id="report-list"></div>
     <div class="modal-actions">
@@ -908,12 +912,22 @@ actualStepsInput.value = actualSteps;
 function getElapsedDayFraction(){
   const now = new Date();
   const dayStart = new Date(now); dayStart.setHours(7, 0, 0, 0);
-  const dayEnd = new Date(now); dayEnd.setHours(22, 0, 0, 0);
+  const dayEnd = new Date(now); dayEnd.setHours(21, 0, 0, 0); // 9pm — the deadline for the day's step goal
   return Math.max(0, Math.min(1, (now - dayStart) / (dayEnd - dayStart)));
 }
 
+/* The less of the day left before 9pm, the more urgent the catch-up walk should be. */
+function getAutoWalkPriority(){
+  const remainingFraction = 1 - getElapsedDayFraction();
+  if(remainingFraction <= 0.15) return 'p1'; // barely any time left — must do now
+  if(remainingFraction <= 0.35) return 'p2';
+  if(remainingFraction <= 0.6) return 'p3';
+  return 'p4'; // plenty of the day still ahead
+}
+
 /* Decides whether a walk needs adding — based on progress EXCLUDING any existing
-   auto-walk task, so the presence of that task never talks itself out of existing. */
+   auto-walk task, so the presence of that task never talks itself out of existing.
+   Only counts errand tasks actually due today (not scheduled for later). */
 function getStepPace(){
   const elapsedFraction = getElapsedDayFraction();
   const otherPlannedSteps = tasks.filter(t => t.tag === 'errands' && t.steps > 0 && !t.done && !t.autoWalk && !isScheduledForFuture(t)).reduce((s, t) => s + t.steps, 0);
@@ -924,21 +938,27 @@ function getStepPace(){
   return { behind, suggestedSteps: Math.round(remainingGoal / 100) * 100 };
 }
 
-/* Adds, resizes, or removes the single auto-managed walk task to match the current shortfall. */
+/* Adds, resizes, or removes the single auto-managed walk task to match the current shortfall,
+   and keeps its priority in step with how much of the day is left to hit the goal. */
 function syncAutoWalk(pace){
   const autoWalkTask = tasks.find(t => t.autoWalk && !t.done);
   let changed = false;
   if(pace.behind && pace.suggestedSteps > 0){
+    const urgencyPriority = getAutoWalkPriority();
     if(autoWalkTask){
       if(autoWalkTask.steps !== pace.suggestedSteps){
         autoWalkTask.steps = pace.suggestedSteps;
         autoWalkTask.mins = Math.max(5, Math.round((pace.suggestedSteps / 100) / 5) * 5);
         changed = true;
       }
+      if(autoWalkTask.priority !== urgencyPriority){
+        autoWalkTask.priority = urgencyPriority;
+        changed = true;
+      }
     } else {
       tasks.push({
         id: uid(), name: 'Walk', mins: Math.max(5, Math.round((pace.suggestedSteps / 100) / 5) * 5),
-        priority: 'p3', tag: 'errands', steps: pace.suggestedSteps, recurring: false, done: false, autoWalk: true
+        priority: urgencyPriority, tag: 'errands', steps: pace.suggestedSteps, recurring: false, done: false, autoWalk: true, createdAt: Date.now()
       });
       changed = true;
     }
@@ -1307,6 +1327,53 @@ window.addEventListener('pageshow', () => {
   if(timerState === 'running') tick();
 });
 
+const MOTIVATION_MESSAGES = {
+  mustDo: [
+    "This one's overdue — let's finally cross it off! 💪",
+    "No more putting this off. You've got this. 🔥",
+    "Today's the day this one gets done!",
+    "This has waited long enough — let's finish it.",
+  ],
+  aged: [
+    "You've been meaning to do this a while — nice work tackling it now.",
+    "This one's been waiting. Let's give it the attention it deserves.",
+    "Delayed but not forgotten — let's get it done.",
+    "Good on you for coming back to this one.",
+  ],
+  fresh: [
+    "Let's go!",
+    "You've got this.",
+    "One task at a time.",
+    "Nice, staying on top of it.",
+  ]
+};
+function getTaskMotivation(t){
+  const ageDays = daysSince(t.createdAt || Date.now());
+  let pool;
+  if(t.mustDo) pool = MOTIVATION_MESSAGES.mustDo;
+  else if(t.escalated || ageDays >= 10) pool = MOTIVATION_MESSAGES.aged;
+  else pool = MOTIVATION_MESSAGES.fresh;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+let lastMotivationTaskId = null;
+
+const CELEBRATION_TIERS = [
+  { min: 0, emoji: '👋', headlines: ["No tasks completed this time", "Nothing ticked off this session"] },
+  { min: 1, emoji: '✅', headlines: ["Nice one!", "Got it done!", "One down!"] },
+  { min: 3, emoji: '🎉', headlines: ["Well done!", "Great session!", "Look at you go!"] },
+  { min: 6, emoji: '🔥', headlines: ["You're on fire!", "Incredible session!", "Absolutely crushing it!"] },
+  { min: 10, emoji: '🏆', headlines: ["Legendary session!", "Unstoppable today!", "That's a huge win!"] },
+];
+function getCelebration(count, mins){
+  let tier = CELEBRATION_TIERS[0];
+  for(const t of CELEBRATION_TIERS){ if(count >= t.min) tier = t; }
+  const headline = tier.headlines[Math.floor(Math.random() * tier.headlines.length)];
+  let detail;
+  if(count === 0) detail = 'That happens sometimes — the tasks are still there whenever you\'re ready.';
+  else detail = `${count} task${count > 1 ? 's' : ''} • ${mins} min ticked off${mins >= 60 ? ' — over an hour of real progress!' : '.'}`;
+  return { emoji: tier.emoji, headline, detail };
+}
+
 function refreshTimerDisplays(){
   render();
   if(timerState === 'done'){
@@ -1314,8 +1381,10 @@ function refreshTimerDisplays(){
     document.getElementById('timer-done-view').classList.remove('hidden');
     const completed = sessionCompleted;
     const totalMins = completed.reduce((s, t) => s + t.mins, 0);
-    document.getElementById('done-summary').textContent =
-      completed.length === 0 ? 'No tasks were completed this session.' : `${completed.length} task${completed.length>1?'s':''} • ${totalMins} min ticked off.`;
+    const celebration = getCelebration(completed.length, totalMins);
+    document.getElementById('done-emoji').textContent = celebration.emoji;
+    document.getElementById('done-headline').textContent = celebration.headline;
+    document.getElementById('done-summary').textContent = celebration.detail;
     const list = document.getElementById('done-list');
     list.innerHTML = completed.map(t => `
       <div class="review-item">
@@ -1382,6 +1451,10 @@ function refreshTimerDisplays(){
   document.getElementById('timer-priority-badge').style.background = `var(--${t.priority})`;
   document.getElementById('timer-current').textContent = `Task ${sessionPosition()} of ${sessionCount()}`;
   document.getElementById('timer-task').textContent = t.name;
+  if(lastMotivationTaskId !== t.id){
+    lastMotivationTaskId = t.id;
+    document.getElementById('timer-motivation').textContent = getTaskMotivation(t);
+  }
   document.getElementById('timer-clock').textContent = formatTime(secondsLeft);
   document.getElementById('pause-btn').textContent = timerState === 'paused' ? 'Resume' : 'Pause';
 
@@ -1568,9 +1641,15 @@ document.getElementById('budget-build-btn').onclick = () => {
   openReviewModal(budget);
 };
 
+function isWrongTimeOfDay(t){
+  if(t.timeConstraint === 'am') return new Date().getHours() >= 12;
+  if(t.timeConstraint === 'pm') return new Date().getHours() < 12;
+  return false;
+}
+
 function openReviewModal(budget){
   reviewBudget = budget;
-  let pending = tasks.filter(t => !t.done && !isScheduledForFuture(t)); // current order reflects whichever quick sort is active
+  let pending = tasks.filter(t => !t.done && !isScheduledForFuture(t) && !isWrongTimeOfDay(t)); // current order reflects whichever quick sort is active
   if(budgetTagFilters.size > 0) pending = pending.filter(t => t.tag && budgetTagFilters.has(t.tag));
   const selected = pickTasksForBudget(pending, budget);
   renderReviewList(pending, selected);
@@ -1684,8 +1763,9 @@ function getAllCompleted(){
 document.getElementById('settings-report-btn').onclick = () => {
   const completed = getAllCompleted();
   const totalMins = completed.reduce((s, t) => s + t.mins, 0);
-  document.getElementById('report-summary').textContent =
-    completed.length === 0 ? 'No completed tasks yet.' : `${completed.length} task${completed.length > 1 ? 's' : ''} • ${totalMins} min`;
+  const celebration = getCelebration(completed.length, totalMins);
+  document.getElementById('report-headline').textContent = completed.length === 0 ? '📋 Completed report' : `${celebration.emoji} ${celebration.headline}`;
+  document.getElementById('report-summary').textContent = completed.length === 0 ? 'Nothing completed yet — get started!' : celebration.detail;
   const list = document.getElementById('report-list');
   list.innerHTML = completed.map(t => `
     <div class="review-item">
@@ -2070,7 +2150,8 @@ function bumpPriority(id, dir){ // dir: -1 = toward P1 (up), +1 = toward P5 (dow
   const from = t.priority;
   t.priority = PRIORITIES[newIdx];
   t.createdAt = Date.now(); t.escalated = false; t.mustDo = false;
-  save(); render();
+  save();
+  render();
   showToast(`${dir < 0 ? '⬆' : '⬇'} Now ${PRIORITY_LABELS[t.priority]}: ${t.name}`, 'Undo', () => { t.priority = from; save(); render(); });
 }
 function shiftScheduleDate(id, dir){ // dir: -1 = earlier/up, +1 = later/down
