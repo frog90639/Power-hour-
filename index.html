@@ -180,6 +180,17 @@
   .mini-task{font-size:0.85rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .mini-clock{font-size:0.8rem; color:var(--muted); font-variant-numeric:tabular-nums;}
 
+  .undo-toast{
+    position:fixed; left:16px; right:16px; bottom:calc(16px + env(safe-area-inset-bottom)); background:var(--card);
+    border:1px solid var(--accent); border-radius:14px; padding:12px 16px; display:flex;
+    align-items:center; justify-content:space-between; gap:10px; z-index:400; box-shadow:0 6px 20px rgba(0,0,0,0.4);
+  }
+  .undo-toast span{font-size:0.88rem; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .undo-toast button{
+    flex-shrink:0; background:var(--accent); color:#0f1115; border:none; padding:8px 16px;
+    border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer;
+  }
+
   /* modal */
   .modal{position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:300; display:flex; align-items:flex-end; justify-content:center;}
   #add-modal{transition:opacity 0.12s;}
@@ -240,6 +251,11 @@
     <div class="modal-row budget-row" id="add-steps-row" style="display:none;">
       <span style="color:var(--muted); font-size:0.85rem;">👣 Est. steps</span>
       <input type="number" id="add-steps-input" min="0" step="100" placeholder="e.g. 800" style="margin-left:auto; width:100px;">
+    </div>
+    <div class="modal-row budget-row">
+      <span style="color:var(--muted); font-size:0.85rem;">📆 Do this on</span>
+      <input type="date" id="add-date-input" style="margin-left:auto;">
+      <button type="button" id="add-date-clear-btn" class="board-chip-btn" title="Clear — do it today/whenever">✕</button>
     </div>
     <label class="modal-row recurring-toggle" id="add-recurring-toggle">
       <input type="checkbox" id="add-recurring-checkbox">
@@ -355,6 +371,11 @@
   <button class="icon-btn" id="mini-expand">⤢</button>
 </div>
 
+<div class="undo-toast hidden" id="undo-toast">
+  <span id="undo-toast-text"></span>
+  <button id="undo-toast-btn">Undo</button>
+</div>
+
 <!-- edit modal -->
 <div class="modal hidden" id="edit-modal">
   <div class="modal-card">
@@ -372,6 +393,15 @@
     <div class="modal-row budget-row" id="edit-steps-row" style="display:none;">
       <span style="color:var(--muted); font-size:0.85rem;">👣 Est. steps</span>
       <input type="number" id="edit-steps-input" min="0" step="100" style="margin-left:auto; width:100px;">
+    </div>
+    <div class="modal-row budget-row">
+      <span style="color:var(--muted); font-size:0.85rem;">📆 Do this on</span>
+      <input type="date" id="edit-date-input" style="margin-left:auto;">
+      <button type="button" id="edit-date-clear-btn" class="board-chip-btn" title="Clear — do it today/whenever">✕</button>
+    </div>
+    <div class="modal-row budget-row">
+      <span style="color:var(--muted); font-size:0.85rem;">⏳ Age (days)</span>
+      <input type="number" id="edit-age-input" min="0" step="1" style="margin-left:auto; width:80px;">
     </div>
     <label class="modal-row recurring-toggle" id="edit-recurring-toggle">
       <input type="checkbox" id="edit-recurring-checkbox">
@@ -410,6 +440,7 @@
     <button id="settings-report-btn" class="settings-item">📋 Completed report</button>
     <button id="settings-aging-btn" class="settings-item">⏳ Aging tasks</button>
     <button id="settings-escalation-btn" class="settings-item">📈 Escalation timing</button>
+    <button id="settings-scheduled-btn" class="settings-item">📆 Scheduled for later</button>
     <button id="settings-daylog-btn" class="settings-item">📅 Day log</button>
     <button id="settings-bulk-add-btn" class="settings-item">＋ Bulk add (paste a list)</button>
     <button id="settings-export-btn" class="settings-item">⇧ Export tasks</button>
@@ -426,6 +457,18 @@
     </p>
     <div id="aging-list"></div>
     <button id="aging-close-btn" style="width:100%; margin-top:10px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
+<!-- scheduled for later -->
+<div class="modal hidden" id="scheduled-modal">
+  <div class="modal-card" style="max-height:80vh; overflow-y:auto;">
+    <h3>📆 Scheduled for later</h3>
+    <p style="color:var(--muted); font-size:0.8rem; margin-top:-8px;">
+      These are hidden from the board until their day arrives.
+    </p>
+    <div id="scheduled-list"></div>
+    <button id="scheduled-close-btn" style="width:100%; margin-top:10px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
   </div>
 </div>
 
@@ -549,6 +592,20 @@ const taskInput = document.getElementById('task-input');
 const minsDisplay = document.getElementById('mins-display');
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function todayStr(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function isScheduledForFuture(t){ return !!(t.scheduledDate && t.scheduledDate > todayStr()); }
+/* Calendar-day difference (midnight to midnight), not raw elapsed hours — so a task
+   added yesterday evening correctly reads "1 day old" first thing this morning. */
+function daysSince(ms){
+  const then = new Date(ms);
+  const thenMid = new Date(then.getFullYear(), then.getMonth(), then.getDate()).getTime();
+  const now = new Date();
+  const nowMid = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  return Math.round((nowMid - thenMid) / (24 * 60 * 60 * 1000));
+}
 function save(){
   let activeId = null;
   if(currentIndex !== -1 && tasks[currentIndex]) activeId = tasks[currentIndex].id;
@@ -619,23 +676,31 @@ function escalateStaleTasks(){
   let changed = false;
   tasks.forEach(t => {
     if(t.done) return;
-    if(!t.createdAt) t.createdAt = now;
-    if(t.priority === 'p1'){
-      if(t.mustDo) return; // already flagged, nothing further to do
-      const mustDoMs = (escalationDays.p1 || DEFAULT_ESCALATION_DAYS.p1) * 24 * 60 * 60 * 1000;
-      if(now - t.createdAt >= mustDoMs){
-        t.mustDo = true;
-        changed = true;
-      }
-      return;
+    if(isScheduledForFuture(t)){ t.scheduleArrived = false; return; } // deliberately deferred — not neglected
+    if(t.scheduledDate && !t.scheduleArrived){
+      t.createdAt = now; // just became due — start the clock fresh from today, not from whenever it was originally added
+      t.scheduleArrived = true;
+      changed = true;
     }
-    const thresholdMs = (escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14) * 24 * 60 * 60 * 1000;
-    if(now - t.createdAt >= thresholdMs){
-      const idx = PRIORITIES.indexOf(t.priority);
-      if(idx > 0){
+    if(!t.createdAt) t.createdAt = now;
+
+    // cascade through as many levels as the accumulated age justifies in one pass
+    let guard = 0;
+    while(t.priority !== 'p1' && guard < 10){
+      guard++;
+      const thresholdDays = escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14;
+      if(daysSince(t.createdAt) >= thresholdDays){
+        const idx = PRIORITIES.indexOf(t.priority);
         t.priority = PRIORITIES[idx - 1];
-        t.createdAt = now; // restart the clock at the new priority level
+        t.createdAt += thresholdDays * 24 * 60 * 60 * 1000; // carry the leftover age forward into the new level
         t.escalated = true;
+        changed = true;
+      } else break;
+    }
+    if(t.priority === 'p1' && !t.mustDo){
+      const mustDoDays = escalationDays.p1 || DEFAULT_ESCALATION_DAYS.p1;
+      if(daysSince(t.createdAt) >= mustDoDays){
+        t.mustDo = true;
         changed = true;
       }
     }
@@ -672,7 +737,7 @@ function getElapsedDayFraction(){
    auto-walk task, so the presence of that task never talks itself out of existing. */
 function getStepPace(){
   const elapsedFraction = getElapsedDayFraction();
-  const otherPlannedSteps = tasks.filter(t => t.tag === 'errands' && t.steps > 0 && !t.done && !t.autoWalk).reduce((s, t) => s + t.steps, 0);
+  const otherPlannedSteps = tasks.filter(t => t.tag === 'errands' && t.steps > 0 && !t.done && !t.autoWalk && !isScheduledForFuture(t)).reduce((s, t) => s + t.steps, 0);
   const otherProgress = actualSteps + otherPlannedSteps;
   const remainingGoal = Math.max(0, stepGoal - otherProgress);
   // only start flagging once a reasonable chunk of the day has passed, so it doesn't nag first thing in the morning
@@ -708,7 +773,7 @@ function syncAutoWalk(pace){
 function updateStepsBar(){
   syncAutoWalk(getStepPace());
 
-  const plannedSteps = tasks.filter(t => t.tag === 'errands' && t.steps > 0 && !t.done).reduce((s, t) => s + t.steps, 0);
+  const plannedSteps = tasks.filter(t => t.tag === 'errands' && t.steps > 0 && !t.done && !isScheduledForFuture(t)).reduce((s, t) => s + t.steps, 0);
   const goal = stepGoal > 0 ? stepGoal : 1;
   const completedPct = Math.min(100, (actualSteps / goal) * 100);
   const plannedPct = Math.min(100 - completedPct, (plannedSteps / goal) * 100);
@@ -785,17 +850,21 @@ function addTask(){
   if(!name) return;
   const recurringCb = document.getElementById('add-recurring-checkbox');
   const stepsInput = document.getElementById('add-steps-input');
+  const dateInput = document.getElementById('add-date-input');
   const steps = pendingTag === 'errands' ? (parseInt(stepsInput.value) || 0) : 0;
-  tasks.push({ id: uid(), name, mins: pendingMins, priority: pendingPriority, tag: pendingTag, steps, recurring: recurringCb.checked, done: false, createdAt: Date.now() });
+  const scheduledDate = dateInput.value || null;
+  tasks.push({ id: uid(), name, mins: pendingMins, priority: pendingPriority, tag: pendingTag, steps, recurring: recurringCb.checked, done: false, createdAt: Date.now(), scheduledDate });
   taskInput.value = '';
   pendingMins = 5; pendingPriority = 'p3'; pendingTag = null;
   recurringCb.checked = false;
   stepsInput.value = '';
+  dateInput.value = '';
   minsDisplay.textContent = '5 min';
   refreshAddPriorityPicker();
   refreshAddTagPicker();
   save(); render();
 }
+document.getElementById('add-date-clear-btn').onclick = () => { document.getElementById('add-date-input').value = ''; };
 
 document.getElementById('open-add-btn').onclick = () => {
   document.getElementById('add-modal').classList.add('modal-open');
@@ -827,10 +896,13 @@ function openEditModal(id){
   document.getElementById('edit-recurring-checkbox').checked = !!t.recurring;
   document.getElementById('edit-steps-input').value = t.steps || '';
   document.getElementById('edit-steps-row').style.display = (editTag === 'errands') ? 'flex' : 'none';
+  document.getElementById('edit-date-input').value = t.scheduledDate || '';
+  document.getElementById('edit-age-input').value = Math.max(0, daysSince(t.createdAt || Date.now()));
   refreshEditPriorityPicker();
   refreshEditTagPicker();
   editModal.classList.remove('hidden');
 }
+document.getElementById('edit-date-clear-btn').onclick = () => { document.getElementById('edit-date-input').value = ''; };
 function refreshEditPriorityPicker(){
   buildPriorityPicker(document.getElementById('edit-priority-picker'), editPriority, p => {
     editPriority = p; refreshEditPriorityPicker();
@@ -855,8 +927,12 @@ document.getElementById('edit-save-btn').onclick = () => {
     t.tag = editTag;
     t.steps = editTag === 'errands' ? (parseInt(document.getElementById('edit-steps-input').value) || 0) : 0;
     t.recurring = document.getElementById('edit-recurring-checkbox').checked;
+    t.scheduledDate = document.getElementById('edit-date-input').value || null;
+    t.scheduleArrived = false;
     t.autoWalk = false; // a manual edit means the user now owns this task, not the auto-pace system
-    t.createdAt = Date.now(); // touching it manually resets the staleness clock
+    const ageDays = Math.max(0, parseInt(document.getElementById('edit-age-input').value) || 0);
+    const now = new Date();
+    t.createdAt = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ageDays, 12, 0, 0).getTime();
     t.escalated = false;
     t.mustDo = false;
     save(); render(); refreshTimerDisplays();
@@ -1292,7 +1368,7 @@ document.getElementById('budget-build-btn').onclick = () => {
 
 function openReviewModal(budget){
   reviewBudget = budget;
-  let pending = tasks.filter(t => !t.done); // current order reflects whichever quick sort is active
+  let pending = tasks.filter(t => !t.done && !isScheduledForFuture(t)); // current order reflects whichever quick sort is active
   if(budgetTagFilters.size > 0) pending = pending.filter(t => t.tag && budgetTagFilters.has(t.tag));
   const selected = pickTasksForBudget(pending, budget);
   renderReviewList(pending, selected);
@@ -1416,13 +1492,38 @@ document.getElementById('settings-report-btn').onclick = () => {
       <span class="name">${t.name}</span>
       ${t.tag ? `<span class="tag-badge">${TAG_ICONS[t.tag]}</span>` : ''}
       <span class="mins">${t.mins} min</span>
+      <button type="button" class="board-chip-btn report-undo-btn" data-id="${t.id}" title="Undo — mark as not done">↩</button>
     </div>
   `).join('');
+  list.querySelectorAll('.report-undo-btn').forEach(btn => {
+    btn.onclick = () => { undoCompletedTask(btn.dataset.id); document.getElementById('settings-report-btn').click(); };
+  });
   document.getElementById('report-clear-btn').disabled = completed.length === 0;
   document.getElementById('settings-modal').classList.add('hidden');
   document.getElementById('report-modal').classList.remove('hidden');
 };
 document.getElementById('report-close-btn').onclick = () => document.getElementById('report-modal').classList.add('hidden');
+
+/* undoes a completed task, whether it's still in the active list or was already swiped away */
+function undoCompletedTask(id){
+  const live = tasks.find(t => t.id === id && t.done);
+  if(live){
+    live.done = false;
+    live.createdAt = Date.now();
+    const idx = sessionCompleted.findIndex(x => x.id === id);
+    if(idx !== -1) sessionCompleted.splice(idx, 1);
+    save(); render();
+    return;
+  }
+  const delIdx = deletedCompleted.findIndex(t => t.id === id);
+  if(delIdx !== -1){
+    const [restored] = deletedCompleted.splice(delIdx, 1);
+    restored.done = false;
+    restored.createdAt = Date.now();
+    tasks.push(restored);
+    save(); render();
+  }
+}
 
 /* ---------- aging tasks ---------- */
 document.getElementById('settings-aging-btn').onclick = () => {
@@ -1431,11 +1532,10 @@ document.getElementById('settings-aging-btn').onclick = () => {
   if(pending.length === 0){
     list.innerHTML = '<div class="empty">Nothing pending.</div>';
   } else {
-    const now = Date.now();
     list.innerHTML = pending.map(t => {
-      const ageDays = Math.floor((now - t.createdAt) / (24 * 60 * 60 * 1000));
+      const ageDays = daysSince(t.createdAt);
       const thresholdDays = escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14;
-      const daysLeft = Math.ceil(thresholdDays - (now - t.createdAt) / (24 * 60 * 60 * 1000));
+      const daysLeft = thresholdDays - ageDays;
       let statusText;
       if(t.priority === 'p1'){
         if(t.mustDo){ statusText = `${ageDays}d old — flagged must do`; }
@@ -1457,6 +1557,34 @@ document.getElementById('settings-aging-btn').onclick = () => {
   document.getElementById('aging-modal').classList.remove('hidden');
 };
 document.getElementById('aging-close-btn').onclick = () => document.getElementById('aging-modal').classList.add('hidden');
+
+/* ---------- scheduled for later ---------- */
+document.getElementById('settings-scheduled-btn').onclick = () => {
+  const scheduled = tasks.filter(t => !t.done && isScheduledForFuture(t)).sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
+  const list = document.getElementById('scheduled-list');
+  if(scheduled.length === 0){
+    list.innerHTML = '<div class="empty">Nothing scheduled for later.</div>';
+  } else {
+    list.innerHTML = scheduled.map(t => `
+      <div class="review-item">
+        <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
+        <span class="name">${t.name}</span>
+        <span class="mins" style="flex-shrink:0;">${t.scheduledDate}</span>
+        <button type="button" class="board-chip-btn scheduled-edit" data-id="${t.id}" title="Edit">✎</button>
+        <button type="button" class="board-chip-btn scheduled-del" data-id="${t.id}" title="Delete" style="color:var(--danger); border-color:var(--danger);">✕</button>
+      </div>
+    `).join('');
+    list.querySelectorAll('.scheduled-edit').forEach(btn => {
+      btn.onclick = () => { document.getElementById('scheduled-modal').classList.add('hidden'); openEditModal(btn.dataset.id); };
+    });
+    list.querySelectorAll('.scheduled-del').forEach(btn => {
+      btn.onclick = () => { deleteTaskById(btn.dataset.id); document.getElementById('settings-scheduled-btn').click(); };
+    });
+  }
+  document.getElementById('settings-modal').classList.add('hidden');
+  document.getElementById('scheduled-modal').classList.remove('hidden');
+};
+document.getElementById('scheduled-close-btn').onclick = () => document.getElementById('scheduled-modal').classList.add('hidden');
 
 /* ---------- escalation timing settings ---------- */
 document.getElementById('settings-escalation-btn').onclick = () => {
@@ -1501,7 +1629,16 @@ document.getElementById('settings-daylog-btn').onclick = () => {
           <span>${entry.date}</span>
           <span style="color:var(--muted); font-weight:400;">${entry.completedCount} task${entry.completedCount !== 1 ? 's' : ''} • ${entry.totalMins} min</span>
         </div>
-        <div style="color:var(--muted); font-size:0.8rem;">👣 ${entry.actualSteps.toLocaleString()} / ${entry.stepGoal.toLocaleString()} steps</div>
+        <div style="color:var(--muted); font-size:0.8rem; margin-bottom:4px;">👣 ${entry.actualSteps.toLocaleString()} / ${entry.stepGoal.toLocaleString()} steps</div>
+        ${(entry.tasks || []).map(t => `
+          <div style="display:flex; align-items:center; gap:8px; width:100%; padding:4px 0; font-size:0.85rem;">
+            <span style="color:var(--accent); flex-shrink:0;">✓</span>
+            <span class="priority-badge" style="color:var(--${t.priority}); flex-shrink:0;">${PRIORITY_LABELS[t.priority]}</span>
+            <span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${t.name}</span>
+            ${t.tag ? `<span class="tag-badge">${TAG_ICONS[t.tag]}</span>` : ''}
+            <span style="color:var(--muted); flex-shrink:0;">${t.mins} min</span>
+          </div>
+        `).join('')}
       </div>
     `).join('');
   }
@@ -1521,7 +1658,7 @@ document.getElementById('report-clear-btn').onclick = () => {
 
   const completedToday = getAllCompleted();
   dayLog.push({
-    date: new Date().toISOString().slice(0, 10),
+    date: todayStr(),
     completedCount: completedToday.length,
     totalMins: completedToday.reduce((s, t) => s + t.mins, 0),
     actualSteps,
@@ -1546,7 +1683,7 @@ function renderBoard(){
   const body = document.getElementById('board-body');
   body.innerHTML = '';
   PRIORITIES.forEach(p => {
-    const zoneTasks = tasks.filter(t => t.priority === p && !t.done);
+    const zoneTasks = tasks.filter(t => t.priority === p && !t.done && !isScheduledForFuture(t));
     const zone = document.createElement('div');
     zone.className = 'priority-zone';
     zone.dataset.priority = p;
@@ -1573,7 +1710,8 @@ function renderBoard(){
           ${t.autoWalk ? '<span class="tag-badge" title="Added automatically to help hit your step goal">🤖 auto</span>' : ''}
           ${t.escalated ? '<span class="tag-badge" title="Bumped up — this sat pending for 2+ weeks">⏫ overdue</span>' : ''}
           ${t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff;" title="Sitting at P1 too long — this needs doing">❗ must do</span>' : ''}
-          ${(!t.escalated && t.priority !== 'p1' && (((escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14) * 24 * 60 * 60 * 1000) - (Date.now() - t.createdAt)) <= 3 * 24 * 60 * 60 * 1000) ? '<span class="tag-badge" title="Will bump up in a few days if still pending">⏳ aging</span>' : ''}
+          ${t.scheduledDate ? `<span class="tag-badge" title="Scheduled for this day">📆 ${t.scheduledDate}</span>` : ''}
+          ${(!t.escalated && t.priority !== 'p1' && ((escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14) - daysSince(t.createdAt)) <= 3) ? '<span class="tag-badge" title="Will bump up in a few days if still pending">⏳ aging</span>' : ''}
           <span class="mins">${t.mins} min</span>
           <button type="button" class="board-chip-btn board-chip-edit" title="Edit">✎</button>
           <button type="button" class="board-chip-btn board-chip-del" title="Delete">✕</button>
@@ -1593,6 +1731,7 @@ function renderBoard(){
 function boardMarkDone(id){
   const t = tasks.find(x => x.id === id);
   if(!t || t.done) return;
+  const name = t.name;
   const sessionActive = timerState === 'running' || timerState === 'paused';
   if(sessionActive && currentIndex !== -1 && tasks[currentIndex] && tasks[currentIndex].id === id){
     completeCurrentTask();
@@ -1601,10 +1740,26 @@ function boardMarkDone(id){
     if(sessionActive) sessionCompleted.push({ ...t });
     save();
   }
+  showUndoToast(id, name);
   renderBoard();
   render();
   if(sessionActive) refreshTimerDisplays();
 }
+
+let undoToastTimer = null;
+function showUndoToast(id, name){
+  document.getElementById('undo-toast-text').textContent = `✓ Marked done: ${name}`;
+  document.getElementById('undo-toast').dataset.id = id;
+  document.getElementById('undo-toast').classList.remove('hidden');
+  clearTimeout(undoToastTimer);
+  undoToastTimer = setTimeout(() => { document.getElementById('undo-toast').classList.add('hidden'); }, 6000);
+}
+document.getElementById('undo-toast-btn').onclick = () => {
+  const id = document.getElementById('undo-toast').dataset.id;
+  clearTimeout(undoToastTimer);
+  document.getElementById('undo-toast').classList.add('hidden');
+  undoCompletedTask(id);
+};
 
 let chipDragEl = null, chipDragId = null, chipStartX = 0, chipStartY = 0, dragPlaceholder = null;
 
