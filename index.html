@@ -745,7 +745,7 @@ const TAG_LABELS = {nohands:'No hands', errands:'Errands', movearound:'Move arou
 const TAG_ICONS = {nohands:'🎧', errands:'🏃', movearound:'🚶'};
 
 let tasks = JSON.parse(localStorage.getItem('powerHourTasks') || '[]');
-tasks.forEach(t => { if(!t.createdAt) t.createdAt = Date.now(); }); // backfill for tasks saved before staleness tracking existed
+tasks.forEach(t => { if(!t.createdAt) t.createdAt = Date.now(); if(!t.staleSince) t.staleSince = t.createdAt; }); // backfill for tasks saved before staleness tracking existed
 let stepGoal = parseInt(localStorage.getItem('powerHourStepGoal') || '10000') || 0;
 let actualSteps = parseInt(localStorage.getItem('powerHourActualSteps') || '0') || 0;
 let deletedCompleted = JSON.parse(localStorage.getItem('powerHourDeletedCompleted') || '[]'); // completed tasks that were swiped away, kept for the report until Clear day
@@ -908,25 +908,25 @@ function escalateStaleTasks(){
   const mustDoNow = [];
   tasks.forEach(t => {
     if(t.done) return;
-    if(t.skipNextEscalation){ delete t.skipNextEscalation; return; } // just manually edited — respect the priority/age just set, don't override it immediately
     if(isScheduledForFuture(t)){ t.scheduleArrived = false; return; } // deliberately deferred — not neglected
+    if(!t.createdAt) t.createdAt = now;
+    if(!t.staleSince) t.staleSince = t.createdAt;
     if(t.scheduledDate && !t.scheduleArrived){
-      t.createdAt = now; // just became due — start the clock fresh from today, not from whenever it was originally added
+      t.staleSince = now; // just became due — start the escalation clock fresh from today, without touching its true age
       t.scheduleArrived = true;
       changed = true;
     }
-    if(!t.createdAt) t.createdAt = now;
 
-    // cascade through as many levels as the accumulated age justifies in one pass
+    // cascade through as many levels as the accumulated staleness justifies in one pass
     let guard = 0;
     while(t.priority !== 'p1' && guard < 10){
       guard++;
       const thresholdDays = escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14;
-      if(daysSince(t.createdAt) >= thresholdDays){
+      if(daysSince(t.staleSince) >= thresholdDays){
         const fromPriority = t.priority;
         const idx = PRIORITIES.indexOf(t.priority);
         t.priority = PRIORITIES[idx - 1];
-        t.createdAt += thresholdDays * 24 * 60 * 60 * 1000; // carry the leftover age forward into the new level
+        t.staleSince += thresholdDays * 24 * 60 * 60 * 1000; // carry the leftover staleness forward into the new level
         t.escalated = true;
         changed = true;
         escalatedNow.push({ id: t.id, name: t.name, fromPriority, toPriority: t.priority });
@@ -934,7 +934,7 @@ function escalateStaleTasks(){
     }
     if(t.priority === 'p1' && !t.mustDo){
       const mustDoDays = escalationDays.p1 || DEFAULT_ESCALATION_DAYS.p1;
-      if(daysSince(t.createdAt) >= mustDoDays){
+      if(daysSince(t.staleSince) >= mustDoDays){
         t.mustDo = true;
         changed = true;
         mustDoNow.push({ id: t.id, name: t.name });
@@ -964,7 +964,7 @@ function revertEscalation(id, fromPriority){
   if(!t || t.done) return;
   t.priority = fromPriority;
   t.escalated = false;
-  t.createdAt = Date.now();
+  t.staleSince = Date.now();
   save(); render();
 }
 
@@ -1034,7 +1034,7 @@ function syncAutoWalk(pace){
     } else {
       tasks.push({
         id: uid(), name: 'Walk', mins: Math.max(5, Math.round((pace.suggestedSteps / 100) / 5) * 5),
-        priority: urgencyPriority, tag: 'errands', steps: pace.suggestedSteps, recurring: false, done: false, autoWalk: true, createdAt: Date.now()
+        priority: urgencyPriority, tag: 'errands', steps: pace.suggestedSteps, recurring: false, done: false, autoWalk: true, createdAt: Date.now(), staleSince: Date.now()
       });
       changed = true;
     }
@@ -1156,7 +1156,7 @@ function addTask(){
   const steps = pendingTag === 'errands' ? (parseInt(stepsInput.value) || 0) : 0;
   const scheduledDate = dateInput.value || null;
   const timeConstraint = pendingTimeLimit === 'specific' ? (specificTimeInput.value || null) : pendingTimeLimit;
-  tasks.push({ id: uid(), name, mins: pendingMins, priority: pendingPriority, tag: pendingTag, steps, recurring: recurringCb.checked, done: false, createdAt: Date.now(), scheduledDate, timeConstraint });
+  tasks.push({ id: uid(), name, mins: pendingMins, priority: pendingPriority, tag: pendingTag, steps, recurring: recurringCb.checked, done: false, createdAt: Date.now(), staleSince: Date.now(), scheduledDate, timeConstraint });
   taskInput.value = '';
   pendingMins = 5; pendingPriority = 'p3'; pendingTag = null; pendingTimeLimit = null;
   recurringCb.checked = false;
@@ -1263,9 +1263,9 @@ document.getElementById('edit-save-btn').onclick = () => {
     const ageDays = Math.max(0, parseInt(document.getElementById('edit-age-input').value) || 0);
     const now = new Date();
     t.createdAt = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ageDays, 12, 0, 0).getTime();
+    t.staleSince = Date.now(); // acknowledging the task via edit gives it a fresh window before it can escalate again
     t.escalated = false;
     t.mustDo = false;
-    t.skipNextEscalation = true;
     save(); refreshTimerDisplays();
   }
   editModal.classList.add('hidden'); editTaskId = null;
@@ -1706,7 +1706,7 @@ document.getElementById('bulk-save-btn').onclick = () => {
     if(doneMatch){ done = true; line = line.slice(doneMatch[0].length); }
     const parsed = parseTaskLine(line);
     if(!parsed.name) return;
-    tasks.push({ id: uid(), name: parsed.name, mins: parsed.mins, priority: parsed.priority, tag: parsed.tag, steps: parsed.steps || 0, done, createdAt: Date.now() });
+    tasks.push({ id: uid(), name: parsed.name, mins: parsed.mins, priority: parsed.priority, tag: parsed.tag, steps: parsed.steps || 0, done, createdAt: Date.now(), staleSince: Date.now() });
   });
   save(); render();
   bulkModal.classList.add('hidden');
@@ -1867,7 +1867,7 @@ document.getElementById('done-remove-btn').onclick = () => {
   if(document.getElementById('done-remove-btn').disabled) return;
   tasks.forEach(t => { if(t.done && !t.recurring) deletedCompleted.push({ ...t }); });
   tasks = tasks
-    .map(t => (t.done && t.recurring) ? { ...t, done: false, createdAt: Date.now(), escalated: false } : t)
+    .map(t => (t.done && t.recurring) ? { ...t, done: false, createdAt: Date.now(), staleSince: Date.now(), escalated: false } : t)
     .filter(t => !t.done);
   save();
   refreshTimerDisplays();
@@ -1921,6 +1921,7 @@ function undoCompletedTask(id){
   if(live){
     live.done = false;
     live.createdAt = Date.now();
+    live.staleSince = Date.now();
     const idx = sessionCompleted.findIndex(x => x.id === id);
     if(idx !== -1) sessionCompleted.splice(idx, 1);
     save(); render();
@@ -1931,6 +1932,7 @@ function undoCompletedTask(id){
     const [restored] = deletedCompleted.splice(delIdx, 1);
     restored.done = false;
     restored.createdAt = Date.now();
+    restored.staleSince = Date.now();
     tasks.push(restored);
     save(); render();
   }
@@ -1938,15 +1940,16 @@ function undoCompletedTask(id){
 
 /* ---------- aging tasks ---------- */
 document.getElementById('settings-aging-btn').onclick = () => {
-  const pending = tasks.filter(t => !t.done).sort((a, b) => a.createdAt - b.createdAt);
+  const pending = tasks.filter(t => !t.done).sort((a, b) => (a.staleSince || a.createdAt) - (b.staleSince || b.createdAt));
   const list = document.getElementById('aging-list');
   if(pending.length === 0){
     list.innerHTML = '<div class="empty">Nothing pending.</div>';
   } else {
     list.innerHTML = pending.map(t => {
       const ageDays = daysSince(t.createdAt);
+      const staleDays = daysSince(t.staleSince || t.createdAt);
       const thresholdDays = escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14;
-      const daysLeft = thresholdDays - ageDays;
+      const daysLeft = thresholdDays - staleDays;
       let statusText;
       if(t.priority === 'p1'){
         if(t.mustDo){ statusText = `${ageDays}d old — flagged must do`; }
@@ -2175,7 +2178,7 @@ document.getElementById('report-clear-btn').onclick = () => {
   localStorage.setItem('powerHourDayLog', JSON.stringify(dayLog));
 
   tasks = tasks
-    .map(t => (t.done && t.recurring) ? { ...t, done: false, createdAt: Date.now(), escalated: false } : t)
+    .map(t => (t.done && t.recurring) ? { ...t, done: false, createdAt: Date.now(), staleSince: Date.now(), escalated: false } : t)
     .filter(t => !t.done);
   deletedCompleted = [];
   actualSteps = 0;
@@ -2227,7 +2230,7 @@ function buildTaskRow(t){
         ${t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff;" title="Sitting at P1 too long — this needs doing">❗</span>' : ''}
         ${t.timeConstraint ? `<span class="tag-badge" ${isPastTimeConstraint(t) ? 'style="background:var(--danger); color:#fff;"' : ''} title="Must be done by ${formatTimeConstraint(t)}${isPastTimeConstraint(t) ? ' — that time has passed' : ''}">${formatTimeConstraint(t)}</span>` : ''}
         ${t.scheduledDate ? `<span class="tag-badge" title="Scheduled for ${t.scheduledDate}">📆</span>` : ''}
-        ${(!t.escalated && t.priority !== 'p1' && ((escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14) - daysSince(t.createdAt)) <= 3) ? '<span class="tag-badge" title="Will bump up in a few days if still pending">⏳</span>' : ''}
+        ${(!t.escalated && t.priority !== 'p1' && ((escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14) - daysSince(t.staleSince || t.createdAt)) <= 3) ? '<span class="tag-badge" title="Will bump up in a few days if still pending">⏳</span>' : ''}
         <span class="mins">${t.mins} min</span>
       </div>
     </div>
@@ -2293,7 +2296,7 @@ function bumpPriority(id, dir){ // dir: -1 = toward P1 (up), +1 = toward P5 (dow
   if(newIdx === idx) return;
   const from = t.priority;
   t.priority = PRIORITIES[newIdx];
-  t.createdAt = Date.now(); t.escalated = false; t.mustDo = false;
+  t.staleSince = Date.now(); t.escalated = false; t.mustDo = false;
   save();
   render();
   showToast(`${dir < 0 ? '⬆' : '⬇'} Now ${PRIORITY_LABELS[t.priority]}: ${t.name}`, 'Undo', () => { t.priority = from; save(); render(); });
@@ -2359,7 +2362,7 @@ function setPriorityDirect(id, newIdx){
   if(t.priority === newPriority) return;
   const from = t.priority;
   t.priority = newPriority;
-  t.createdAt = Date.now(); t.escalated = false; t.mustDo = false;
+  t.staleSince = Date.now(); t.escalated = false; t.mustDo = false;
   save(); render();
   showToast(`Now ${PRIORITY_LABELS[newPriority]}: ${t.name}`, 'Undo', () => { t.priority = from; save(); render(); });
 }
