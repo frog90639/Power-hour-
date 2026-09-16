@@ -126,6 +126,7 @@
   .timer-screen-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
   .timer-screen-header .title{font-weight:700;}
   .icon-btn{width:42px; height:42px; border-radius:50%; border:1px solid #2a2e37; background:var(--card); color:var(--text); font-size:1.1rem; cursor:pointer;}
+  .icon-btn:disabled{opacity:0.3; cursor:default;}
   .timer-screen-body{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;}
   .timer-priority-badge{font-size:0.8rem; font-weight:700; padding:4px 10px; border-radius:20px; margin-bottom:10px; color:#0f1115;}
   .timer-current{font-size:1rem; color:var(--muted); margin-bottom:6px;}
@@ -214,6 +215,18 @@
     flex-shrink:0; background:var(--accent); color:#0f1115; border:none; padding:8px 16px;
     border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer;
   }
+
+  /* priority scrubber — the mini dropdown-like picker shown during a long-press drag */
+  .priority-scrubber{
+    position:fixed; z-index:500; background:var(--card-raised); border:1px solid var(--hairline);
+    border-radius:16px; padding:8px; box-shadow:0 10px 30px rgba(0,0,0,0.55);
+    display:flex; flex-direction:column; gap:4px; pointer-events:none;
+  }
+  .scrubber-item{
+    padding:9px 24px; border-radius:9px; font-weight:700; font-size:0.85rem; text-align:center;
+    color:var(--muted); background:transparent; transition:background 0.08s, color 0.08s, transform 0.08s; white-space:nowrap;
+  }
+  .scrubber-item.active{transform:scale(1.12); color:#0f1115;}
 
   /* modal */
   .modal{position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:300; display:flex; align-items:flex-end; justify-content:center;}
@@ -433,6 +446,14 @@
   <button id="undo-toast-btn">Undo</button>
 </div>
 
+<div class="priority-scrubber hidden" id="priority-scrubber">
+  <div class="scrubber-item" data-idx="0">P1</div>
+  <div class="scrubber-item" data-idx="1">P2</div>
+  <div class="scrubber-item" data-idx="2">P3</div>
+  <div class="scrubber-item" data-idx="3">P4</div>
+  <div class="scrubber-item" data-idx="4">P5</div>
+</div>
+
 <!-- edit modal -->
 <div class="modal hidden" id="edit-modal">
   <div class="modal-card">
@@ -611,11 +632,13 @@
 <div class="modal hidden" id="daylog-modal">
   <div class="modal-card" style="max-height:80vh; overflow-y:auto;">
     <h3>📅 Day log</h3>
-    <p style="color:var(--muted); font-size:0.8rem; margin-top:-8px;">
-      One entry each time you hit Clear day — most recent first.
-    </p>
+    <div class="calendar-nav">
+      <button type="button" id="daylog-prev-btn" class="icon-btn">‹</button>
+      <span id="daylog-date-label" style="font-weight:600;"></span>
+      <button type="button" id="daylog-next-btn" class="icon-btn">›</button>
+    </div>
     <div id="daylog-list"></div>
-    <button id="daylog-close-btn" style="width:100%; margin-top:10px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+    <button id="daylog-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
   </div>
 </div>
 
@@ -1206,6 +1229,7 @@ function beginRun(){
   if(timerState === 'idle'){
     sessionCompleted = [];
     sessionSkipped = [];
+    lastMotivationTaskId = null; // fresh session — re-roll the message even if it's the same task as last time
     currentIndex = findNextIndex(0);
     if(currentIndex === -1){ timerState = 'done'; }
     else {
@@ -1340,11 +1364,11 @@ const MOTIVATION_MESSAGES = {
     "Delayed but not forgotten — let's get it done.",
     "Good on you for coming back to this one.",
   ],
-  fresh: [
-    "Let's go!",
-    "You've got this.",
-    "One task at a time.",
-    "Nice, staying on top of it.",
+  walk: [
+    "Every step here counts toward today's goal 👣",
+    "This one's helping you hit your step goal — let's go!",
+    "Steps in the bank — nice work keeping pace.",
+    "A short walk now keeps the goal on track.",
   ]
 };
 function getTaskMotivation(t){
@@ -1352,7 +1376,8 @@ function getTaskMotivation(t){
   let pool;
   if(t.mustDo) pool = MOTIVATION_MESSAGES.mustDo;
   else if(t.escalated || ageDays >= 10) pool = MOTIVATION_MESSAGES.aged;
-  else pool = MOTIVATION_MESSAGES.fresh;
+  else if(t.autoWalk) pool = MOTIVATION_MESSAGES.walk;
+  else return ''; // ordinary, unbumped tasks don't need a motivational line
   return pool[Math.floor(Math.random() * pool.length)];
 }
 let lastMotivationTaskId = null;
@@ -1981,33 +2006,47 @@ document.getElementById('escalation-reset-btn').onclick = () => {
 };
 
 /* ---------- day log ---------- */
+let dayLogIndex = 0;
 document.getElementById('settings-daylog-btn').onclick = () => {
-  const list = document.getElementById('daylog-list');
-  if(dayLog.length === 0){
-    list.innerHTML = '<div class="empty">No days logged yet — this fills in each time you hit Clear day.</div>';
-  } else {
-    list.innerHTML = [...dayLog].reverse().map(entry => `
-      <div class="review-item" style="flex-direction:column; align-items:flex-start; gap:4px;">
-        <div style="display:flex; justify-content:space-between; width:100%; font-weight:600;">
-          <span>${entry.date}</span>
-          <span style="color:var(--muted); font-weight:400;">${entry.completedCount} task${entry.completedCount !== 1 ? 's' : ''} • ${entry.totalMins} min</span>
-        </div>
-        <div style="color:var(--muted); font-size:0.8rem; margin-bottom:4px;">👣 ${entry.actualSteps.toLocaleString()} / ${entry.stepGoal.toLocaleString()} steps</div>
-        ${(entry.tasks || []).map(t => `
-          <div style="display:flex; align-items:center; gap:8px; width:100%; padding:4px 0; font-size:0.85rem;">
-            <span style="color:var(--accent); flex-shrink:0;">✓</span>
-            <span class="priority-badge" style="color:var(--${t.priority}); flex-shrink:0;">${PRIORITY_LABELS[t.priority]}</span>
-            <span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${t.name}</span>
-            ${t.tag ? `<span class="tag-badge">${TAG_ICONS[t.tag]}</span>` : ''}
-            <span style="color:var(--muted); flex-shrink:0;">${t.mins} min</span>
-          </div>
-        `).join('')}
-      </div>
-    `).join('');
-  }
+  dayLogIndex = dayLog.length - 1; // start on the most recent day
+  renderDayLog();
   document.getElementById('settings-modal').classList.add('hidden');
   document.getElementById('daylog-modal').classList.remove('hidden');
 };
+function renderDayLog(){
+  const list = document.getElementById('daylog-list');
+  const label = document.getElementById('daylog-date-label');
+  const prevBtn = document.getElementById('daylog-prev-btn');
+  const nextBtn = document.getElementById('daylog-next-btn');
+
+  if(dayLog.length === 0){
+    label.textContent = '';
+    prevBtn.disabled = true; nextBtn.disabled = true;
+    list.innerHTML = '<div class="empty">No days logged yet — this fills in each time you hit Clear day.</div>';
+    return;
+  }
+  dayLogIndex = Math.max(0, Math.min(dayLog.length - 1, dayLogIndex));
+  const entry = dayLog[dayLogIndex];
+  label.textContent = entry.date;
+  prevBtn.disabled = dayLogIndex <= 0;
+  nextBtn.disabled = dayLogIndex >= dayLog.length - 1;
+
+  list.innerHTML = `
+    <div style="color:var(--muted); font-size:0.85rem; margin-bottom:4px;">${entry.completedCount} task${entry.completedCount !== 1 ? 's' : ''} • ${entry.totalMins} min</div>
+    <div style="color:var(--muted); font-size:0.8rem; margin-bottom:12px;">👣 ${entry.actualSteps.toLocaleString()} / ${entry.stepGoal.toLocaleString()} steps</div>
+    ${(entry.tasks || []).length === 0 ? '<div class="empty">Nothing completed this day.</div>' : (entry.tasks || []).map(t => `
+      <div class="review-item">
+        <span style="color:var(--accent); flex-shrink:0;">✓</span>
+        <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
+        <span class="name">${t.name}</span>
+        ${t.tag ? `<span class="tag-badge">${TAG_ICONS[t.tag]}</span>` : ''}
+        <span class="mins">${t.mins} min</span>
+      </div>
+    `).join('')}
+  `;
+}
+document.getElementById('daylog-prev-btn').onclick = () => { dayLogIndex--; renderDayLog(); };
+document.getElementById('daylog-next-btn').onclick = () => { dayLogIndex++; renderDayLog(); };
 document.getElementById('daylog-close-btn').onclick = () => document.getElementById('daylog-modal').classList.add('hidden');
 document.getElementById('report-export-btn').onclick = () => {
   const completed = getAllCompleted();
@@ -2186,8 +2225,42 @@ function runLongPressAction(direction, id){
   else shiftScheduleDate(id, dir);
 }
 
+function setPriorityDirect(id, newIdx){
+  const t = tasks.find(x => x.id === id);
+  if(!t) return;
+  const newPriority = PRIORITIES[newIdx];
+  if(t.priority === newPriority) return;
+  const from = t.priority;
+  t.priority = newPriority;
+  t.createdAt = Date.now(); t.escalated = false; t.mustDo = false;
+  save(); render();
+  showToast(`Now ${PRIORITY_LABELS[newPriority]}: ${t.name}`, 'Undo', () => { t.priority = from; save(); render(); });
+}
+
+const PRIORITY_SCRUBBER_STEP_PX = 36; // vertical drag distance per priority level
+function showPriorityScrubber(el, activeIdx){
+  const scrubber = document.getElementById('priority-scrubber');
+  const rect = el.getBoundingClientRect();
+  scrubber.style.left = (rect.left + rect.width / 2) + 'px';
+  scrubber.style.top = (rect.top + rect.height / 2) + 'px';
+  scrubber.style.transform = 'translate(-50%, -50%)';
+  updatePriorityScrubber(activeIdx);
+  scrubber.classList.remove('hidden');
+}
+function updatePriorityScrubber(activeIdx){
+  document.querySelectorAll('#priority-scrubber .scrubber-item').forEach((el, i) => {
+    const p = PRIORITIES[i];
+    el.classList.toggle('active', i === activeIdx);
+    el.style.background = i === activeIdx ? `var(--${p})` : 'transparent';
+  });
+}
+function hidePriorityScrubber(){
+  document.getElementById('priority-scrubber').classList.add('hidden');
+}
+
 let rowGestureEl = null, rowGestureId = null, rowGestureMode = null;
 let rowGestureStartX = 0, rowGestureStartY = 0, rowGestureDX = 0, rowGestureDY = 0, rowGestureLastY = 0;
+let rowGestureStartPriorityIdx = 0, rowGestureTargetIdx = 0;
 let rowLongPressTimer = null;
 
 function onRowPointerDown(e, el, id){
@@ -2203,6 +2276,14 @@ function onRowPointerDown(e, el, id){
       rowGestureEl.classList.add('longpress-active');
       lockBodyScroll();
       if(navigator.vibrate) navigator.vibrate(10);
+      if(gestureSettings.longPress === 'priority'){
+        const t = tasks.find(x => x.id === rowGestureId);
+        if(t){
+          rowGestureStartPriorityIdx = PRIORITIES.indexOf(t.priority);
+          rowGestureTargetIdx = rowGestureStartPriorityIdx;
+          showPriorityScrubber(rowGestureEl, rowGestureStartPriorityIdx);
+        }
+      }
     }
   }, 450);
   document.addEventListener('pointermove', onRowPointerMove);
@@ -2242,10 +2323,16 @@ function onRowPointerMove(e){
     if(bgRight) bgRight.style.opacity = clamped < -20 ? Math.min(1, -clamped / 100) : 0;
   } else if(rowGestureMode === 'longpress'){
     e.preventDefault();
-    const clamped = Math.max(-60, Math.min(60, dy));
-    rowGestureEl.style.transform = `translateY(${clamped}px)`;
-    rowGestureEl.classList.toggle('longpress-up', clamped < -30);
-    rowGestureEl.classList.toggle('longpress-down', clamped > 30);
+    if(gestureSettings.longPress === 'priority'){
+      const deltaSteps = Math.round(dy / PRIORITY_SCRUBBER_STEP_PX);
+      rowGestureTargetIdx = Math.max(0, Math.min(PRIORITIES.length - 1, rowGestureStartPriorityIdx + deltaSteps));
+      updatePriorityScrubber(rowGestureTargetIdx);
+    } else {
+      const clamped = Math.max(-60, Math.min(60, dy));
+      rowGestureEl.style.transform = `translateY(${clamped}px)`;
+      rowGestureEl.classList.toggle('longpress-up', clamped < -30);
+      rowGestureEl.classList.toggle('longpress-down', clamped > 30);
+    }
   }
 }
 function onRowPointerUp(){
@@ -2263,9 +2350,16 @@ function onRowPointerUp(){
     resetRowTransform(el, id);
   } else if(rowGestureMode === 'longpress'){
     unlockBodyScroll();
-    const threshold = 30;
-    if(rowGestureDY < -threshold){ runLongPressAction('up', rowGestureId); }
-    else if(rowGestureDY > threshold){ runLongPressAction('down', rowGestureId); }
+    if(gestureSettings.longPress === 'priority'){
+      hidePriorityScrubber();
+      if(rowGestureTargetIdx !== rowGestureStartPriorityIdx){
+        setPriorityDirect(rowGestureId, rowGestureTargetIdx);
+      }
+    } else {
+      const threshold = 30;
+      if(rowGestureDY < -threshold){ runLongPressAction('up', rowGestureId); }
+      else if(rowGestureDY > threshold){ runLongPressAction('down', rowGestureId); }
+    }
     rowGestureEl.style.transform = '';
     rowGestureEl.classList.remove('longpress-active', 'longpress-up', 'longpress-down');
   } else if(rowGestureMode === 'scroll'){
@@ -2289,6 +2383,7 @@ function resetRowTransform(el, id){
   }, 200);
 }
 function cleanupRowGesture(){
+  hidePriorityScrubber();
   rowGestureEl = null; rowGestureId = null; rowGestureMode = null;
 }
 
