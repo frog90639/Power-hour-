@@ -247,6 +247,11 @@
     margin:14px 0 6px; padding-left:2px;
   }
   .settings-group-label:first-of-type{margin-top:4px;}
+  .guide-card h4{font-size:0.95rem; margin:18px 0 6px; color:var(--accent);}
+  .guide-card h4:first-of-type{margin-top:10px;}
+  .guide-card p{font-size:0.87rem; line-height:1.5; color:var(--text); margin:0 0 4px;}
+  .guide-card ul{margin:4px 0; padding-left:20px;}
+  .guide-card li{font-size:0.87rem; line-height:1.5; margin-bottom:6px;}
 
   .calendar-nav{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
   .cal-weekdays{display:grid; grid-template-columns:repeat(7,1fr); text-align:center; color:var(--muted); font-size:0.72rem; margin-bottom:4px;}
@@ -524,6 +529,8 @@
 <div class="modal hidden" id="settings-modal">
   <div class="modal-card" style="max-height:80vh; overflow-y:auto;">
     <h3>Settings</h3>
+    <div class="settings-group-label">Help</div>
+    <button id="settings-guide-btn" class="settings-item">❓ How this app works</button>
     <div class="settings-group-label">Views</div>
     <button id="settings-calendar-btn" class="settings-item">🗓️ Calendar</button>
     <button id="settings-report-btn" class="settings-item">📋 Completed report</button>
@@ -539,7 +546,51 @@
   </div>
 </div>
 
-<!-- aging tasks -->
+<!-- guide / 101 -->
+<div class="modal hidden" id="guide-modal">
+  <div class="modal-card guide-card" style="max-height:85vh; overflow-y:auto;">
+    <h3>❓ How Power Hour works</h3>
+
+    <h4>The basics</h4>
+    <p>Add a task with the ➕ button — give it a name, a time estimate, and a priority from P1 (most urgent) to P5 (someday). Tasks are shown in one list, grouped by priority. Tick the checkbox to mark something done.</p>
+
+    <h4>Gestures — no clutter, everything's a touch</h4>
+    <ul>
+      <li><b>Tap</b> a task to open and edit it.</li>
+      <li><b>Swipe</b> left or right for a quick action — by default, right completes it and left deletes it. Change what each direction does in <b>Settings → Gestures</b>.</li>
+      <li><b>Press and hold</b>, then drag up or down to reprioritize on the spot — a small picker pops up next to your finger showing all 5 levels, and you can jump straight to any of them in one motion. You can also set this gesture to shift a task's scheduled date instead, in <b>Settings → Gestures</b>.</li>
+    </ul>
+
+    <h4>Power Hour — the timer</h4>
+    <p>Tap 🎯 and give it a time budget (say, 60 minutes). It picks the best combination of your pending tasks to fill that time — not just the first ones that fit, but the combination that uses the time best. Review the picks, adjust if you like (you can tap a task right there to edit it, and the picks update live), then start. Each task gets its own countdown; mark it done, skip it, or let the timer move on.</p>
+
+    <h4>Tasks that sit too long take care of themselves</h4>
+    <p>A task left pending too long automatically moves up in priority — lower priorities get more patience (P5 gets 3 weeks, P2 just a week, by default). A P1 task that's still not done after a couple of days gets flagged <b>❗ must do</b>, since it can't escalate any further. All of these timings are yours to change in <b>Settings → Escalation timing</b>. You'll also get a quick toast whenever this happens automatically, with the option to undo it.</p>
+
+    <h4>Steps</h4>
+    <p>Set a daily step goal and log steps as you go. If you're falling behind pace, the app automatically adds a "Walk" task sized to close the gap — and the closer it gets to 9pm, the more urgently that task gets prioritized, so it doesn't get lost among everything else. Any task with steps assigned shows a 👣 badge; tap the steps bar to see exactly which tasks are contributing to your planned total, and tap through to edit any of them.</p>
+
+    <h4>Scheduling for later</h4>
+    <p>Give a task a specific day under "More options" when adding or editing it, and it disappears from your list until that day arrives — no need to look at things before they're relevant. See everything coming up in <b>Settings → Calendar</b>, which shows a month view with a dot on any day with something scheduled, plus an upcoming list.</p>
+
+    <h4>Time-of-day limits</h4>
+    <p>Mark a task 🌅 AM, 🌆 PM, or give it a specific deadline time. It'll show a badge (turning red once the time's passed), and — importantly — it won't be offered up by the timer's picker at the wrong time of day, so you won't get handed a morning routine at 4pm.</p>
+
+    <h4>Recurring tasks</h4>
+    <p>Mark a task recurring and it comes back fresh each time you hit "Clear day" on the Completed report, rather than needing to be re-added daily.</p>
+
+    <h4>Undo</h4>
+    <p>Completed something by accident? A toast with an Undo button appears for a few seconds right after. Missed that window — the <b>Completed report</b> keeps an ↩ Undo next to every entry, no matter how long ago.</p>
+
+    <h4>Day log &amp; Completed report</h4>
+    <p>Every time you clear your day, that day's wins are archived. Flip between days with the ‹ › arrows in <b>Settings → Day log</b>. The Completed report shows everything done today with a bit of well-earned celebration that scales with how much you got through.</p>
+
+    <h4>Everything else in Settings</h4>
+    <p>Bulk add lets you paste in a list of tasks at once. Export gives you a plain-text copy of what's been completed. Gestures and Escalation timing let you make the automatic behaviors feel like yours.</p>
+
+    <button id="guide-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
 <div class="modal hidden" id="aging-modal">
   <div class="modal-card" style="max-height:80vh; overflow-y:auto;">
     <h3>⏳ Aging tasks</h3>
@@ -857,6 +908,7 @@ function escalateStaleTasks(){
   const mustDoNow = [];
   tasks.forEach(t => {
     if(t.done) return;
+    if(t.skipNextEscalation){ delete t.skipNextEscalation; return; } // just manually edited — respect the priority/age just set, don't override it immediately
     if(isScheduledForFuture(t)){ t.scheduleArrived = false; return; } // deliberately deferred — not neglected
     if(t.scheduledDate && !t.scheduleArrived){
       t.createdAt = now; // just became due — start the clock fresh from today, not from whenever it was originally added
@@ -1213,7 +1265,8 @@ document.getElementById('edit-save-btn').onclick = () => {
     t.createdAt = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ageDays, 12, 0, 0).getTime();
     t.escalated = false;
     t.mustDo = false;
-    save(); render(); refreshTimerDisplays();
+    t.skipNextEscalation = true;
+    save(); refreshTimerDisplays();
   }
   editModal.classList.add('hidden'); editTaskId = null;
   if(editOpenedFromReview){
@@ -1590,6 +1643,12 @@ document.getElementById('open-settings-btn').onclick = () => {
 document.getElementById('settings-close-btn').onclick = () => {
   document.getElementById('settings-modal').classList.add('hidden');
 };
+
+document.getElementById('settings-guide-btn').onclick = () => {
+  document.getElementById('settings-modal').classList.add('hidden');
+  document.getElementById('guide-modal').classList.remove('hidden');
+};
+document.getElementById('guide-close-btn').onclick = () => document.getElementById('guide-modal').classList.add('hidden');
 
 /* ---------- bulk add ---------- */
 const bulkModal = document.getElementById('bulk-modal');
@@ -2271,6 +2330,28 @@ function runLongPressAction(direction, id){
   else shiftScheduleDate(id, dir);
 }
 
+/* Moves a task to a new position among its same-priority siblings only — priority itself is unchanged. */
+function reorderWithinPriority(id, targetIdx){
+  const t = tasks.find(x => x.id === id);
+  if(!t) return;
+  const priority = t.priority;
+  const arrIdx = tasks.findIndex(x => x.id === id);
+  if(arrIdx === -1) return;
+  tasks.splice(arrIdx, 1);
+  const siblingsAfterRemoval = tasks.filter(x => x.priority === priority && !x.done);
+  const insertBeforeId = targetIdx < siblingsAfterRemoval.length ? siblingsAfterRemoval[targetIdx].id : null;
+  if(insertBeforeId){
+    const insertArrIdx = tasks.findIndex(x => x.id === insertBeforeId);
+    tasks.splice(insertArrIdx, 0, t);
+  } else {
+    let lastIdx = -1;
+    for(let i = 0; i < tasks.length; i++){ if(tasks[i].priority === priority) lastIdx = i; }
+    tasks.splice(lastIdx === -1 ? tasks.length : lastIdx + 1, 0, t);
+  }
+  save();
+  render();
+}
+
 function setPriorityDirect(id, newIdx){
   const t = tasks.find(x => x.id === id);
   if(!t) return;
@@ -2307,6 +2388,8 @@ function hidePriorityScrubber(){
 let rowGestureEl = null, rowGestureId = null, rowGestureMode = null;
 let rowGestureStartX = 0, rowGestureStartY = 0, rowGestureDX = 0, rowGestureDY = 0, rowGestureLastY = 0;
 let rowGestureStartPriorityIdx = 0, rowGestureTargetIdx = 0;
+let rowGestureIsLeftEdge = false, rowGestureSiblings = [], rowGestureSiblingStartIdx = 0, rowGestureRowHeight = 70;
+const REORDER_ZONE_PX = 44; // width of the left "grab" zone — roughly the checkbox + priority bar area
 let rowLongPressTimer = null;
 
 function onRowPointerDown(e, el, id){
@@ -2315,19 +2398,35 @@ function onRowPointerDown(e, el, id){
   rowGestureStartX = e.clientX; rowGestureStartY = e.clientY;
   rowGestureDX = 0; rowGestureDY = 0;
   rowGestureMode = null;
+  const rect = el.getBoundingClientRect();
+  rowGestureIsLeftEdge = (e.clientX - rect.left) < REORDER_ZONE_PX;
   clearTimeout(rowLongPressTimer);
   rowLongPressTimer = setTimeout(() => {
     if(rowGestureMode === null && rowGestureEl){
-      rowGestureMode = 'longpress';
-      rowGestureEl.classList.add('longpress-active');
       lockBodyScroll();
       if(navigator.vibrate) navigator.vibrate(10);
-      if(gestureSettings.longPress === 'priority'){
+      if(rowGestureIsLeftEdge){
+        rowGestureMode = 'reorder';
+        rowGestureEl.classList.add('longpress-active');
+        rowGestureEl.style.zIndex = '50';
+        rowGestureEl.style.position = 'relative';
         const t = tasks.find(x => x.id === rowGestureId);
         if(t){
-          rowGestureStartPriorityIdx = PRIORITIES.indexOf(t.priority);
-          rowGestureTargetIdx = rowGestureStartPriorityIdx;
-          showPriorityScrubber(rowGestureEl, rowGestureStartPriorityIdx);
+          rowGestureSiblings = tasks.filter(x => x.priority === t.priority && !x.done);
+          rowGestureSiblingStartIdx = rowGestureSiblings.findIndex(x => x.id === rowGestureId);
+          rowGestureTargetIdx = rowGestureSiblingStartIdx;
+          rowGestureRowHeight = rowGestureEl.parentElement.offsetHeight || 70;
+        }
+      } else {
+        rowGestureMode = 'longpress';
+        rowGestureEl.classList.add('longpress-active');
+        if(gestureSettings.longPress === 'priority'){
+          const t = tasks.find(x => x.id === rowGestureId);
+          if(t){
+            rowGestureStartPriorityIdx = PRIORITIES.indexOf(t.priority);
+            rowGestureTargetIdx = rowGestureStartPriorityIdx;
+            showPriorityScrubber(rowGestureEl, rowGestureStartPriorityIdx);
+          }
         }
       }
     }
@@ -2367,6 +2466,12 @@ function onRowPointerMove(e){
     const bgRight = document.getElementById('rowbg-right-' + rowGestureId);
     if(bgLeft) bgLeft.style.opacity = clamped > 20 ? Math.min(1, clamped / 100) : 0;
     if(bgRight) bgRight.style.opacity = clamped < -20 ? Math.min(1, -clamped / 100) : 0;
+  } else if(rowGestureMode === 'reorder'){
+    e.preventDefault();
+    const clamped = Math.max(-240, Math.min(240, dy));
+    rowGestureEl.style.transform = `translateY(${clamped}px)`;
+    const deltaSteps = Math.round(dy / rowGestureRowHeight);
+    rowGestureTargetIdx = Math.max(0, Math.min(rowGestureSiblings.length - 1, rowGestureSiblingStartIdx + deltaSteps));
   } else if(rowGestureMode === 'longpress'){
     e.preventDefault();
     if(gestureSettings.longPress === 'priority'){
@@ -2374,10 +2479,10 @@ function onRowPointerMove(e){
       rowGestureTargetIdx = Math.max(0, Math.min(PRIORITIES.length - 1, rowGestureStartPriorityIdx + deltaSteps));
       updatePriorityScrubber(rowGestureTargetIdx);
     } else {
-      const clamped = Math.max(-60, Math.min(60, dy));
-      rowGestureEl.style.transform = `translateY(${clamped}px)`;
-      rowGestureEl.classList.toggle('longpress-up', clamped < -30);
-      rowGestureEl.classList.toggle('longpress-down', clamped > 30);
+      const clamped2 = Math.max(-60, Math.min(60, dy));
+      rowGestureEl.style.transform = `translateY(${clamped2}px)`;
+      rowGestureEl.classList.toggle('longpress-up', clamped2 < -30);
+      rowGestureEl.classList.toggle('longpress-down', clamped2 > 30);
     }
   }
 }
@@ -2394,6 +2499,14 @@ function onRowPointerUp(){
     if(rowGestureDX < -threshold){ runGestureAction(gestureSettings.swipeLeft, id); }
     else if(rowGestureDX > threshold){ runGestureAction(gestureSettings.swipeRight, id); }
     resetRowTransform(el, id);
+  } else if(rowGestureMode === 'reorder'){
+    unlockBodyScroll();
+    rowGestureEl.style.transform = '';
+    rowGestureEl.style.zIndex = '';
+    rowGestureEl.classList.remove('longpress-active');
+    if(rowGestureTargetIdx !== rowGestureSiblingStartIdx){
+      reorderWithinPriority(rowGestureId, rowGestureTargetIdx);
+    }
   } else if(rowGestureMode === 'longpress'){
     unlockBodyScroll();
     if(gestureSettings.longPress === 'priority'){
@@ -2430,6 +2543,7 @@ function resetRowTransform(el, id){
 }
 function cleanupRowGesture(){
   hidePriorityScrubber();
+  if(rowGestureEl){ rowGestureEl.style.zIndex = ''; rowGestureEl.style.position = ''; }
   rowGestureEl = null; rowGestureId = null; rowGestureMode = null;
 }
 
