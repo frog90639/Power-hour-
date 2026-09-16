@@ -1783,17 +1783,32 @@ function openReviewModal(budget){
    so it won't leave time unused when a different combination would fit better — e.g. two
    20+10 min tasks over one 25 min task, if the budget is 30. Ties are resolved in favor of
    whichever combination keeps the earlier (higher-priority/sort-order) tasks. */
+/* How much a task "deserves" to be picked, beyond just fitting the time available.
+   Priority is the base; must-do and deadline urgency add on top so they're picked
+   even when equally-sized lower-priority alternatives exist. */
+function getTaskSelectionWeight(t){
+  let weight = PRIORITIES.length - PRIORITIES.indexOf(t.priority); // P1=5 ... P5=1
+  if(t.mustDo) weight += 20; // sat at P1 too long — this should get picked almost no matter what
+  if(t.escalated) weight += 3; // recently auto-bumped, worth extra weight
+  if(t.timeConstraint){
+    weight += isPastTimeConstraint(t) ? 15 : 5; // already overdue today vs. has a same-day deadline coming
+  }
+  return weight;
+}
+
 function pickTasksForBudget(pending, budget){
   const n = pending.length;
   const selected = new Set();
   if(n === 0 || budget <= 0) return selected;
+  const values = pending.map(t => getTaskSelectionWeight(t) + t.mins * 0.001); // tiny time-fill tiebreaker, never outweighs real priority/urgency differences
   const dp = [new Array(budget + 1).fill(0)];
   for(let i = 1; i <= n; i++){
     const mins = pending[i - 1].mins;
+    const val = values[i - 1];
     const prev = dp[i - 1];
     const row = new Array(budget + 1);
     for(let b = 0; b <= budget; b++){
-      row[b] = mins > b ? prev[b] : Math.max(prev[b], prev[b - mins] + mins);
+      row[b] = mins > b ? prev[b] : Math.max(prev[b], prev[b - mins] + val);
     }
     dp.push(row);
   }
