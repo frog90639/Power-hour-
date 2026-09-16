@@ -374,6 +374,7 @@
     <div class="pace-suggestion hidden" id="pace-suggestion">
       <p id="pace-suggestion-text" style="margin:0;"></p>
     </div>
+    <div id="steps-contributors" style="margin-bottom:14px;"></div>
     <div class="modal-row budget-row">
       <span>Step goal</span>
       <input type="number" id="step-goal-input" min="0" step="500" style="margin-left:auto; width:100px;">
@@ -1027,8 +1028,34 @@ document.getElementById('mini-steps-bar').onclick = () => {
   stepGoalInput.value = stepGoal;
   actualStepsInput.value = actualSteps;
   updateStepsBar();
+  renderStepsContributors();
   document.getElementById('steps-edit-modal').classList.remove('hidden');
 };
+function renderStepsContributors(){
+  const contributors = tasks.filter(t => t.tag === 'errands' && t.steps > 0 && !t.done && !isScheduledForFuture(t));
+  const container = document.getElementById('steps-contributors');
+  if(contributors.length === 0){
+    container.innerHTML = '';
+    return;
+  }
+  container.innerHTML = `
+    <div style="color:var(--muted); font-size:0.8rem; margin-bottom:6px;">Contributing to planned steps:</div>
+    ${contributors.map(t => `
+      <div class="review-item steps-contributor" data-id="${t.id}" style="cursor:pointer;">
+        ${t.autoWalk ? '<span title="Added automatically">🤖</span>' : ''}
+        <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
+        <span class="name">${t.name}</span>
+        <span class="mins" style="flex-shrink:0;">👣 ${t.steps.toLocaleString()}</span>
+      </div>
+    `).join('')}
+  `;
+  container.querySelectorAll('.steps-contributor').forEach(row => {
+    row.onclick = () => {
+      document.getElementById('steps-edit-modal').classList.add('hidden');
+      openEditModal(row.dataset.id);
+    };
+  });
+}
 document.getElementById('steps-edit-close-btn').onclick = () => document.getElementById('steps-edit-modal').classList.add('hidden');
 document.getElementById('steps-edit-save-btn').onclick = () => {
   stepGoal = parseInt(stepGoalInput.value) || 0;
@@ -1160,7 +1187,13 @@ function refreshEditTimeLimitPicker(){
 }
 document.getElementById('edit-plus-btn').onclick = () => { editMins += 5; document.getElementById('edit-mins-display').textContent = editMins + ' min'; };
 document.getElementById('edit-minus-btn').onclick = () => { editMins = Math.max(5, editMins - 5); document.getElementById('edit-mins-display').textContent = editMins + ' min'; };
-document.getElementById('edit-cancel-btn').onclick = () => { editModal.classList.add('hidden'); editTaskId = null; };
+document.getElementById('edit-cancel-btn').onclick = () => {
+  editModal.classList.add('hidden'); editTaskId = null;
+  if(editOpenedFromReview){
+    editOpenedFromReview = false;
+    openReviewModal(reviewBudget);
+  }
+};
 document.getElementById('edit-save-btn').onclick = () => {
   const t = tasks.find(t => t.id === editTaskId);
   if(t){
@@ -1183,6 +1216,10 @@ document.getElementById('edit-save-btn').onclick = () => {
     save(); render(); refreshTimerDisplays();
   }
   editModal.classList.add('hidden'); editTaskId = null;
+  if(editOpenedFromReview){
+    editOpenedFromReview = false;
+    openReviewModal(reviewBudget); // re-filters and re-runs the picker, so a priority/date/tag change is reflected immediately
+  }
 };
 
 /* ---------- timer ---------- */
@@ -1711,6 +1748,7 @@ function pickTasksForBudget(pending, budget){
   return selected;
 }
 
+let editOpenedFromReview = false;
 function renderReviewList(pending, selectedIds){
   const list = document.getElementById('review-list');
   list.innerHTML = '';
@@ -1724,13 +1762,20 @@ function renderReviewList(pending, selectedIds){
     row.innerHTML = `
       <input type="checkbox" data-id="${t.id}" ${selectedIds.has(t.id) ? 'checked' : ''}>
       <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
-      <span class="name">${t.name}</span>
+      <span class="name review-edit-trigger" data-id="${t.id}" style="cursor:pointer;">${t.name}</span>
       ${t.tag ? `<span class="tag-badge">${TAG_ICONS[t.tag]}</span>` : ''}
       <span class="mins">${t.mins} min</span>
     `;
     list.appendChild(row);
   });
   list.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.onchange = updateReviewTotal; });
+  list.querySelectorAll('.review-edit-trigger').forEach(el => {
+    el.onclick = () => {
+      editOpenedFromReview = true;
+      document.getElementById('review-modal').classList.add('hidden');
+      openEditModal(el.dataset.id);
+    };
+  });
 }
 
 function updateReviewTotal(){
@@ -2118,6 +2163,7 @@ function buildTaskRow(t){
       </div>
       <div class="task-row-line2">
         ${t.autoWalk ? '<span class="tag-badge" title="Added automatically to help hit your step goal">🤖 auto</span>' : ''}
+        ${t.steps > 0 ? `<span class="tag-badge" title="${t.steps.toLocaleString()} steps">👣 ${t.steps.toLocaleString()}</span>` : ''}
         ${t.escalated ? '<span class="tag-badge" title="Bumped up — this sat pending for 2+ weeks">⏫</span>' : ''}
         ${t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff;" title="Sitting at P1 too long — this needs doing">❗</span>' : ''}
         ${t.timeConstraint ? `<span class="tag-badge" ${isPastTimeConstraint(t) ? 'style="background:var(--danger); color:#fff;"' : ''} title="Must be done by ${formatTimeConstraint(t)}${isPastTimeConstraint(t) ? ' — that time has passed' : ''}">${formatTimeConstraint(t)}</span>` : ''}
