@@ -582,7 +582,11 @@ function openSlotEditor(date, meal){
       <button class="btn ghost" onclick="assignSlot('${date}','${meal}',null,'out')">Mark as out</button>
       <button class="btn ghost" onclick="assignSlot('${date}','${meal}',null,'empty')">Clear</button>
     </div>
-    ${baseSections}${otherSection}${noneMsg}
+    <input type="text" id="slotSearch" placeholder="Search recipes…" oninput="filterSlotRecipes()" style="width:100%;padding:10px 12px;border-radius:8px;border:1.5px solid var(--paper-line);font-size:14px;margin-bottom:14px;">
+    <div id="slotRecipeList">
+      ${baseSections}${otherSection}${noneMsg}
+      <p class="desc" id="slotNoMatch" style="display:none;">No recipes match "<span id="slotNoMatchTerm"></span>".</p>
+    </div>
     <div class="picker-cat">
       <h4>Add a new recipe</h4>
       <input type="text" id="qaName" placeholder="Recipe name" style="width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--paper-line);font-size:14px;margin-bottom:10px;">
@@ -591,6 +595,27 @@ function openSlotEditor(date, meal){
       <button class="btn primary small" style="width:100%;margin-top:10px;" onclick="quickAdd('${date}','${meal}')">Add &amp; use for this meal</button>
     </div>
   `);
+}
+function filterSlotRecipes(){
+  const input = document.getElementById('slotSearch');
+  const q = (input ? input.value : '').trim().toLowerCase();
+  let totalVisible = 0;
+  document.querySelectorAll('#slotRecipeList .picker-cat').forEach(details=>{
+    let anyVisible = false;
+    details.querySelectorAll('.picker-opt').forEach(opt=>{
+      const match = !q || opt.textContent.toLowerCase().includes(q);
+      opt.style.display = match ? '' : 'none';
+      if(match){ anyVisible = true; totalVisible++; }
+    });
+    details.style.display = anyVisible ? '' : 'none';
+    if(q) details.open = anyVisible; else details.removeAttribute('open');
+  });
+  const noMatch = document.getElementById('slotNoMatch');
+  if(noMatch){
+    noMatch.style.display = (q && totalVisible===0) ? '' : 'none';
+    const termEl = document.getElementById('slotNoMatchTerm');
+    if(termEl) termEl.textContent = input ? input.value.trim() : '';
+  }
 }
 function toggleQaBase(id){
   const d = window.__qaDraft; const i = d.baseIds.indexOf(id);
