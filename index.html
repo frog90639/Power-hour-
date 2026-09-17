@@ -238,6 +238,13 @@
   .modal-actions{display:flex; gap:10px; margin-top:8px;}
   .modal-actions button{flex:1; padding:12px; border-radius:10px; border:none; font-size:1rem; font-weight:600; cursor:pointer;}
   #edit-cancel-btn{background:#2a2e37; color:var(--text);}
+
+  .review-actions-top{margin-top:2px; margin-bottom:14px;}
+  .review-action-compact{
+    flex:1; padding:7px; border-radius:8px; border:1px solid var(--hairline); background:none;
+    color:var(--muted); font-size:0.8rem; font-weight:600; cursor:pointer;
+  }
+  .review-action-compact-accent{color:var(--accent); border-color:var(--accent);}
   .settings-item{
     width:100%; text-align:left; background:none; border:1px solid #2a2e37; color:var(--text);
     padding:14px; border-radius:10px; font-size:0.95rem; cursor:pointer; margin-bottom:8px;
@@ -450,6 +457,19 @@
 <div class="undo-toast hidden" id="undo-toast">
   <span id="undo-toast-text"></span>
   <button id="undo-toast-btn">Undo</button>
+</div>
+
+<div class="modal hidden" id="mustdo-confirm-modal" style="z-index:600;">
+  <div class="modal-card">
+    <h3>⚠️ Hold on</h3>
+    <p id="mustdo-confirm-text" style="font-size:0.92rem; line-height:1.4;"></p>
+    <p style="color:var(--muted); font-size:0.8rem; margin-bottom:6px;">Type "yes" if you're sure you want to leave it out.</p>
+    <input type="text" id="mustdo-confirm-input" placeholder="yes" autocomplete="off" autocapitalize="off" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--hairline); background:var(--card); color:var(--text); font-size:0.95rem; margin-bottom:12px;">
+    <div class="modal-actions">
+      <button id="mustdo-confirm-cancel-btn">Never mind</button>
+      <button id="mustdo-confirm-ok-btn" style="background:var(--danger); color:#fff;">Leave it out</button>
+    </div>
+  </div>
 </div>
 
 <div class="priority-scrubber hidden" id="priority-scrubber">
@@ -729,11 +749,11 @@
   <div class="modal-card" style="max-height:80vh; overflow-y:auto;">
     <h3>Review your Power Hour</h3>
     <p id="review-total" style="font-size:0.85rem; margin-top:-8px; color:var(--muted);">0 / 0 min selected</p>
-    <div id="review-list"></div>
-    <div class="modal-actions">
-      <button id="review-cancel-btn">Cancel</button>
-      <button id="review-start-btn" class="add-btn">Start timer</button>
+    <div class="modal-actions review-actions-top">
+      <button id="review-cancel-btn" class="review-action-compact">Cancel</button>
+      <button id="review-start-btn" class="review-action-compact review-action-compact-accent">Start timer</button>
     </div>
+    <div id="review-list"></div>
   </div>
 </div>
 
@@ -1009,8 +1029,10 @@ function getStepPace(){
   const otherPlannedSteps = tasks.filter(t => t.tag === 'errands' && t.steps > 0 && !t.done && !t.autoWalk && !isScheduledForFuture(t)).reduce((s, t) => s + t.steps, 0);
   const otherProgress = actualSteps + otherPlannedSteps;
   const remainingGoal = Math.max(0, stepGoal - otherProgress);
-  // only start flagging once a reasonable chunk of the day has passed, so it doesn't nag first thing in the morning
-  const behind = stepGoal > 0 && elapsedFraction >= 0.4 && otherProgress < stepGoal * elapsedFraction && remainingGoal > 0;
+  const nothingPlanned = otherPlannedSteps === 0; // no other task is contributing toward the goal at all — don't wait around, add one now
+  // otherwise, only start flagging once a reasonable chunk of the day has passed, so it doesn't nag first thing in the morning
+  const behindOnPace = elapsedFraction >= 0.4 && otherProgress < stepGoal * elapsedFraction;
+  const behind = stepGoal > 0 && remainingGoal > 0 && (nothingPlanned || behindOnPace);
   return { behind, suggestedSteps: Math.round(remainingGoal / 100) * 100 };
 }
 
@@ -1823,6 +1845,33 @@ function pickTasksForBudget(pending, budget){
 }
 
 let editOpenedFromReview = false;
+const MUSTDO_NAG_MESSAGES = [
+  "You've been putting this off — are you sure you can't do this?",
+  "This one's waited long enough. Really can't tackle it now?",
+  "Still avoiding this one? Are you sure?",
+  "This has been overdue a while — sure you want to skip it again?",
+  "You keep coming back to this without doing it. Sure about that?",
+];
+function showMustDoConfirm(t, onConfirm){
+  const modal = document.getElementById('mustdo-confirm-modal');
+  document.getElementById('mustdo-confirm-text').textContent = MUSTDO_NAG_MESSAGES[Math.floor(Math.random() * MUSTDO_NAG_MESSAGES.length)];
+  const input = document.getElementById('mustdo-confirm-input');
+  input.value = '';
+  modal.classList.remove('hidden');
+  input.focus();
+  document.getElementById('mustdo-confirm-ok-btn').onclick = () => {
+    if(input.value.trim().toLowerCase() === 'yes'){
+      modal.classList.add('hidden');
+      onConfirm();
+    } else {
+      input.focus();
+    }
+  };
+  document.getElementById('mustdo-confirm-cancel-btn').onclick = () => {
+    modal.classList.add('hidden');
+  };
+}
+
 function renderReviewList(pending, selectedIds){
   const list = document.getElementById('review-list');
   list.innerHTML = '';
@@ -1842,7 +1891,17 @@ function renderReviewList(pending, selectedIds){
     `;
     list.appendChild(row);
   });
-  list.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.onchange = updateReviewTotal; });
+  list.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    const t = pending.find(x => x.id === cb.dataset.id);
+    cb.onchange = () => {
+      if(t && t.mustDo && !cb.checked){
+        cb.checked = true; // hold it checked until they confirm
+        showMustDoConfirm(t, () => { cb.checked = false; updateReviewTotal(); });
+      } else {
+        updateReviewTotal();
+      }
+    };
+  });
   list.querySelectorAll('.review-edit-trigger').forEach(el => {
     el.onclick = () => {
       editOpenedFromReview = true;
