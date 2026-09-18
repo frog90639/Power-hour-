@@ -398,7 +398,9 @@
     <div id="steps-contributors" style="margin-bottom:14px;"></div>
     <div class="modal-row budget-row">
       <span>Step goal</span>
-      <input type="number" id="step-goal-input" min="0" step="500" style="margin-left:auto; width:100px;">
+      <span id="step-goal-display" style="margin-left:auto; font-weight:600;"></span>
+      <button type="button" id="step-goal-edit-btn" class="board-chip-btn" title="Edit step goal" style="margin-left:8px;">✎</button>
+      <input type="number" id="step-goal-input" min="0" step="500" class="hidden" style="margin-left:8px; width:100px;">
     </div>
     <div class="modal-row budget-row">
       <span>Steps taken today</span>
@@ -1114,10 +1116,20 @@ function updateStepsBar(){
 
 document.getElementById('mini-steps-bar').onclick = () => {
   stepGoalInput.value = stepGoal;
+  document.getElementById('step-goal-display').textContent = stepGoal.toLocaleString();
+  document.getElementById('step-goal-display').classList.remove('hidden');
+  document.getElementById('step-goal-edit-btn').classList.remove('hidden');
+  stepGoalInput.classList.add('hidden');
   actualStepsInput.value = actualSteps;
   updateStepsBar();
   renderStepsContributors();
   document.getElementById('steps-edit-modal').classList.remove('hidden');
+};
+document.getElementById('step-goal-edit-btn').onclick = () => {
+  document.getElementById('step-goal-display').classList.add('hidden');
+  document.getElementById('step-goal-edit-btn').classList.add('hidden');
+  stepGoalInput.classList.remove('hidden');
+  stepGoalInput.focus();
 };
 function renderStepsContributors(){
   const contributors = tasks.filter(t => t.tag === 'errands' && t.steps > 0 && !t.done && !isScheduledForFuture(t));
@@ -2507,7 +2519,6 @@ function hidePriorityScrubber(){
 
 let rowGestureEl = null, rowGestureId = null, rowGestureMode = null;
 let rowGestureStartX = 0, rowGestureStartY = 0, rowGestureDX = 0, rowGestureDY = 0, rowGestureLastY = 0;
-let rowGestureLastMoveTime = 0, rowGestureScrollVelocity = 0, momentumFrame = null;
 let rowGestureStartPriorityIdx = 0, rowGestureTargetIdx = 0;
 let rowGestureIsLeftEdge = false, rowGestureSiblings = [], rowGestureSiblingStartIdx = 0, rowGestureRowHeight = 70;
 const REORDER_ZONE_PX = 44; // width of the left "grab" zone — roughly the checkbox + priority bar area
@@ -2515,7 +2526,6 @@ let rowLongPressTimer = null;
 
 function onRowPointerDown(e, el, id){
   if(e.target.type === 'checkbox') return;
-  cancelAnimationFrame(momentumFrame);
   rowGestureEl = el; rowGestureId = id;
   rowGestureStartX = e.clientX; rowGestureStartY = e.clientY;
   rowGestureDX = 0; rowGestureDY = 0;
@@ -2573,18 +2583,11 @@ function onRowPointerMove(e){
       clearTimeout(rowLongPressTimer);
       rowGestureMode = 'scroll';
       rowGestureLastY = e.clientY;
-      rowGestureLastMoveTime = performance.now();
-      rowGestureScrollVelocity = 0;
     }
     return;
   }
   if(rowGestureMode === 'scroll'){
-    const delta = e.clientY - rowGestureLastY;
-    window.scrollBy(0, -delta);
-    const nowT = performance.now();
-    const dt = nowT - rowGestureLastMoveTime;
-    if(dt > 0) rowGestureScrollVelocity = -delta / dt; // px per ms, signed to match scroll direction
-    rowGestureLastMoveTime = nowT;
+    window.scrollBy(0, -(e.clientY - rowGestureLastY));
     rowGestureLastY = e.clientY;
     return;
   }
@@ -2651,7 +2654,7 @@ function onRowPointerUp(){
     rowGestureEl.style.transform = '';
     rowGestureEl.classList.remove('longpress-active', 'longpress-up', 'longpress-down');
   } else if(rowGestureMode === 'scroll'){
-    startScrollMomentum();
+    // was just an ordinary scroll — nothing to do
   } else {
     if(Math.abs(rowGestureDX) < 8 && Math.abs(rowGestureDY) < 8){
       openEditModal(rowGestureId);
@@ -2669,24 +2672,6 @@ function resetRowTransform(el, id){
     if(bgLeft) bgLeft.style.opacity = 0;
     if(bgRight) bgRight.style.opacity = 0;
   }, 200);
-}
-/* Native scroll has momentum after you lift your finger; our manual passthrough (needed so the
-   long-press gesture can reliably claim the touch) doesn't get that for free, so we fake it here. */
-function startScrollMomentum(){
-  cancelAnimationFrame(momentumFrame);
-  let velocity = rowGestureScrollVelocity; // px/ms
-  if(Math.abs(velocity) < 0.02) return;
-  let lastT = performance.now();
-  function step(t){
-    const dt = t - lastT;
-    lastT = t;
-    window.scrollBy(0, -velocity * dt);
-    velocity *= 0.95;
-    if(Math.abs(velocity) > 0.02){
-      momentumFrame = requestAnimationFrame(step);
-    }
-  }
-  momentumFrame = requestAnimationFrame(step);
 }
 
 function cleanupRowGesture(){
