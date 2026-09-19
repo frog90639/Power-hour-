@@ -299,6 +299,7 @@
     <span class="mini-steps-label" id="mini-steps-label">👣 0 / 10,000</span>
   </button>
   <button class="icon-btn icon-btn-accent" id="open-pick-btn" title="Pick tasks for my time">🎯</button>
+  <button class="icon-btn" id="open-report-btn" title="End of day — Completed report">🌇</button>
 </div>
 
 <div class="task-list-container" id="task-list-container"></div>
@@ -1874,24 +1875,25 @@ function openReviewModal(budget){
 /* How much a task "deserves" to be picked, beyond just fitting the time available.
    Priority is the base; must-do and deadline urgency add on top so they're picked
    even when equally-sized lower-priority alternatives exist. */
-function getTaskSelectionWeight(t){
-  let weight = (PRIORITIES.length - PRIORITIES.indexOf(t.priority)) * 10; // P1=50 ... P5=10 — big gaps between tiers
-  if(t.mustDo) weight += 5; // P1-only anyway, just nudges it within the top tier
-  if(t.escalated) weight += 3; // recently auto-bumped — moves it up within its own priority tier, never past a higher one
-  if(t.timeConstraint){
-    weight += isPastTimeConstraint(t) ? 6 : 2; // same idea: overdue-today beats a same-tier peer, but still can't cross a tier
-  }
+/* Bonuses that break ties WITHIN a priority tier (an overdue or escalated task beats an
+   otherwise-identical peer at the same priority) — never used to compare across tiers. */
+function getWithinTierWeight(t){
+  let weight = 0;
+  if(t.mustDo) weight += 5;
+  if(t.escalated) weight += 3;
+  if(t.timeConstraint) weight += isPastTimeConstraint(t) ? 6 : 2;
   return weight;
 }
 
-function pickTasksForBudget(pending, budget){
-  const n = pending.length;
+/* A simple 0/1 knapsack maximizing (weight, then time-fill) within one priority tier's tasks. */
+function knapsackWithinTier(tierTasks, budget){
+  const n = tierTasks.length;
   const selected = new Set();
   if(n === 0 || budget <= 0) return selected;
-  const values = pending.map(t => getTaskSelectionWeight(t) + t.mins * 0.001); // tiny time-fill tiebreaker, never outweighs real priority/urgency differences
+  const values = tierTasks.map(t => getWithinTierWeight(t) + t.mins * 0.001);
   const dp = [new Array(budget + 1).fill(0)];
   for(let i = 1; i <= n; i++){
-    const mins = pending[i - 1].mins;
+    const mins = tierTasks[i - 1].mins;
     const val = values[i - 1];
     const prev = dp[i - 1];
     const row = new Array(budget + 1);
@@ -1903,9 +1905,29 @@ function pickTasksForBudget(pending, budget){
   let b = budget;
   for(let i = n; i >= 1; i--){
     if(dp[i][b] !== dp[i - 1][b]){
-      selected.add(pending[i - 1].id);
-      b -= pending[i - 1].mins;
+      selected.add(tierTasks[i - 1].id);
+      b -= tierTasks[i - 1].mins;
     }
+  }
+  return selected;
+}
+
+/* Fills the budget one priority tier at a time — P1 gets first claim on the full budget,
+   and only whatever time is left over trickles down to P2, then P3, and so on. This means
+   a higher-priority task that fits is never displaced by a pile of smaller lower-priority
+   ones, no matter how well those would otherwise fill the remaining time. */
+function pickTasksForBudget(pending, budget){
+  const selected = new Set();
+  let remaining = budget;
+  for(const priority of PRIORITIES){
+    if(remaining <= 0) break;
+    const tierTasks = pending.filter(t => t.priority === priority);
+    if(tierTasks.length === 0) continue;
+    const tierSelected = knapsackWithinTier(tierTasks, remaining);
+    if(tierSelected.size === 0) continue;
+    let usedMins = 0;
+    tierTasks.forEach(t => { if(tierSelected.has(t.id)){ selected.add(t.id); usedMins += t.mins; } });
+    remaining -= usedMins;
   }
   return selected;
 }
@@ -2045,7 +2067,7 @@ document.getElementById('pick-modal-close-btn').onclick = () => {
 function getAllCompleted(){
   return [...tasks.filter(t => t.done), ...deletedCompleted];
 }
-document.getElementById('settings-report-btn').onclick = () => {
+function openReportModal(){
   const completed = getAllCompleted();
   const totalMins = completed.reduce((s, t) => s + t.mins, 0);
   const celebration = getCelebration(completed.length, totalMins);
@@ -2063,12 +2085,14 @@ document.getElementById('settings-report-btn').onclick = () => {
     </div>
   `).join('');
   list.querySelectorAll('.report-undo-btn').forEach(btn => {
-    btn.onclick = () => { undoCompletedTask(btn.dataset.id); document.getElementById('settings-report-btn').click(); };
+    btn.onclick = () => { undoCompletedTask(btn.dataset.id); openReportModal(); };
   });
   document.getElementById('report-clear-btn').disabled = completed.length === 0;
   document.getElementById('settings-modal').classList.add('hidden');
   document.getElementById('report-modal').classList.remove('hidden');
-};
+}
+document.getElementById('settings-report-btn').onclick = openReportModal;
+document.getElementById('open-report-btn').onclick = openReportModal;
 document.getElementById('report-close-btn').onclick = () => document.getElementById('report-modal').classList.add('hidden');
 
 /* undoes a completed task, whether it's still in the active list or was already swiped away */
