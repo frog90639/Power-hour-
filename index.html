@@ -1875,11 +1875,11 @@ function openReviewModal(budget){
    Priority is the base; must-do and deadline urgency add on top so they're picked
    even when equally-sized lower-priority alternatives exist. */
 function getTaskSelectionWeight(t){
-  let weight = PRIORITIES.length - PRIORITIES.indexOf(t.priority); // P1=5 ... P5=1
-  if(t.mustDo) weight += 20; // sat at P1 too long — this should get picked almost no matter what
-  if(t.escalated) weight += 3; // recently auto-bumped, worth extra weight
+  let weight = (PRIORITIES.length - PRIORITIES.indexOf(t.priority)) * 10; // P1=50 ... P5=10 — big gaps between tiers
+  if(t.mustDo) weight += 5; // P1-only anyway, just nudges it within the top tier
+  if(t.escalated) weight += 3; // recently auto-bumped — moves it up within its own priority tier, never past a higher one
   if(t.timeConstraint){
-    weight += isPastTimeConstraint(t) ? 15 : 5; // already overdue today vs. has a same-day deadline coming
+    weight += isPastTimeConstraint(t) ? 6 : 2; // same idea: overdue-today beats a same-tier peer, but still can't cross a tier
   }
   return weight;
 }
