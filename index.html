@@ -1054,31 +1054,58 @@ function getStepPace(){
 
 /* Adds, resizes, or removes the single auto-managed walk task to match the current shortfall,
    and keeps its priority in step with how much of the day is left to hit the goal. */
+const AUTO_WALK_CHUNK_SIZE = 2500; // above this, split into multiple smaller walk tasks
+const AUTO_WALK_MAX_CHUNKS = 4;
+
+/* Adds, resizes, or removes the auto-managed walk task(s) to match the current shortfall.
+   A large deficit gets split into a few smaller tasks at different priorities, spread across
+   the day, rather than one big task — each one is a normal task from here on, aging and
+   escalating just like anything else. */
 function syncAutoWalk(pace){
-  const autoWalkTask = tasks.find(t => t.autoWalk && !t.done);
+  const existing = tasks.filter(t => t.autoWalk && !t.done);
   let changed = false;
   if(pace.behind && pace.suggestedSteps > 0){
-    const urgencyPriority = getAutoWalkPriority();
-    if(autoWalkTask){
-      if(autoWalkTask.steps !== pace.suggestedSteps){
-        autoWalkTask.steps = pace.suggestedSteps;
-        autoWalkTask.mins = Math.max(5, Math.round((pace.suggestedSteps / 100) / 5) * 5);
-        changed = true;
+    const numChunks = Math.min(AUTO_WALK_MAX_CHUNKS, Math.max(1, Math.ceil(pace.suggestedSteps / AUTO_WALK_CHUNK_SIZE)));
+    const chunkSteps = [];
+    let remaining = pace.suggestedSteps;
+    for(let i = 0; i < numChunks; i++){
+      if(i === numChunks - 1){
+        chunkSteps.push(Math.max(100, Math.round(remaining / 100) * 100));
+      } else {
+        const share = Math.round((pace.suggestedSteps / numChunks) / 100) * 100;
+        chunkSteps.push(share);
+        remaining -= share;
       }
-      if(autoWalkTask.priority !== urgencyPriority){
-        autoWalkTask.priority = urgencyPriority;
-        changed = true;
-      }
+    }
+    const basePriorityIdx = PRIORITIES.indexOf(getAutoWalkPriority());
+
+    if(existing.length === numChunks){
+      // same count as last time — update the tasks already in place so their aging/escalation history isn't disturbed
+      existing.forEach((t, i) => {
+        const desiredPriority = PRIORITIES[Math.min(PRIORITIES.length - 1, basePriorityIdx + i)];
+        if(t.steps !== chunkSteps[i]){
+          t.steps = chunkSteps[i];
+          t.mins = Math.max(5, Math.round((chunkSteps[i] / 100) / 5) * 5);
+          changed = true;
+        }
+        if(t.priority !== desiredPriority){ t.priority = desiredPriority; changed = true; }
+      });
     } else {
-      tasks.push({
-        id: uid(), name: 'Walk', mins: Math.max(5, Math.round((pace.suggestedSteps / 100) / 5) * 5),
-        priority: urgencyPriority, tag: 'errands', steps: pace.suggestedSteps, recurring: false, done: false, autoWalk: true, createdAt: Date.now(), staleSince: Date.now()
+      // chunk count changed (deficit grew/shrank across a boundary) — rebuild the set
+      tasks = tasks.filter(t => !(t.autoWalk && !t.done));
+      chunkSteps.forEach((steps, i) => {
+        const priority = PRIORITIES[Math.min(PRIORITIES.length - 1, basePriorityIdx + i)];
+        tasks.push({
+          id: uid(), name: numChunks > 1 ? `Walk (${i + 1}/${numChunks})` : 'Walk',
+          mins: Math.max(5, Math.round((steps / 100) / 5) * 5),
+          priority, tag: 'errands', steps, recurring: false, done: false, autoWalk: true, createdAt: Date.now(), staleSince: Date.now()
+        });
       });
       changed = true;
     }
-  } else if(autoWalkTask){
-    const idx = tasks.findIndex(t => t.id === autoWalkTask.id);
-    if(idx !== -1){ tasks.splice(idx, 1); changed = true; }
+  } else if(existing.length > 0){
+    tasks = tasks.filter(t => !(t.autoWalk && !t.done));
+    changed = true;
   }
   if(changed){ save(); renderTaskList(); }
 }
