@@ -258,6 +258,18 @@
     margin:14px 0 6px; padding-left:2px;
   }
   .settings-group-label:first-of-type{margin-top:4px;}
+
+  .highlight-hero{text-align:center; margin-bottom:20px;}
+  .highlight-hero-emoji{font-size:3.2rem; margin-bottom:8px; line-height:1;}
+  .highlight-hero-headline{font-size:1.35rem; font-weight:800; letter-spacing:-0.02em;}
+  .highlight-stat-card{
+    background:linear-gradient(135deg, var(--card-raised), var(--card)); border:1px solid var(--hairline);
+    border-radius:16px; padding:16px 18px; margin-bottom:12px;
+  }
+  .highlight-stat-number{font-size:2rem; font-weight:800; color:var(--accent); line-height:1;}
+  .highlight-stat-label{color:var(--muted); font-size:0.85rem; margin-top:4px;}
+  .highlight-stat-title{font-weight:700; font-size:0.85rem; margin-bottom:8px; color:var(--text);}
+  .highlight-sticky-item{display:flex; align-items:center; gap:8px; padding:5px 0; font-size:0.9rem;}
   .guide-card h4{font-size:0.95rem; margin:18px 0 6px; color:var(--accent);}
   .guide-card h4:first-of-type{margin-top:10px;}
   .guide-card p{font-size:0.87rem; line-height:1.5; color:var(--text); margin:0 0 4px;}
@@ -748,6 +760,31 @@
 </div>
 
 <!-- completed report modal -->
+<!-- end of day: choose highlights or list -->
+<div class="modal hidden" id="report-choice-modal">
+  <div class="modal-card">
+    <h3>🌇 End of day</h3>
+    <p style="color:var(--muted); font-size:0.85rem; margin-top:-8px;">How do you want to look back at today?</p>
+    <div style="display:flex; flex-direction:column; gap:10px; margin-top:6px;">
+      <button id="report-choice-highlights-btn" class="add-btn" style="width:100%; padding:14px; border-radius:10px; border:none; font-size:1rem; font-weight:600; cursor:pointer;">✨ See Highlights</button>
+      <button id="report-choice-list-btn" style="width:100%; padding:14px; border-radius:10px; border:none; font-size:1rem; font-weight:600; cursor:pointer; background:#2a2e37; color:var(--text);">📋 See List</button>
+    </div>
+    <button id="report-choice-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
+<!-- highlights (Spotify-Wrapped-style end of day recap) -->
+<div class="modal hidden" id="highlights-modal">
+  <div class="modal-card" style="max-height:85vh; overflow-y:auto;">
+    <div id="highlights-content"></div>
+    <div class="modal-actions">
+      <button id="highlights-list-instead-btn" style="background:#2a2e37; color:var(--text);">See list</button>
+      <button id="highlights-clear-btn" class="add-btn">Clear day</button>
+    </div>
+    <button id="highlights-close-btn" style="width:100%; margin-top:10px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
 <div class="modal hidden" id="report-modal">
   <div class="modal-card" style="max-height:80vh; overflow-y:auto;">
     <h3 id="report-headline">📋 Completed report</h3>
@@ -2091,8 +2128,90 @@ function openReportModal(){
   document.getElementById('settings-modal').classList.add('hidden');
   document.getElementById('report-modal').classList.remove('hidden');
 }
-document.getElementById('settings-report-btn').onclick = openReportModal;
-document.getElementById('open-report-btn').onclick = openReportModal;
+function openReportChoice(){
+  document.getElementById('settings-modal').classList.add('hidden');
+  document.getElementById('report-choice-modal').classList.remove('hidden');
+}
+document.getElementById('settings-report-btn').onclick = openReportChoice;
+document.getElementById('open-report-btn').onclick = openReportChoice;
+document.getElementById('report-choice-close-btn').onclick = () => document.getElementById('report-choice-modal').classList.add('hidden');
+document.getElementById('report-choice-list-btn').onclick = () => {
+  document.getElementById('report-choice-modal').classList.add('hidden');
+  openReportModal();
+};
+document.getElementById('report-choice-highlights-btn').onclick = () => {
+  document.getElementById('report-choice-modal').classList.add('hidden');
+  openHighlights();
+};
+
+function openHighlights(){
+  const completed = getAllCompleted();
+  const totalMins = completed.reduce((s, t) => s + t.mins, 0);
+  const celebration = getCelebration(completed.length, totalMins);
+  const content = document.getElementById('highlights-content');
+
+  if(completed.length === 0){
+    content.innerHTML = `
+      <div class="highlight-hero">
+        <div class="highlight-hero-emoji">👋</div>
+        <div class="highlight-hero-headline">Nothing completed yet today</div>
+      </div>
+    `;
+    document.getElementById('highlights-clear-btn').disabled = true;
+  } else {
+    const stickyTasks = completed.filter(t => t.escalated || t.mustDo);
+    const longest = completed.reduce((max, t) => t.mins > max.mins ? t : max, completed[0]);
+    const totalSteps = completed.filter(t => t.tag === 'errands' && t.steps > 0).reduce((s, t) => s + t.steps, 0);
+
+    let html = `
+      <div class="highlight-hero">
+        <div class="highlight-hero-emoji">${celebration.emoji}</div>
+        <div class="highlight-hero-headline">${celebration.headline}</div>
+      </div>
+      <div class="highlight-stat-card">
+        <div class="highlight-stat-number">${completed.length}</div>
+        <div class="highlight-stat-label">task${completed.length !== 1 ? 's' : ''} completed today</div>
+      </div>
+      <div class="highlight-stat-card">
+        <div class="highlight-stat-number">${totalMins}</div>
+        <div class="highlight-stat-label">minutes of focused work${totalMins >= 60 ? ` — that's ${(totalMins / 60).toFixed(1)} hours` : ''}</div>
+      </div>
+      <div class="highlight-stat-card">
+        <div class="highlight-stat-title">🏋️ Biggest task tackled</div>
+        <div style="font-weight:600;">${longest.name}</div>
+        <div class="highlight-stat-label">${longest.mins} min</div>
+      </div>
+    `;
+    if(stickyTasks.length > 0){
+      html += `
+        <div class="highlight-stat-card">
+          <div class="highlight-stat-title">🎯 Finally conquered — these had been sitting a while</div>
+          ${stickyTasks.map(t => `<div class="highlight-sticky-item"><span>✅</span><span>${t.name}</span></div>`).join('')}
+        </div>
+      `;
+    }
+    if(totalSteps > 0){
+      html += `
+        <div class="highlight-stat-card">
+          <div class="highlight-stat-number">${totalSteps.toLocaleString()}</div>
+          <div class="highlight-stat-label">steps logged via completed tasks</div>
+        </div>
+      `;
+    }
+    content.innerHTML = html;
+    document.getElementById('highlights-clear-btn').disabled = false;
+  }
+  document.getElementById('highlights-modal').classList.remove('hidden');
+}
+document.getElementById('highlights-close-btn').onclick = () => document.getElementById('highlights-modal').classList.add('hidden');
+document.getElementById('highlights-list-instead-btn').onclick = () => {
+  document.getElementById('highlights-modal').classList.add('hidden');
+  openReportModal();
+};
+document.getElementById('highlights-clear-btn').onclick = () => {
+  if(document.getElementById('highlights-clear-btn').disabled) return;
+  if(clearDay()) document.getElementById('highlights-modal').classList.add('hidden');
+};
 document.getElementById('report-close-btn').onclick = () => document.getElementById('report-modal').classList.add('hidden');
 
 /* undoes a completed task, whether it's still in the active list or was already swiped away */
@@ -2342,9 +2461,8 @@ document.getElementById('report-export-btn').onclick = () => {
   document.getElementById('export-textarea').value = lines.join('\n');
   document.getElementById('export-modal').classList.remove('hidden');
 };
-document.getElementById('report-clear-btn').onclick = () => {
-  if(document.getElementById('report-clear-btn').disabled) return;
-  if(!confirm('Clear all completed tasks for today? Recurring ones will come back fresh instead of being removed.')) return;
+function clearDay(){
+  if(!confirm('Clear all completed tasks for today? Recurring ones will come back fresh instead of being removed.')) return false;
 
   const completedToday = getAllCompleted();
   dayLog.push({
@@ -2366,7 +2484,11 @@ document.getElementById('report-clear-btn').onclick = () => {
   localStorage.setItem('powerHourActualSteps', '0');
   actualStepsInput.value = 0;
   save(); render();
-  document.getElementById('report-modal').classList.add('hidden');
+  return true;
+}
+document.getElementById('report-clear-btn').onclick = () => {
+  if(document.getElementById('report-clear-btn').disabled) return;
+  if(clearDay()) document.getElementById('report-modal').classList.add('hidden');
 };
 
 function renderTaskList(){
