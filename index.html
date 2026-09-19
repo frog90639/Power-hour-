@@ -2130,14 +2130,15 @@ document.getElementById('settings-aging-btn').onclick = () => {
       const staleDays = daysSince(t.staleSince || t.createdAt);
       const thresholdDays = escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14;
       const daysLeft = thresholdDays - staleDays;
+      const ageLabel = staleDays !== ageDays ? `${ageDays}d old (${staleDays}d at this priority)` : `${ageDays}d old`;
       let statusText;
       if(t.priority === 'p1'){
-        if(t.mustDo){ statusText = `${ageDays}d old — flagged must do`; }
-        else if(daysLeft <= 0){ statusText = `${ageDays}d old — flagging as must do`; }
-        else { statusText = `${ageDays}d old — must do in ${daysLeft}d`; }
+        if(t.mustDo){ statusText = `${ageLabel} — flagged must do`; }
+        else if(daysLeft <= 0){ statusText = `${ageLabel} — flagging as must do`; }
+        else { statusText = `${ageLabel} — must do in ${daysLeft}d`; }
       }
-      else if(daysLeft <= 0){ statusText = `${ageDays}d old — escalating`; }
-      else { statusText = `${ageDays}d old — bumps up in ${daysLeft}d`; }
+      else if(daysLeft <= 0){ statusText = `${ageLabel} — escalating`; }
+      else { statusText = `${ageLabel} — bumps up in ${daysLeft}d`; }
       return `
         <div class="review-item">
           <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
