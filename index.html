@@ -350,6 +350,11 @@
         <input type="time" id="add-time-specific-input" style="margin-left:auto;">
       </div>
       <div class="modal-row budget-row">
+        <span style="color:var(--muted); font-size:0.85rem;">🌤 Don't pick up before</span>
+        <input type="time" id="add-not-before-input" style="margin-left:auto;">
+        <button type="button" id="add-not-before-clear-btn" class="board-chip-btn" title="Clear — no earliest time">✕</button>
+      </div>
+      <div class="modal-row budget-row">
         <span style="color:var(--muted); font-size:0.85rem;">📆 Do this on</span>
         <input type="date" id="add-date-input" style="margin-left:auto;">
         <button type="button" id="add-date-clear-btn" class="board-chip-btn" title="Clear — do it today/whenever">✕</button>
@@ -529,6 +534,11 @@
     <div class="modal-row budget-row" id="edit-time-specific-row" style="display:none;">
       <span style="color:var(--muted); font-size:0.85rem;">At</span>
       <input type="time" id="edit-time-specific-input" style="margin-left:auto;">
+    </div>
+    <div class="modal-row budget-row">
+      <span style="color:var(--muted); font-size:0.85rem;">🌤 Don't pick up before</span>
+      <input type="time" id="edit-not-before-input" style="margin-left:auto;">
+      <button type="button" id="edit-not-before-clear-btn" class="board-chip-btn" title="Clear — no earliest time">✕</button>
     </div>
     <div class="modal-row budget-row">
       <span style="color:var(--muted); font-size:0.85rem;">📆 Do this on</span>
@@ -1267,11 +1277,13 @@ function addTask(){
   const stepsInput = document.getElementById('add-steps-input');
   const dateInput = document.getElementById('add-date-input');
   const specificTimeInput = document.getElementById('add-time-specific-input');
+  const notBeforeInput = document.getElementById('add-not-before-input');
   const steps = pendingTag === 'errands' ? (parseInt(stepsInput.value) || 0) : 0;
   const scheduledDate = dateInput.value || null;
   const timeConstraint = pendingTimeLimit === 'specific' ? (specificTimeInput.value || null) : pendingTimeLimit;
+  const notBeforeTime = notBeforeInput.value || null;
   const recurEveryDays = Math.max(1, parseInt(recurIntervalInput.value) || 1);
-  tasks.push({ id: uid(), name, mins: pendingMins, priority: pendingPriority, tag: pendingTag, steps, recurring: recurringCb.checked, recurEveryDays, done: false, createdAt: Date.now(), staleSince: Date.now(), scheduledDate, timeConstraint });
+  tasks.push({ id: uid(), name, mins: pendingMins, priority: pendingPriority, tag: pendingTag, steps, recurring: recurringCb.checked, recurEveryDays, done: false, createdAt: Date.now(), staleSince: Date.now(), scheduledDate, timeConstraint, notBeforeTime });
   taskInput.value = '';
   pendingMins = 5; pendingPriority = 'p3'; pendingTag = null; pendingTimeLimit = null;
   recurringCb.checked = false;
@@ -1280,6 +1292,7 @@ function addTask(){
   stepsInput.value = '';
   dateInput.value = '';
   specificTimeInput.value = '';
+  notBeforeInput.value = '';
   minsDisplay.textContent = '5 min';
   refreshAddPriorityPicker();
   refreshAddTagPicker();
@@ -1287,6 +1300,7 @@ function addTask(){
   save(); render();
 }
 document.getElementById('add-date-clear-btn').onclick = () => { document.getElementById('add-date-input').value = ''; };
+document.getElementById('add-not-before-clear-btn').onclick = () => { document.getElementById('add-not-before-input').value = ''; };
 document.getElementById('add-recurring-checkbox').onchange = (e) => {
   document.getElementById('add-recur-interval-row').classList.toggle('hidden', !e.target.checked);
 };
@@ -1324,6 +1338,7 @@ function openEditModal(id){
   document.getElementById('edit-steps-input').value = t.steps || '';
   document.getElementById('edit-steps-row').style.display = (editTag === 'errands') ? 'flex' : 'none';
   document.getElementById('edit-date-input').value = t.scheduledDate || '';
+  document.getElementById('edit-not-before-input').value = t.notBeforeTime || '';
   document.getElementById('edit-age-input').value = Math.max(0, daysSince(t.createdAt || Date.now()));
   if(t.timeConstraint === 'am' || t.timeConstraint === 'pm'){
     editTimeLimit = t.timeConstraint;
@@ -1342,6 +1357,7 @@ function openEditModal(id){
   editModal.classList.remove('hidden');
 }
 document.getElementById('edit-date-clear-btn').onclick = () => { document.getElementById('edit-date-input').value = ''; };
+document.getElementById('edit-not-before-clear-btn').onclick = () => { document.getElementById('edit-not-before-input').value = ''; };
 document.getElementById('edit-recurring-checkbox').onchange = (e) => {
   document.getElementById('edit-recur-interval-row').classList.toggle('hidden', !e.target.checked);
 };
@@ -1383,6 +1399,7 @@ document.getElementById('edit-save-btn').onclick = () => {
     t.recurring = document.getElementById('edit-recurring-checkbox').checked;
     t.recurEveryDays = Math.max(1, parseInt(document.getElementById('edit-recur-interval-input').value) || 1);
     t.scheduledDate = document.getElementById('edit-date-input').value || null;
+    t.notBeforeTime = document.getElementById('edit-not-before-input').value || null;
     t.scheduleArrived = false;
     t.timeConstraint = editTimeLimit === 'specific' ? (document.getElementById('edit-time-specific-input').value || null) : editTimeLimit;
     t.autoWalk = false; // a manual edit means the user now owns this task, not the auto-pace system
@@ -1893,10 +1910,26 @@ function isWrongTimeOfDay(t){
   if(t.timeConstraint === 'pm') return new Date().getHours() < 12;
   return false;
 }
+function isBeforeEarliestTime(t){
+  if(!t.notBeforeTime) return false;
+  const m = t.notBeforeTime.match(/^(\d{2}):(\d{2})$/);
+  if(!m) return false;
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const earliestMinutes = parseInt(m[1]) * 60 + parseInt(m[2]);
+  return nowMinutes < earliestMinutes;
+}
+function formatNotBeforeTime(t){
+  const m = (t.notBeforeTime || '').match(/^(\d{2}):(\d{2})$/);
+  if(!m) return '';
+  let h = parseInt(m[1]); const mins = m[2]; const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${mins} ${ampm}`;
+}
 
 function openReviewModal(budget){
   reviewBudget = budget;
-  let pending = tasks.filter(t => !t.done && !isScheduledForFuture(t) && !isWrongTimeOfDay(t)); // current order reflects whichever quick sort is active
+  let pending = tasks.filter(t => !t.done && !isScheduledForFuture(t) && !isWrongTimeOfDay(t) && !isBeforeEarliestTime(t)); // current order reflects whichever quick sort is active
   if(budgetTagFilters.size > 0) pending = pending.filter(t => t.tag && budgetTagFilters.has(t.tag));
   const selected = pickTasksForBudget(pending, budget);
   renderReviewList(pending, selected);
@@ -2159,7 +2192,10 @@ function openHighlights(){
     `;
     document.getElementById('highlights-clear-btn').disabled = true;
   } else {
-    const stickyTasks = completed.filter(t => t.escalated || t.mustDo);
+    const AGES_THRESHOLD_DAYS = 14;
+    const conquered = completed.filter(t => ['p3', 'p4', 'p5'].includes(t.priority) && daysSince(t.createdAt) >= AGES_THRESHOLD_DAYS);
+    const conqueredIds = new Set(conquered.map(t => t.id));
+    const wellDone = completed.filter(t => (t.escalated || t.mustDo) && !conqueredIds.has(t.id));
     const longest = completed.reduce((max, t) => t.mins > max.mins ? t : max, completed[0]);
     const totalSteps = completed.filter(t => t.tag === 'errands' && t.steps > 0).reduce((s, t) => s + t.steps, 0);
 
@@ -2182,11 +2218,19 @@ function openHighlights(){
         <div class="highlight-stat-label">${longest.mins} min</div>
       </div>
     `;
-    if(stickyTasks.length > 0){
+    if(conquered.length > 0){
       html += `
         <div class="highlight-stat-card">
-          <div class="highlight-stat-title">🎯 Finally conquered — these had been sitting a while</div>
-          ${stickyTasks.map(t => `<div class="highlight-sticky-item"><span>✅</span><span>${t.name}</span></div>`).join('')}
+          <div class="highlight-stat-title">🎯 Finally conquered — these had sat around for ages</div>
+          ${conquered.map(t => `<div class="highlight-sticky-item"><span>✅</span><span>${t.name}</span></div>`).join('')}
+        </div>
+      `;
+    }
+    if(wellDone.length > 0){
+      html += `
+        <div class="highlight-stat-card">
+          <div class="highlight-stat-title">👍 Well done — these had been waiting a bit</div>
+          ${wellDone.map(t => `<div class="highlight-sticky-item"><span>✅</span><span>${t.name}</span></div>`).join('')}
         </div>
       `;
     }
@@ -2533,6 +2577,7 @@ function buildTaskRow(t){
         ${t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff;" title="Sitting at P1 too long — this needs doing">❗</span>' : ''}
         ${t.timeConstraint ? `<span class="tag-badge" ${isPastTimeConstraint(t) ? 'style="background:var(--danger); color:#fff;"' : ''} title="Must be done by ${formatTimeConstraint(t)}${isPastTimeConstraint(t) ? ' — that time has passed' : ''}">${formatTimeConstraint(t)}</span>` : ''}
         ${t.scheduledDate ? `<span class="tag-badge" title="Scheduled for ${t.scheduledDate}">📆</span>` : ''}
+        ${t.notBeforeTime ? `<span class="tag-badge" title="Won't be offered by the timer before ${formatNotBeforeTime(t)}">🌤 After ${formatNotBeforeTime(t)}</span>` : ''}
         ${(!t.escalated && t.priority !== 'p1' && ((escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14) - daysSince(t.staleSince || t.createdAt)) <= 3) ? '<span class="tag-badge" title="Will bump up in a few days if still pending">⏳</span>' : ''}
         <span class="mins">${t.mins} min</span>
       </div>
