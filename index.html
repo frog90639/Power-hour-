@@ -270,6 +270,18 @@
   .highlight-stat-label{color:var(--muted); font-size:0.85rem; margin-top:4px;}
   .highlight-stat-title{font-weight:700; font-size:0.85rem; margin-bottom:8px; color:var(--text);}
   .highlight-sticky-item{display:flex; align-items:center; gap:8px; padding:5px 0; font-size:0.9rem;}
+
+  .habit-row{margin-bottom:18px;}
+  .habit-name{font-weight:600; font-size:0.9rem; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:8px;}
+  .habit-name span:first-child{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .habit-streak{color:var(--accent); font-size:0.78rem; font-weight:700; flex-shrink:0;}
+  .habit-ticks{display:flex; gap:4px;}
+  .habit-tick{
+    flex:1; aspect-ratio:1; border-radius:6px; background:var(--card-raised); border:1px solid var(--hairline);
+    display:flex; align-items:center; justify-content:center; font-size:0.68rem; color:var(--muted); min-width:0;
+  }
+  .habit-tick.done{background:var(--accent); border-color:var(--accent); color:#0f1115; font-weight:700;}
+  .habit-tick.today{box-shadow:0 0 0 2px var(--edit);}
   .guide-card h4{font-size:0.95rem; margin:18px 0 6px; color:var(--accent);}
   .guide-card h4:first-of-type{margin-top:10px;}
   .guide-card p{font-size:0.87rem; line-height:1.5; color:var(--text); margin:0 0 4px;}
@@ -592,6 +604,7 @@
     <button id="settings-guide-btn" class="settings-item">❓ How this app works</button>
     <div class="settings-group-label">Views</div>
     <button id="settings-calendar-btn" class="settings-item">🗓️ Calendar</button>
+    <button id="settings-habits-btn" class="settings-item">🔥 Habit tracker</button>
     <button id="settings-report-btn" class="settings-item">📋 Completed report</button>
     <button id="settings-aging-btn" class="settings-item">⏳ Aging tasks</button>
     <div class="settings-group-label">Configure</div>
@@ -662,6 +675,16 @@
 </div>
 
 <!-- calendar -->
+<!-- habit tracker -->
+<div class="modal hidden" id="habits-modal">
+  <div class="modal-card" style="max-height:80vh; overflow-y:auto;">
+    <h3>🔥 Habit tracker</h3>
+    <p style="color:var(--muted); font-size:0.8rem; margin-top:-8px;">Consistency on your recurring tasks, last 14 days.</p>
+    <div id="habits-list"></div>
+    <button id="habits-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
 <div class="modal hidden" id="calendar-modal">
   <div class="modal-card" style="max-height:85vh; overflow-y:auto;">
     <h3>🗓️ Calendar</h3>
@@ -1622,6 +1645,58 @@ const CELEBRATION_TIERS = [
   { min: 6, emoji: '🔥', headlines: ["You're on fire!", "Incredible session!", "Absolutely crushing it!"] },
   { min: 10, emoji: '🏆', headlines: ["Legendary session!", "Unstoppable today!", "That's a huge win!"] },
 ];
+/* Derives a recurring task's recent history by matching its name against dayLog entries
+   (there's no separate habit-tracking store — this reuses what Clear Day already archives),
+   plus whether it's done today (before today gets archived). Oldest to newest. */
+function getHabitHistory(taskName, days){
+  const doneToday = tasks.some(t => t.name === taskName && t.recurring && t.done);
+  const history = [{ date: todayStr(), done: doneToday }];
+  for(let i = dayLog.length - 1; i >= 0 && history.length < days; i--){
+    const entry = dayLog[i];
+    const done = (entry.tasks || []).some(t => t.name === taskName);
+    history.push({ date: entry.date, done });
+  }
+  return history.reverse();
+}
+function getCurrentStreak(history){
+  let streak = 0;
+  for(let i = history.length - 1; i >= 0; i--){
+    if(history[i].done) streak++;
+    else break;
+  }
+  return streak;
+}
+function renderHabitTracker(){
+  const recurringNames = [...new Set(tasks.filter(t => t.recurring).map(t => t.name))];
+  const list = document.getElementById('habits-list');
+  if(recurringNames.length === 0){
+    list.innerHTML = '<div class="empty">No recurring tasks yet — mark one Recurring to start tracking it here.</div>';
+    return;
+  }
+  const today = todayStr();
+  list.innerHTML = recurringNames.map(name => {
+    const history = getHabitHistory(name, 14);
+    const streak = getCurrentStreak(history);
+    return `
+      <div class="habit-row">
+        <div class="habit-name">
+          <span>${name}</span>
+          ${streak > 0 ? `<span class="habit-streak">🔥 ${streak}d</span>` : ''}
+        </div>
+        <div class="habit-ticks">
+          ${history.map(h => `<div class="habit-tick ${h.done ? 'done' : ''} ${h.date === today ? 'today' : ''}" title="${h.date}">${h.done ? '✓' : ''}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+document.getElementById('settings-habits-btn').onclick = () => {
+  renderHabitTracker();
+  document.getElementById('settings-modal').classList.add('hidden');
+  document.getElementById('habits-modal').classList.remove('hidden');
+};
+document.getElementById('habits-close-btn').onclick = () => document.getElementById('habits-modal').classList.add('hidden');
+
 function getCelebration(count, mins){
   let tier = CELEBRATION_TIERS[0];
   for(const t of CELEBRATION_TIERS){ if(count >= t.min) tier = t; }
@@ -2231,6 +2306,18 @@ function openHighlights(){
         <div class="highlight-stat-card">
           <div class="highlight-stat-title">👍 Well done — these had been waiting a bit</div>
           ${wellDone.map(t => `<div class="highlight-sticky-item"><span>✅</span><span>${t.name}</span></div>`).join('')}
+        </div>
+      `;
+    }
+    const habitsToday = completed.filter(t => t.recurring);
+    if(habitsToday.length > 0){
+      html += `
+        <div class="highlight-stat-card">
+          <div class="highlight-stat-title">🔥 Habits kept up today</div>
+          ${habitsToday.map(t => {
+            const streak = getCurrentStreak(getHabitHistory(t.name, 14));
+            return `<div class="highlight-sticky-item"><span>🔥</span><span>${t.name}${streak > 1 ? ` — ${streak} day streak!` : ''}</span></div>`;
+          }).join('')}
         </div>
       `;
     }
