@@ -806,6 +806,20 @@
   </div>
 </div>
 
+<!-- day rollover prompt -->
+<div class="modal hidden" id="rollover-modal">
+  <div class="modal-card">
+    <h3 id="rollover-title">☀️ How did yesterday go?</h3>
+    <p id="rollover-sub" style="color:var(--muted); font-size:0.85rem; margin-top:-8px;"></p>
+    <div style="display:flex; flex-direction:column; gap:10px; margin-top:6px;">
+      <button id="rollover-highlights-btn" class="add-btn" style="width:100%; padding:14px; border-radius:10px; border:none; font-size:1rem; font-weight:600; cursor:pointer;">✨ See Highlights</button>
+      <button id="rollover-list-btn" style="width:100%; padding:14px; border-radius:10px; border:none; font-size:1rem; font-weight:600; cursor:pointer; background:#2a2e37; color:var(--text);">📋 See List</button>
+      <button id="rollover-clear-btn" style="width:100%; padding:12px; border-radius:10px; border:1px solid var(--accent); font-size:0.95rem; font-weight:600; cursor:pointer; background:none; color:var(--accent);">Clear day &amp; reset daily tasks</button>
+    </div>
+    <button id="rollover-later-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Not now</button>
+  </div>
+</div>
+
 <!-- highlights (Spotify-Wrapped-style end of day recap) -->
 <div class="modal hidden" id="highlights-modal">
   <div class="modal-card" style="max-height:85vh; overflow-y:auto;">
@@ -1601,10 +1615,11 @@ function restoreSession(){
 
 /* resync immediately when the tab/app comes back to the foreground, rather than waiting for the next tick */
 document.addEventListener('visibilitychange', () => {
-  if(document.visibilityState === 'visible' && timerState === 'running') tick();
+  if(document.visibilityState === 'visible'){ if(timerState === 'running') tick(); checkDayRollover(); }
 });
 window.addEventListener('pageshow', () => {
   if(timerState === 'running') tick();
+  checkDayRollover();
 });
 
 const MOTIVATION_MESSAGES = {
@@ -2592,12 +2607,41 @@ document.getElementById('report-export-btn').onclick = () => {
   document.getElementById('export-textarea').value = lines.join('\n');
   document.getElementById('export-modal').classList.remove('hidden');
 };
-function clearDay(){
-  if(!confirm('Clear all completed tasks for today? Recurring ones will come back fresh instead of being removed.')) return false;
+
+/* ---- day rollover: prompt to close out the previous day's log ---- */
+let openDay = localStorage.getItem('powerHourOpenDay') || todayStr();
+let rolloverDismissedFor = null;
+if(!localStorage.getItem('powerHourOpenDay')) localStorage.setItem('powerHourOpenDay', openDay);
+function setOpenDay(d){ openDay = d; try{ localStorage.setItem('powerHourOpenDay', d); }catch(e){} }
+function checkDayRollover(){
+  const today = todayStr();
+  if(openDay >= today) return;
+  if(timerState === 'running' || timerState === 'paused') return;
+  const unclosed = getAllCompleted().length > 0 || actualSteps > 0;
+  if(!unclosed){ setOpenDay(today); return; }
+  if(rolloverDismissedFor === today) return;
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const yStr = y.getFullYear() + '-' + String(y.getMonth()+1).padStart(2,'0') + '-' + String(y.getDate()).padStart(2,'0');
+  const label = openDay === yStr ? 'yesterday' : 'on ' + openDay;
+  const n = getAllCompleted().length;
+  document.getElementById('rollover-title').textContent = openDay === yStr ? '☀️ How did yesterday go?' : '☀️ A new day — how did ' + openDay + ' go?';
+  document.getElementById('rollover-sub').textContent = 'You finished ' + n + ' task' + (n === 1 ? '' : 's') + ' ' + label + ' that haven\'t been closed out. Review it, then clear the day to reset your daily tasks.';
+  document.getElementById('rollover-modal').classList.remove('hidden');
+}
+function hideRollover(){ document.getElementById('rollover-modal').classList.add('hidden'); }
+document.getElementById('rollover-highlights-btn').onclick = () => { hideRollover(); openHighlights(); };
+document.getElementById('rollover-list-btn').onclick = () => { hideRollover(); openReportModal(); };
+document.getElementById('rollover-clear-btn').onclick = () => { hideRollover(); clearDay(true); };
+document.getElementById('rollover-later-btn').onclick = () => { rolloverDismissedFor = todayStr(); hideRollover(); };
+
+function clearDay(skipConfirm){
+  const logDate = openDay && openDay < todayStr() ? openDay : todayStr();
+  const isPast = logDate !== todayStr();
+  if(skipConfirm !== true && !confirm(isPast ? 'Close out ' + logDate + '? Completed tasks are logged under that date, and recurring ones come back fresh.' : 'Clear all completed tasks for today? Recurring ones will come back fresh instead of being removed.')) return false;
 
   const completedToday = getAllCompleted();
   dayLog.push({
-    date: todayStr(),
+    date: logDate,
     completedCount: completedToday.length,
     totalMins: completedToday.reduce((s, t) => s + t.mins, 0),
     actualSteps,
@@ -2614,6 +2658,7 @@ function clearDay(){
   actualSteps = 0;
   localStorage.setItem('powerHourActualSteps', '0');
   actualStepsInput.value = 0;
+  setOpenDay(todayStr());
   save(); render();
   return true;
 }
@@ -3018,6 +3063,7 @@ function buildSegmented(container, options, selected, onSelect){
 
 restoreSession();
 render();
+checkDayRollover();
 </script>
 
 </body>
