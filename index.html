@@ -3204,17 +3204,21 @@ function buildSegmented(container, options, selected, onSelect){
     const o = {}; keys().forEach(k => o[k] = localStorage.getItem(k));
     const code = 'POWERHOUR1:' + btoa(unescape(encodeURIComponent(JSON.stringify(o))));
     ta.value = code;
-    try{ await navigator.clipboard.writeText(code); { const nt = JSON.parse(o.powerHourTasks || '[]').length, nl = JSON.parse(o.powerHourDayLog || '[]').length; msg('Copied: ' + nt + ' tasks, ' + nl + ' logged days, plus settings. Paste it into the other app\u2019s Backup code screen.'); } }
+    try{ await navigator.clipboard.writeText(code); { const nt = JSON.parse(o.powerHourTasks || '[]').length, nl = JSON.parse(o.powerHourDayLog || '[]').length; msg('Copied: ' + nt + ' tasks, ' + nl + ' logged days, plus settings (' + code.length + ' characters). Paste it into the other app\u2019s Backup code screen.'); } }
     catch(e){ ta.focus(); ta.select(); try{ document.execCommand('copy'); msg('Copied. Paste it into the other app\u2019s Backup code screen.'); }catch(e2){ msg('Select all the text in the box and copy it manually.'); } }
   };
   document.getElementById('backup-restore-btn').onclick = () => {
     let o;
+    const raw = ta.value;
+    const at = raw.indexOf('POWERHOUR1:');
+    if(at === -1){ msg('No backup code found in the box (' + raw.length + ' characters pasted). It should start with POWERHOUR1: \u2014 copy again from the other app.'); return; }
+    const body = (raw.slice(at + 11).match(/^[A-Za-z0-9+\/=_-]+/) || [''])[0].replace(/-/g, '+').replace(/_/g, '/');
     try{
-      const raw = ta.value.trim();
-      if(!raw.startsWith('POWERHOUR1:')) throw new Error('not a backup code');
-      o = JSON.parse(decodeURIComponent(escape(atob(raw.slice(11).replace(/\s/g, '')))));
-      if(!o || typeof o !== 'object' || !o.powerHourTasks) throw new Error('empty');
-    }catch(e){ msg('That doesn\u2019t look like a complete backup code \u2014 copy it again from the other app.'); return; }
+      o = JSON.parse(decodeURIComponent(escape(atob(body))));
+    }catch(e){
+      msg('The code looks cut off or changed (' + body.length + ' characters received; the other app shows how many it copied). Copy it again and paste straight in. (' + (e.message || e) + ')'); return;
+    }
+    if(!o || typeof o !== 'object' || !o.powerHourTasks){ msg('The code was read but has no tasks in it \u2014 check you copied it from the app that has your tasks.'); return; }
     const n = (JSON.parse(o.powerHourTasks) || []).length;
     if(!confirm('Replace everything in this app with the backup (' + n + ' tasks)? A copy of what\u2019s here now is kept first.')) return;
     const cur = {}; keys().forEach(k => cur[k] = localStorage.getItem(k));
