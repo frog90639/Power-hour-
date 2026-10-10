@@ -558,6 +558,14 @@
       <button type="button" id="edit-date-clear-btn" class="board-chip-btn" title="Clear — do it today/whenever">✕</button>
     </div>
     <div class="modal-row budget-row">
+      <span style="color:var(--muted); font-size:0.85rem;">🔗 Do after</span>
+      <select id="edit-after-select" style="margin-left:auto; max-width:60%;"></select>
+    </div>
+    <div class="modal-row budget-row">
+      <span style="color:var(--muted); font-size:0.85rem;">🔗 Do before</span>
+      <select id="edit-before-select" style="margin-left:auto; max-width:60%;"></select>
+    </div>
+    <div class="modal-row budget-row">
       <span style="color:var(--muted); font-size:0.85rem;">⏳ Age (days)</span>
       <input type="number" id="edit-age-input" min="0" step="1" style="margin-left:auto; width:80px;">
     </div>
@@ -614,7 +622,27 @@
     <button id="settings-daylog-btn" class="settings-item">📅 Day log</button>
     <button id="settings-bulk-add-btn" class="settings-item">＋ Bulk add (paste a list)</button>
     <button id="settings-export-btn" class="settings-item">⇧ Export tasks</button>
+    <button id="settings-sync-btn" class="settings-item">☁️ Cloud backup <span id="sync-badge" style="float:right; color:var(--muted); font-size:0.8rem;"></span></button>
     <button id="settings-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
+<!-- cloud backup -->
+<div class="modal hidden" id="sync-modal" style="z-index:650;">
+  <div class="modal-card">
+    <h3>☁️ Cloud backup</h3>
+    <p id="sync-status" style="color:var(--muted); font-size:0.88rem; margin-top:-6px;"></p>
+    <div id="sync-choice" class="hidden" style="display:none; flex-direction:column; gap:10px; margin:8px 0;">
+      <button id="sync-merge-btn" class="add-btn" style="width:100%; padding:13px; border-radius:10px; border:none; font-weight:600; cursor:pointer;">Combine both (recommended)</button>
+      <button id="sync-keep-local-btn" style="width:100%; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer; background:#2a2e37; color:var(--text);">Keep this device only</button>
+      <button id="sync-use-cloud-btn" style="width:100%; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer; background:#2a2e37; color:var(--text);">Use cloud copy only</button>
+    </div>
+    <div id="sync-actions" style="display:flex; flex-direction:column; gap:10px; margin-top:6px;">
+      <button id="sync-signin-btn" class="add-btn" style="width:100%; padding:13px; border-radius:10px; border:none; font-weight:600; cursor:pointer;">Sign in with Google</button>
+      <button id="sync-now-btn" style="display:none; width:100%; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer; background:#2a2e37; color:var(--text);">Sync now</button>
+      <button id="sync-signout-btn" style="display:none; width:100%; padding:12px; border-radius:10px; border:1px solid var(--hairline); background:none; color:var(--text); cursor:pointer;">Sign out</button>
+    </div>
+    <button id="sync-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
   </div>
 </div>
 
@@ -1360,11 +1388,30 @@ function deleteTaskById(id){
 
 /* ---------- edit modal ---------- */
 const editModal = document.getElementById('edit-modal');
+/* ---------- ordering rules: "A must come after B" (stored on A as afterId = B.id) ---------- */
+function getPrereq(t){ return t && t.afterId ? tasks.find(x => x.id === t.afterId) || null : null; }
+function wouldCycle(taskId, prereqId){
+  let cur = tasks.find(x => x.id === prereqId), guard = 0;
+  while(cur && guard++ < 100){ if(cur.id === taskId) return true; cur = cur.afterId ? tasks.find(x => x.id === cur.afterId) : null; }
+  return false;
+}
+let editBeforeOriginalId = null;
+function fillDepSelects(t){
+  const others = tasks.filter(x => !x.done && x.id !== t.id);
+  const opts = sel => '<option value="">— none —</option>' + others.map(x => `<option value="${x.id}">${x.name.replace(/</g, '&lt;')}</option>`).join('');
+  const a = document.getElementById('edit-after-select'), b = document.getElementById('edit-before-select');
+  a.innerHTML = opts(); b.innerHTML = opts();
+  a.value = (t.afterId && others.some(x => x.id === t.afterId)) ? t.afterId : '';
+  const dependent = tasks.find(x => !x.done && x.afterId === t.id);
+  editBeforeOriginalId = dependent ? dependent.id : null;
+  b.value = dependent ? dependent.id : '';
+}
 function openEditModal(id){
   const t = tasks.find(t => t.id === id);
   if(!t) return;
   editTaskId = id;
   document.getElementById('edit-name-input').value = t.name;
+  fillDepSelects(t);
   editMins = t.mins;
   editPriority = t.priority;
   editTag = t.tag || null;
@@ -1439,6 +1486,17 @@ document.getElementById('edit-save-btn').onclick = () => {
     t.notBeforeTime = document.getElementById('edit-not-before-input').value || null;
     t.scheduleArrived = false;
     t.timeConstraint = editTimeLimit === 'specific' ? (document.getElementById('edit-time-specific-input').value || null) : editTimeLimit;
+    const afterVal = document.getElementById('edit-after-select').value || null;
+    t.afterId = (afterVal && !wouldCycle(t.id, afterVal)) ? afterVal : null;
+    const beforeVal = document.getElementById('edit-before-select').value || null;
+    if(editBeforeOriginalId && editBeforeOriginalId !== beforeVal){
+      const old = tasks.find(x => x.id === editBeforeOriginalId);
+      if(old && old.afterId === t.id) old.afterId = null;
+    }
+    if(beforeVal && !wouldCycle(beforeVal, t.id)){
+      const o = tasks.find(x => x.id === beforeVal);
+      if(o) o.afterId = t.id;
+    }
     t.autoWalk = false; // a manual edit means the user now owns this task, not the auto-pace system
     const ageDays = Math.max(0, parseInt(document.getElementById('edit-age-input').value) || 0);
     const now = new Date();
@@ -1479,11 +1537,21 @@ function formatTime(s){
   const sec = (s%60).toString().padStart(2,'0');
   return `${m}:${sec}`;
 }
+/* A task is held back while the task it must come after is still pending in this session
+   (or was skipped this session). Prerequisites outside the session don't block anything. */
+function isHeldBack(t){
+  const pre = getPrereq(t);
+  if(!pre || pre.done) return false;
+  if(sessionSkipped.some(s => s.id === pre.id)) return true;
+  return !sessionTaskIds || sessionTaskIds.includes(pre.id);
+}
 function findNextIndex(from){
-  for(let i = from; i < tasks.length; i++){
-    if(tasks[i].done) continue;
-    if(sessionTaskIds && !sessionTaskIds.includes(tasks[i].id)) continue;
-    return i;
+  const ok = i => !tasks[i].done && (!sessionTaskIds || sessionTaskIds.includes(tasks[i].id)) && !isHeldBack(tasks[i]);
+  for(let i = from; i < tasks.length; i++) if(ok(i)) return i;
+  // a prerequisite can sit later in the list than the task waiting on it, so look back for anything now unblocked
+  for(let i = 0; i < Math.min(from, tasks.length); i++){
+    if(i === currentIndex || sessionSkipped.some(s => s.id === tasks[i].id)) continue;
+    if(ok(i)) return i;
   }
   return -1;
 }
@@ -1496,6 +1564,11 @@ function sessionPosition(){
 
 function beginRun(){
   if(tasks.length === 0) return;
+  if(timerState === 'idle' && sessionTaskIds){
+    // anything that was available but left out of this session gets a small standing boost next time
+    tasks.forEach(t => { if(!t.done && !isScheduledForFuture(t) && !sessionTaskIds.includes(t.id)) t.passedOver = (t.passedOver || 0) + 1; });
+    save();
+  }
   if(timerState === 'idle'){
     sessionCompleted = [];
     sessionSkipped = [];
@@ -2042,7 +2115,19 @@ function getWithinTierWeight(t){
   if(t.mustDo) weight += 5;
   if(t.escalated) weight += 3;
   if(t.timeConstraint) weight += isPastTimeConstraint(t) ? 6 : 2;
+  weight += Math.min(t.passedOver || 0, 10) * 0.3; // keeps getting left out of sessions -> climbs within its tier
   return weight;
+}
+
+/* Small tie-breakers so equal peers rotate instead of the oldest-added always winning:
+   recurring tasks done longest ago go first, plus a per-day shuffle. Kept below the
+   value of a single extra minute-of-fill so it never stops the timer being filled. */
+function getFairnessNudge(t){
+  let h = 0; const key = String(t.id) + todayStr();
+  for(let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  let n = (h % 100) / 100 * 0.0008;
+  if(t.recurring) n += Math.min(t.lastDoneAt ? daysSince(t.lastDoneAt) : 7, 7) * 0.0001;
+  return n;
 }
 
 /* A simple 0/1 knapsack maximizing (weight, then time-fill) within one priority tier's tasks. */
@@ -2050,7 +2135,7 @@ function knapsackWithinTier(tierTasks, budget){
   const n = tierTasks.length;
   const selected = new Set();
   if(n === 0 || budget <= 0) return selected;
-  const values = tierTasks.map(t => getWithinTierWeight(t) + t.mins * 0.001);
+  const values = tierTasks.map(t => getWithinTierWeight(t) + t.mins * 0.001 + getFairnessNudge(t));
   const dp = [new Array(budget + 1).fill(0)];
   for(let i = 1; i <= n; i++){
     const mins = tierTasks[i - 1].mins;
@@ -2087,7 +2172,30 @@ function pickTasksForBudget(pending, budget){
     if(tierSelected.size === 0) continue;
     let usedMins = 0;
     tierTasks.forEach(t => { if(tierSelected.has(t.id)){ selected.add(t.id); usedMins += t.mins; } });
+    // ordering rules, resolved before lower tiers can claim the time: pull in what this task must come after, or drop it
+    tierTasks.forEach(t => {
+      if(!selected.has(t.id)) return;
+      const pre = getPrereq(t);
+      if(!pre || pre.done || selected.has(pre.id)) return;
+      if(pending.some(x => x.id === pre.id) && usedMins + pre.mins <= remaining){ selected.add(pre.id); usedMins += pre.mins; }
+      else { selected.delete(t.id); usedMins -= t.mins; }
+    });
     remaining -= usedMins;
+  }
+  // ordering rules: a task that must come after another is only picked if that one is done,
+  // or is pulled into the same session (when it fits); otherwise the dependent is dropped
+  let used = 0; pending.forEach(t => { if(selected.has(t.id)) used += t.mins; });
+  let changed = true, guard = 0;
+  while(changed && guard++ < 50){
+    changed = false;
+    for(const t of pending){
+      if(!selected.has(t.id)) continue;
+      const pre = getPrereq(t);
+      if(!pre || pre.done || selected.has(pre.id)) continue;
+      if(pending.some(x => x.id === pre.id) && used + pre.mins <= budget){ selected.add(pre.id); used += pre.mins; }
+      else { selected.delete(t.id); used -= t.mins; }
+      changed = true;
+    }
   }
   return selected;
 }
@@ -2189,7 +2297,7 @@ document.getElementById('done-export-btn').onclick = () => {
    anything less frequent gets scheduled forward and stays off the board until due. */
 function resetRecurringTask(t){
   const interval = t.recurEveryDays || 1;
-  const reset = { ...t, done: false, createdAt: Date.now(), staleSince: Date.now(), escalated: false, mustDo: false };
+  const reset = { ...t, done: false, createdAt: Date.now(), staleSince: Date.now(), escalated: false, mustDo: false, passedOver: 0, lastDoneAt: Date.now() };
   if(interval > 1){
     const d = new Date();
     d.setDate(d.getDate() + interval);
@@ -2703,6 +2811,7 @@ function buildTaskRow(t){
         <span class="task-name">${t.name}</span>
       </div>
       <div class="task-row-line2">
+        ${getPrereq(t) && !getPrereq(t).done ? `<span class="tag-badge" title="Held until the task it comes after is done">🔗 after ${getPrereq(t).name.replace(/</g, '&lt;').slice(0, 18)}</span>` : ''}
         ${t.autoWalk ? '<span class="tag-badge" title="Added automatically to help hit your step goal">🤖 auto</span>' : ''}
         ${t.steps > 0 ? `<span class="tag-badge" title="${t.steps.toLocaleString()} steps">👣 ${t.steps.toLocaleString()}</span>` : ''}
         ${t.escalated ? '<span class="tag-badge" title="Bumped up — this sat pending for 2+ weeks">⏫</span>' : ''}
@@ -3064,6 +3173,152 @@ function buildSegmented(container, options, selected, onSelect){
 restoreSession();
 render();
 checkDayRollover();
+</script>
+
+<script type="module">
+/* ===== Cloud backup (Google sign-in + Firestore). Paste your Firebase web config below. ===== */
+const FIREBASE_CONFIG = {
+  apiKey: "PASTE_API_KEY",
+  authDomain: "power-hour-4471f.firebaseapp.com",
+  projectId: "power-hour-4471f",
+  appId: "PASTE_APP_ID"
+};
+const $ = id => document.getElementById(id);
+const configured = !FIREBASE_CONFIG.apiKey.startsWith('PASTE');
+const V = '10.14.1';
+const isSyncKey = k => typeof k === 'string' && k.startsWith('powerHour') && !['powerHourSession','powerHourSyncAt','powerHourBackupBeforeSync'].includes(k);
+const snapshotLocal = () => { const o = {}; for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(isSyncKey(k)) o[k] = localStorage.getItem(k); } return o; };
+const parse = (v, d) => { try{ return JSON.parse(v); }catch(e){ return d; } };
+const hasLocalData = () => { const o = snapshotLocal(); return parse(o.powerHourTasks, []).length > 0 || parse(o.powerHourDayLog, []).length > 0; };
+function show(msg){ $('sync-status').textContent = msg; }
+function badge(t){ $('sync-badge').textContent = t; }
+$('settings-sync-btn').onclick = () => { $('settings-modal').classList.add('hidden'); $('sync-modal').classList.remove('hidden'); };
+$('sync-close-btn').onclick = () => $('sync-modal').classList.add('hidden');
+
+if(!configured){
+  show('Cloud backup isn’t set up yet — the Firebase config needs adding to the app.');
+  $('sync-signin-btn').style.display = 'none';
+} else try {
+  const [{initializeApp}, A, F] = await Promise.all([
+    import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`),
+    import(`https://www.gstatic.com/firebasejs/${V}/firebase-auth.js`),
+    import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`)
+  ]);
+  const app = initializeApp(FIREBASE_CONFIG);
+  const auth = A.getAuth(app);
+  const db = F.getFirestore(app);
+  let user = null, ready = false, applying = false, timer = null, busy = false;
+  const ref = () => F.doc(db, 'users', user.uid);
+
+  /* push on any change to synced keys */
+  const origSet = Storage.prototype.setItem;
+  Storage.prototype.setItem = function(k, v){
+    origSet.call(this, k, v);
+    if(this === localStorage && isSyncKey(k) && !applying && ready) schedulePush();
+  };
+  function schedulePush(){ clearTimeout(timer); timer = setTimeout(push, 1500); }
+
+  async function push(){
+    if(!user || !ready) return;
+    try{
+      const at = Date.now();
+      await F.setDoc(ref(), { data: JSON.stringify(snapshotLocal()), updatedAt: at });
+      origSet.call(localStorage, 'powerHourSyncAt', String(at));
+      badge('✓ synced'); show('Signed in as ' + user.email + '. Backed up just now.');
+    }catch(e){ badge('⚠ offline'); show('Couldn’t reach the cloud — will retry on the next change. (' + (e.code || e.message) + ')'); }
+  }
+
+  function applyCloud(dataObj, at){
+    applying = true;
+    try{
+      origSet.call(localStorage, 'powerHourBackupBeforeSync', JSON.stringify(snapshotLocal()));
+      for(const k of Object.keys(snapshotLocal())) localStorage.removeItem(k);
+      for(const [k, v] of Object.entries(dataObj)) if(isSyncKey(k)) origSet.call(localStorage, k, v);
+      origSet.call(localStorage, 'powerHourSyncAt', String(at));
+    } finally { applying = false; }
+    location.reload();
+  }
+
+  function merge(local, cloud){
+    const out = { ...cloud, ...local }; // local wins for settings, step counts etc.
+    const lt = parse(local.powerHourTasks, []), ct = parse(cloud.powerHourTasks, []);
+    const ids = new Set(lt.map(t => t.id));
+    out.powerHourTasks = JSON.stringify([...lt, ...ct.filter(t => !ids.has(t.id))]);
+    const ll = parse(local.powerHourDayLog, []), cl = parse(cloud.powerHourDayLog, []);
+    const sig = e => e.date + '|' + e.completedCount + '|' + e.totalMins;
+    const seen = new Set(ll.map(sig));
+    out.powerHourDayLog = JSON.stringify([...ll, ...cl.filter(e => !seen.has(sig(e)))].sort((a, b) => a.date < b.date ? -1 : 1).slice(-90));
+    const ld = parse(local.powerHourDeletedCompleted, []), cd = parse(cloud.powerHourDeletedCompleted, []);
+    const did = new Set(ld.map(t => t.id));
+    out.powerHourDeletedCompleted = JSON.stringify([...ld, ...cd.filter(t => !did.has(t.id))]);
+    return out;
+  }
+
+  function askChoice(cloudData, cloudAt){
+    return new Promise(resolve => {
+      const nl = parse(snapshotLocal().powerHourTasks, []).length, nc = parse(cloudData.powerHourTasks, []).length;
+      show('This device has ' + nl + ' task' + (nl === 1 ? '' : 's') + ' and your cloud backup has ' + nc + '. How should they be combined? Nothing is deleted — a copy of this device’s data is kept either way.');
+      $('sync-choice').style.display = 'flex'; $('sync-actions').style.display = 'none';
+      $('sync-modal').classList.remove('hidden');
+      const done = fn => { $('sync-choice').style.display = 'none'; $('sync-actions').style.display = 'flex'; fn(); resolve(); };
+      $('sync-merge-btn').onclick = () => done(() => applyCloud(merge(snapshotLocal(), cloudData), cloudAt));
+      $('sync-keep-local-btn').onclick = () => done(async () => { ready = true; await push(); });
+      $('sync-use-cloud-btn').onclick = () => done(() => applyCloud(cloudData, cloudAt));
+    });
+  }
+
+  async function reconcile(){
+    if(!user || busy) return;
+    if(typeof timerState !== 'undefined' && timerState === 'running') return; // don't swap data mid-session
+    busy = true;
+    try{
+      badge('syncing…');
+      const snap = await F.getDoc(ref());
+      const syncAt = parseInt(localStorage.getItem('powerHourSyncAt') || '0') || 0;
+      if(!snap.exists()){
+        ready = true; await push(); // first sign-in: everything on this device goes up
+        show('Signed in as ' + user.email + '. Everything on this device has been backed up.');
+      } else {
+        const { data, updatedAt } = snap.data();
+        const cloudData = parse(data, {});
+        if(!syncAt){
+          if(hasLocalData()) await askChoice(cloudData, updatedAt);
+          else applyCloud(cloudData, updatedAt);
+        } else if(updatedAt > syncAt){
+          applyCloud(cloudData, updatedAt);
+        } else {
+          ready = true; await push();
+        }
+      }
+      ready = true;
+    }catch(e){ badge('⚠'); show('Sync problem: ' + (e.code || e.message)); }
+    finally { busy = false; }
+  }
+
+  A.onAuthStateChanged(auth, u => {
+    user = u;
+    $('sync-signin-btn').style.display = u ? 'none' : '';
+    $('sync-now-btn').style.display = u ? '' : 'none';
+    $('sync-signout-btn').style.display = u ? '' : 'none';
+    if(u){ show('Signed in as ' + u.email + '.'); reconcile(); }
+    else { ready = false; badge('off'); show('Sign in with Google to back up your tasks and keep them in sync across devices. Your existing tasks come with you.'); }
+  });
+  $('sync-signin-btn').onclick = async () => {
+    const prov = new A.GoogleAuthProvider();
+    try{ await A.signInWithPopup(auth, prov); }
+    catch(e){
+      if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment','auth/web-storage-unsupported'].includes(e.code)) A.signInWithRedirect(auth, prov);
+      else if(e.code !== 'auth/popup-closed-by-user') show('Sign-in failed: ' + (e.code || e.message));
+    }
+  };
+  $('sync-signout-btn').onclick = () => A.signOut(auth);
+  $('sync-now-btn').onclick = async () => { ready = true; await push(); };
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && user) reconcile(); });
+  A.getRedirectResult(auth).catch(() => {});
+} catch(e){
+  show('Cloud backup couldn’t load (are you offline?). The app still works normally.');
+  $('sync-signin-btn').style.display = 'none';
+}
 </script>
 
 </body>
