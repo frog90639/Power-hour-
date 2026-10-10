@@ -633,7 +633,7 @@
   <div class="modal-card">
     <h3>💾 Backup code</h3>
     <p style="color:var(--muted); font-size:0.85rem; margin-top:-6px;">Everything — tasks, ages, recurring settings, day log, habits and settings — as one block of text. Copy it here, paste it into the same screen in another copy of the app, and tap Restore.</p>
-    <textarea id="backup-textarea" rows="5" style="width:100%; font-size:0.75rem;" placeholder="Paste a backup code here to restore"></textarea>
+    <textarea id="backup-textarea" autocapitalize="off" autocorrect="off" spellcheck="false" rows="5" style="width:100%; font-size:0.75rem;" placeholder="Paste a backup code here to restore"></textarea>
     <div style="display:flex; gap:10px; margin-top:10px;">
       <button id="backup-copy-btn" class="add-btn" style="flex:1; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer;">Copy this device's code</button>
       <button id="backup-restore-btn" style="flex:1; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer; background:#2a2e37; color:var(--text);">Restore from pasted code</button>
@@ -3210,7 +3210,7 @@ function buildSegmented(container, options, selected, onSelect){
   document.getElementById('backup-restore-btn').onclick = () => {
     let o;
     const raw = ta.value;
-    const at = raw.indexOf('POWERHOUR1:');
+    const at = raw.toLowerCase().indexOf('powerhour1:');
     if(at === -1){ msg('No backup code found in the box (' + raw.length + ' characters pasted). It should start with POWERHOUR1: \u2014 copy again from the other app.'); return; }
     const body = (raw.slice(at + 11).match(/^[A-Za-z0-9+\/=_-]+/) || [''])[0].replace(/-/g, '+').replace(/_/g, '/');
     try{
