@@ -631,6 +631,7 @@
 <div class="modal hidden" id="sync-modal" style="z-index:650;">
   <div class="modal-card">
     <h3>☁️ Cloud backup</h3>
+    <div style="color:var(--muted); font-size:0.7rem; margin-top:-8px;">build 10-Oct-c</div>
     <p id="sync-status" style="color:var(--muted); font-size:0.88rem; margin-top:-6px;"></p>
     <div id="sync-choice" class="hidden" style="display:none; flex-direction:column; gap:10px; margin:8px 0;">
       <button id="sync-merge-btn" class="add-btn" style="width:100%; padding:13px; border-radius:10px; border:none; font-weight:600; cursor:pointer;">Combine both (recommended)</button>
@@ -3186,6 +3187,8 @@ const FIREBASE_CONFIG = {
 };
 const $ = id => document.getElementById(id);
 const configured = !FIREBASE_CONFIG.apiKey.startsWith('PASTE');
+show0('Starting\u2026');
+function show0(m){ const e = document.getElementById('sync-status'); if(e) e.textContent = m; }
 const V = '10.14.1';
 const isSyncKey = k => typeof k === 'string' && k.startsWith('powerHour') && !['powerHourSession','powerHourSyncAt','powerHourBackupBeforeSync'].includes(k);
 const snapshotLocal = () => { const o = {}; for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(isSyncKey(k)) o[k] = localStorage.getItem(k); } return o; };
