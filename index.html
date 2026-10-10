@@ -622,8 +622,24 @@
     <button id="settings-daylog-btn" class="settings-item">📅 Day log</button>
     <button id="settings-bulk-add-btn" class="settings-item">＋ Bulk add (paste a list)</button>
     <button id="settings-export-btn" class="settings-item">⇧ Export tasks</button>
+    <button id="settings-backup-btn" class="settings-item">💾 Backup code (copy / restore)</button>
     <button id="settings-sync-btn" class="settings-item">☁️ Cloud backup <span id="sync-badge" style="float:right; color:var(--muted); font-size:0.8rem;"></span></button>
     <button id="settings-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
+<!-- backup code -->
+<div class="modal hidden" id="backup-modal" style="z-index:650;">
+  <div class="modal-card">
+    <h3>💾 Backup code</h3>
+    <p style="color:var(--muted); font-size:0.85rem; margin-top:-6px;">Everything — tasks, ages, recurring settings, day log, habits and settings — as one block of text. Copy it here, paste it into the same screen in another copy of the app, and tap Restore.</p>
+    <textarea id="backup-textarea" rows="5" style="width:100%; font-size:0.75rem;" placeholder="Paste a backup code here to restore"></textarea>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <button id="backup-copy-btn" class="add-btn" style="flex:1; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer;">Copy this device's code</button>
+      <button id="backup-restore-btn" style="flex:1; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer; background:#2a2e37; color:var(--text);">Restore from pasted code</button>
+    </div>
+    <p id="backup-msg" style="color:var(--muted); font-size:0.82rem; min-height:1.2em;"></p>
+    <button id="backup-close-btn" style="width:100%; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
   </div>
 </div>
 
@@ -3171,6 +3187,43 @@ function buildSegmented(container, options, selected, onSelect){
     container.appendChild(btn);
   });
 }
+
+/* ---------- backup code: whole-app copy/restore as text ---------- */
+(function(){
+  const skip = ['powerHourSession','powerHourSyncAt','powerHourBackupBeforeSync'];
+  const keys = () => { const k = []; for(let i = 0; i < localStorage.length; i++){ const n = localStorage.key(i); if(n.startsWith('powerHour') && !skip.includes(n)) k.push(n); } return k; };
+  const msg = t => document.getElementById('backup-msg').textContent = t;
+  const ta = document.getElementById('backup-textarea');
+  document.getElementById('settings-backup-btn').onclick = () => {
+    document.getElementById('settings-modal').classList.add('hidden');
+    ta.value = ''; msg('');
+    document.getElementById('backup-modal').classList.remove('hidden');
+  };
+  document.getElementById('backup-close-btn').onclick = () => document.getElementById('backup-modal').classList.add('hidden');
+  document.getElementById('backup-copy-btn').onclick = async () => {
+    const o = {}; keys().forEach(k => o[k] = localStorage.getItem(k));
+    const code = 'POWERHOUR1:' + btoa(unescape(encodeURIComponent(JSON.stringify(o))));
+    ta.value = code;
+    try{ await navigator.clipboard.writeText(code); msg('Copied (' + Object.keys(o).length + ' items). Paste it into the other app\u2019s Backup code screen.'); }
+    catch(e){ ta.focus(); ta.select(); try{ document.execCommand('copy'); msg('Copied. Paste it into the other app\u2019s Backup code screen.'); }catch(e2){ msg('Select all the text in the box and copy it manually.'); } }
+  };
+  document.getElementById('backup-restore-btn').onclick = () => {
+    let o;
+    try{
+      const raw = ta.value.trim();
+      if(!raw.startsWith('POWERHOUR1:')) throw new Error('not a backup code');
+      o = JSON.parse(decodeURIComponent(escape(atob(raw.slice(11).replace(/\s/g, '')))));
+      if(!o || typeof o !== 'object' || !o.powerHourTasks) throw new Error('empty');
+    }catch(e){ msg('That doesn\u2019t look like a complete backup code \u2014 copy it again from the other app.'); return; }
+    const n = (JSON.parse(o.powerHourTasks) || []).length;
+    if(!confirm('Replace everything in this app with the backup (' + n + ' tasks)? A copy of what\u2019s here now is kept first.')) return;
+    const cur = {}; keys().forEach(k => cur[k] = localStorage.getItem(k));
+    localStorage.setItem('powerHourBackupBeforeRestore', JSON.stringify(cur));
+    keys().forEach(k => localStorage.removeItem(k));
+    Object.entries(o).forEach(([k, v]) => { if(k.startsWith('powerHour') && !skip.includes(k)) localStorage.setItem(k, v); });
+    location.reload();
+  };
+})();
 
 restoreSession();
 render();
