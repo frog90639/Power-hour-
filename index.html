@@ -639,6 +639,7 @@
     </div>
     <div id="sync-actions" style="display:flex; flex-direction:column; gap:10px; margin-top:6px;">
       <button id="sync-signin-btn" class="add-btn" style="width:100%; padding:13px; border-radius:10px; border:none; font-weight:600; cursor:pointer;">Sign in with Google</button>
+      <button id="sync-redirect-btn" style="display:none; width:100%; padding:12px; border-radius:10px; border:1px solid var(--hairline); background:none; color:var(--text); cursor:pointer;">Full-page sign-in</button>
       <button id="sync-now-btn" style="display:none; width:100%; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer; background:#2a2e37; color:var(--text);">Sync now</button>
       <button id="sync-signout-btn" style="display:none; width:100%; padding:12px; border-radius:10px; border:1px solid var(--hairline); background:none; color:var(--text); cursor:pointer;">Sign out</button>
     </div>
@@ -3298,6 +3299,7 @@ if(!configured){
   A.onAuthStateChanged(auth, u => {
     user = u;
     $('sync-signin-btn').style.display = u ? 'none' : '';
+    if(u) $('sync-redirect-btn').style.display = 'none';
     $('sync-now-btn').style.display = u ? '' : 'none';
     $('sync-signout-btn').style.display = u ? '' : 'none';
     if(u){ show('Signed in as ' + u.email + '.'); reconcile(); }
@@ -3305,16 +3307,26 @@ if(!configured){
   });
   $('sync-signin-btn').onclick = async () => {
     const prov = new A.GoogleAuthProvider();
+    prov.setCustomParameters({ prompt: 'select_account' });
+    show('Opening Google sign-in\u2026');
     try{ await A.signInWithPopup(auth, prov); }
     catch(e){
-      if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment','auth/web-storage-unsupported'].includes(e.code)) A.signInWithRedirect(auth, prov);
-      else if(e.code !== 'auth/popup-closed-by-user') show('Sign-in failed: ' + (e.code || e.message));
+      const c = e.code || e.message;
+      if(c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request')
+        show('The Google window closed before sign-in finished (' + c + '). Try again, or use \u201cFull-page sign-in\u201d below.');
+      else if(c === 'auth/unauthorized-domain')
+        show('Sign-in blocked: add this site\u2019s domain (' + location.hostname + ') under Firebase \u2192 Authentication \u2192 Settings \u2192 Authorized domains.');
+      else if(c === 'auth/operation-not-allowed')
+        show('Google sign-in isn\u2019t enabled yet: Firebase \u2192 Authentication \u2192 Sign-in method \u2192 Google.');
+      else show('Sign-in failed: ' + c);
+      $('sync-redirect-btn').style.display = '';
     }
   };
+  $('sync-redirect-btn').onclick = () => { show('Redirecting to Google\u2026'); A.signInWithRedirect(auth, new A.GoogleAuthProvider()); };
   $('sync-signout-btn').onclick = () => A.signOut(auth);
   $('sync-now-btn').onclick = async () => { ready = true; await push(); };
   document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && user) reconcile(); });
-  A.getRedirectResult(auth).catch(() => {});
+  A.getRedirectResult(auth).catch(e => show('Full-page sign-in failed: ' + (e.code || e.message)));
 } catch(e){
   show('Cloud backup couldn’t load (are you offline?). The app still works normally.');
   $('sync-signin-btn').style.display = 'none';
