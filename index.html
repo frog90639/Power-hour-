@@ -3204,7 +3204,7 @@ function buildSegmented(container, options, selected, onSelect){
     const o = {}; keys().forEach(k => o[k] = localStorage.getItem(k));
     const code = 'POWERHOUR1:' + btoa(unescape(encodeURIComponent(JSON.stringify(o))));
     ta.value = code;
-    try{ await navigator.clipboard.writeText(code); msg('Copied (' + Object.keys(o).length + ' items). Paste it into the other app\u2019s Backup code screen.'); }
+    try{ await navigator.clipboard.writeText(code); { const nt = JSON.parse(o.powerHourTasks || '[]').length, nl = JSON.parse(o.powerHourDayLog || '[]').length; msg('Copied: ' + nt + ' tasks, ' + nl + ' logged days, plus settings. Paste it into the other app\u2019s Backup code screen.'); } }
     catch(e){ ta.focus(); ta.select(); try{ document.execCommand('copy'); msg('Copied. Paste it into the other app\u2019s Backup code screen.'); }catch(e2){ msg('Select all the text in the box and copy it manually.'); } }
   };
   document.getElementById('backup-restore-btn').onclick = () => {
