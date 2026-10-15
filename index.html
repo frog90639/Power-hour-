@@ -504,7 +504,7 @@
   <div class="modal-card">
     <h3>⚠️ Hold on</h3>
     <p id="mustdo-confirm-text" style="font-size:0.92rem; line-height:1.4;"></p>
-    <p style="color:var(--muted); font-size:0.8rem; margin-bottom:6px;">Type "yes" if you're sure you want to leave it out.</p>
+    <p id="mustdo-confirm-hint" style="color:var(--muted); font-size:0.8rem; margin-bottom:6px;">Type "yes" if you're sure you want to leave it out.</p>
     <input type="text" id="mustdo-confirm-input" placeholder="yes" autocomplete="off" autocapitalize="off" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--hairline); background:var(--card); color:var(--text); font-size:0.95rem; margin-bottom:12px;">
     <div class="modal-actions">
       <button id="mustdo-confirm-cancel-btn">Never mind</button>
@@ -618,6 +618,7 @@
     <div class="settings-group-label">Configure</div>
     <button id="settings-escalation-btn" class="settings-item">📈 Escalation timing</button>
     <button id="settings-gestures-btn" class="settings-item">👆 Gestures</button>
+    <button id="settings-goals-btn" class="settings-item">🎯 Daily goal nudges</button>
     <div class="settings-group-label">Data</div>
     <button id="settings-daylog-btn" class="settings-item">📅 Day log</button>
     <button id="settings-bulk-add-btn" class="settings-item">＋ Bulk add (paste a list)</button>
@@ -625,6 +626,26 @@
     <button id="settings-backup-btn" class="settings-item">💾 Backup code (copy / restore)</button>
     <button id="settings-sync-btn" class="settings-item">☁️ Cloud backup <span id="sync-badge" style="float:right; color:var(--muted); font-size:0.8rem;"></span></button>
     <button id="settings-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
+<!-- daily goal nudges -->
+<div class="modal hidden" id="goals-modal" style="z-index:650;">
+  <div class="modal-card" style="max-height:85vh; overflow-y:auto;">
+    <h3>🎯 Daily goal nudges</h3>
+    <p style="color:var(--muted); font-size:0.85rem; margin-top:-6px;">Optional. While you run a timer with <b>Move around</b> selected, and once your P1s are done, a surprise 1-minute goal break is slipped in between tasks. It won't be in your plan, and it's deliberately hard to skip.</p>
+    <label class="modal-row recurring-toggle"><input type="checkbox" id="goals-enabled"><span>Turn nudges on</span></label>
+    <div class="modal-row budget-row">
+      <span style="color:var(--muted); font-size:0.85rem;">One break about every</span>
+      <input type="number" id="goals-every" min="5" step="5" style="margin-left:auto; width:70px;">
+      <span style="color:var(--muted); font-size:0.85rem; margin-left:6px;">min of tasks</span>
+    </div>
+    <div id="goals-list" style="display:flex; flex-direction:column; gap:8px; margin:8px 0;"></div>
+    <button id="goals-add-btn" style="width:100%; padding:10px; border-radius:10px; border:1px dashed var(--hairline); background:none; color:var(--text); cursor:pointer;">＋ Add a goal</button>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button id="goals-cancel-btn">Cancel</button>
+      <button id="goals-save-btn" class="add-btn">Save</button>
+    </div>
   </div>
 </div>
 
@@ -1416,13 +1437,13 @@ function wouldCycle(taskId, prereqId){
 let editBeforeOriginalId = null;
 function fillDepSelects(t){
   const others = tasks.filter(x => !x.done && x.id !== t.id);
-  const opts = sel => '<option value="">— none —</option>' + others.map(x => `<option value="${x.id}">${x.name.replace(/</g, '&lt;')}</option>`).join('');
+  const opts = special => '<option value="">— none —</option>' + special + others.map(x => `<option value="${x.id}">${x.name.replace(/</g, '&lt;')}</option>`).join('');
   const a = document.getElementById('edit-after-select'), b = document.getElementById('edit-before-select');
-  a.innerHTML = opts(); b.innerHTML = opts();
-  a.value = (t.afterId && others.some(x => x.id === t.afterId)) ? t.afterId : '';
+  a.innerHTML = opts('<option value="__last">🏁 Last thing — after everything</option>'); b.innerHTML = opts('<option value="__first">🥇 First thing — before everything</option>');
+  a.value = t.pin === 'last' ? '__last' : ((t.afterId && others.some(x => x.id === t.afterId)) ? t.afterId : '');
   const dependent = tasks.find(x => !x.done && x.afterId === t.id);
   editBeforeOriginalId = dependent ? dependent.id : null;
-  b.value = dependent ? dependent.id : '';
+  b.value = t.pin === 'first' ? '__first' : (dependent ? dependent.id : '');
 }
 function openEditModal(id){
   const t = tasks.find(t => t.id === id);
@@ -1485,7 +1506,7 @@ document.getElementById('edit-minus-btn').onclick = () => { editMins = Math.max(
 document.getElementById('edit-cancel-btn').onclick = () => {
   editModal.classList.add('hidden'); editTaskId = null;
   if(editOpenedFromReview){
-    editOpenedFromReview = false;
+    editOpenedFromReview = false; keepPickSeed = true;
     openReviewModal(reviewBudget);
   }
 };
@@ -1504,9 +1525,11 @@ document.getElementById('edit-save-btn').onclick = () => {
     t.notBeforeTime = document.getElementById('edit-not-before-input').value || null;
     t.scheduleArrived = false;
     t.timeConstraint = editTimeLimit === 'specific' ? (document.getElementById('edit-time-specific-input').value || null) : editTimeLimit;
-    const afterVal = document.getElementById('edit-after-select').value || null;
+    const afterRaw = document.getElementById('edit-after-select').value, beforeRaw = document.getElementById('edit-before-select').value;
+    t.pin = beforeRaw === '__first' ? 'first' : (afterRaw === '__last' ? 'last' : null);
+    const afterVal = (afterRaw && afterRaw !== '__last') ? afterRaw : null;
     t.afterId = (afterVal && !wouldCycle(t.id, afterVal)) ? afterVal : null;
-    const beforeVal = document.getElementById('edit-before-select').value || null;
+    const beforeVal = (beforeRaw && beforeRaw !== '__first') ? beforeRaw : null;
     if(editBeforeOriginalId && editBeforeOriginalId !== beforeVal){
       const old = tasks.find(x => x.id === editBeforeOriginalId);
       if(old && old.afterId === t.id) old.afterId = null;
@@ -1526,7 +1549,7 @@ document.getElementById('edit-save-btn').onclick = () => {
   }
   editModal.classList.add('hidden'); editTaskId = null;
   if(editOpenedFromReview){
-    editOpenedFromReview = false;
+    editOpenedFromReview = false; keepPickSeed = true;
     openReviewModal(reviewBudget); // re-filters and re-runs the picker, so a priority/date/tag change is reflected immediately
   }
 };
@@ -1565,13 +1588,17 @@ function isHeldBack(t){
 }
 function findNextIndex(from){
   const ok = i => !tasks[i].done && (!sessionTaskIds || sessionTaskIds.includes(tasks[i].id)) && !isHeldBack(tasks[i]);
-  for(let i = from; i < tasks.length; i++) if(ok(i)) return i;
+  const free = i => i !== currentIndex && !sessionSkipped.some(s => s.id === tasks[i].id) && ok(i);
+  // "do first" tasks jump the queue; "do last" tasks only come up when nothing else is left
+  for(let i = 0; i < tasks.length; i++) if(tasks[i].pin === 'first' && free(i)) return i;
+  let found = -1;
+  for(let i = from; i < tasks.length && found === -1; i++) if(ok(i)) found = i;
   // a prerequisite can sit later in the list than the task waiting on it, so look back for anything now unblocked
-  for(let i = 0; i < Math.min(from, tasks.length); i++){
-    if(i === currentIndex || sessionSkipped.some(s => s.id === tasks[i].id)) continue;
-    if(ok(i)) return i;
+  for(let i = 0; i < Math.min(from, tasks.length) && found === -1; i++) if(free(i)) found = i;
+  if(found !== -1 && tasks[found].pin === 'last'){
+    for(let i = 0; i < tasks.length; i++) if(tasks[i].pin !== 'last' && free(i)) return i;
   }
-  return -1;
+  return found;
 }
 function sessionCount(){ return sessionTaskIds ? sessionTaskIds.length : tasks.length; }
 function sessionPosition(){
@@ -1610,14 +1637,68 @@ function startInterval(){
 function tick(){
   if(timerState !== 'running') return;
   const remaining = Math.round((taskEndTime - Date.now()) / 1000);
-  if(remaining <= 0){ skipCurrentTask(); return; } // time ran out without an explicit Done — ask about it later
+  if(remaining <= 0){
+    if(tasks[currentIndex] && tasks[currentIndex].microGoal){ secondsLeft = 0; refreshTimerDisplays(); return; } // goal breaks wait for you; they never time out into a skip
+    skipCurrentTask(); return;
+  } // time ran out without an explicit Done — ask about it later
   secondsLeft = remaining;
   refreshTimerDisplays();
+}
+
+/* ---------- daily goal nudges: surprise 1-minute breaks (water, stretching, ...) ---------- */
+const GOAL_NAG_MESSAGES = [
+  "This is one minute. It's for you, and you set this goal yourself. Really skip it?",
+  "Future you asked for this reminder. Are you sure you want to ignore them?",
+  "Sixty seconds. That's all this takes. Still want to skip?",
+  "You decided this mattered. Has that changed in the last few minutes?",
+  "Every skipped one makes the next skip easier. Sure about this?",
+];
+function loadGoals(){ try{ const g = JSON.parse(localStorage.getItem('powerHourGoals') || 'null'); if(g && Array.isArray(g.goals)) return g; }catch(e){} return { enabled: false, everyMins: 20, goals: [] }; }
+function loadGoalLog(){ try{ return JSON.parse(localStorage.getItem('powerHourGoalLog') || '{}') || {}; }catch(e){ return {}; } }
+function logGoal(goalId, outcome){
+  const log = loadGoalLog(), d = todayStr();
+  log[d] = log[d] || {};
+  const e = log[d][goalId] = log[d][goalId] || { done: 0, skipped: 0 };
+  e[outcome]++;
+  const keys = Object.keys(log).sort();
+  while(keys.length > 60) delete log[keys.shift()];
+  localStorage.setItem('powerHourGoalLog', JSON.stringify(log));
+}
+let sessionMoveAround = false, sessionMinsSinceBreak = 0;
+function p1sHandled(){
+  return !tasks.some(t => t.priority === 'p1' && !t.done && !t.microGoal && (!sessionTaskIds || sessionTaskIds.includes(t.id)) && !sessionSkipped.some(s => s.id === t.id));
+}
+/* returns a goal task object if a break is due, else null */
+function maybeMakeGoalBreak(){
+  const cfg = loadGoals();
+  if(!cfg.enabled || cfg.goals.length === 0 || !sessionMoveAround) return null;
+  if(sessionMinsSinceBreak < (cfg.everyMins || 20) || !p1sHandled()) return null;
+  const today = loadGoalLog()[todayStr()] || {};
+  const open = cfg.goals.map(g => ({ g, left: (g.perDay || 1) - ((today[g.id] || {}).done || 0) })).filter(x => x.left > 0);
+  if(open.length === 0) return null;
+  const maxLeft = Math.max(...open.map(x => x.left));
+  const pool = open.filter(x => x.left === maxLeft);
+  const g = pool[Math.floor(Math.random() * pool.length)].g;
+  return { id: 'goal' + Date.now(), name: (g.emoji || '🎯') + ' ' + g.name + ' — 1 minute', mins: 1, priority: 'p1', tag: null, steps: 0, recurring: false, done: false, microGoal: true, goalId: g.id, createdAt: Date.now(), staleSince: Date.now() };
+}
+function finishGoalBreak(done){
+  const t = tasks[currentIndex];
+  if(!t || !t.microGoal) return;
+  logGoal(t.goalId, done ? 'done' : 'skipped');
+  const from = currentIndex;
+  tasks.splice(currentIndex, 1);
+  if(sessionTaskIds) sessionTaskIds = sessionTaskIds.filter(id => id !== t.id);
+  currentIndex = -1;
+  sessionMinsSinceBreak = 0;
+  save();
+  advanceAfterCurrent(from);
 }
 
 /* marks the current task done, records it for the session summary, and advances — only from an explicit Done action */
 function completeCurrentTask(){
   if(currentIndex === -1 || !tasks[currentIndex]) return;
+  if(tasks[currentIndex].microGoal){ finishGoalBreak(true); return; }
+  sessionMinsSinceBreak += tasks[currentIndex].mins;
   tasks[currentIndex].done = true;
   sessionCompleted.push({ ...tasks[currentIndex] });
   save();
@@ -1626,11 +1707,26 @@ function completeCurrentTask(){
 /* moves on WITHOUT marking the current task done — it stays pending, and gets asked about at session end */
 function skipCurrentTask(){
   if(currentIndex === -1 || !tasks[currentIndex]) return;
+  if(tasks[currentIndex].microGoal){
+    showMustDoConfirm(tasks[currentIndex], () => finishGoalBreak(false), { messages: GOAL_NAG_MESSAGES, word: 'i am skipping' });
+    return;
+  }
+  sessionMinsSinceBreak += tasks[currentIndex].mins;
   sessionSkipped.push({ ...tasks[currentIndex] });
   advanceAfterCurrent();
 }
-function advanceAfterCurrent(){
-  const next = findNextIndex(currentIndex + 1);
+function advanceAfterCurrent(startAt){
+  let next = findNextIndex(startAt !== undefined ? startAt : currentIndex + 1);
+  if(next !== -1){
+    const gb = maybeMakeGoalBreak();
+    if(gb){
+      tasks.push(gb);
+      if(sessionTaskIds) sessionTaskIds.push(gb.id);
+      sessionMinsSinceBreak = 0;
+      save();
+      next = tasks.findIndex(t => t.id === gb.id);
+    }
+  }
   if(next === -1){
     clearInterval(timerInterval);
     timerState = 'done'; currentIndex = -1; taskEndTime = null;
@@ -1652,7 +1748,7 @@ function persistSession(){
   const activeTaskId = (currentIndex !== -1 && tasks[currentIndex]) ? tasks[currentIndex].id : null;
   localStorage.setItem('powerHourSession', JSON.stringify({
     timerState, activeTaskId, taskEndTime, secondsLeft,
-    sessionTaskIds, sessionCompleted, sessionSkipped, view: currentView
+    sessionTaskIds, sessionCompleted, sessionSkipped, view: currentView, sessionMoveAround, sessionMinsSinceBreak
   }));
 }
 
@@ -1665,6 +1761,7 @@ function restoreSession(){
   sessionCompleted = raw.sessionCompleted || [];
   sessionSkipped = raw.sessionSkipped || [];
   currentView = raw.view === 'minimized' ? 'minimized' : 'maximized';
+  sessionMoveAround = !!raw.sessionMoveAround; sessionMinsSinceBreak = raw.sessionMinsSinceBreak || 0;
 
   if(raw.timerState === 'done'){
     timerState = 'done'; currentIndex = -1; taskEndTime = null;
@@ -1681,7 +1778,7 @@ function restoreSession(){
       timerState = 'running';
       let endTime = raw.taskEndTime;
       let guard = 0;
-      while(Date.now() >= endTime && guard < 1000){
+      while(Date.now() >= endTime && guard < 1000 && !tasks[currentIndex].microGoal){
         guard++;
         sessionSkipped.push({ ...tasks[currentIndex] });
         const next = findNextIndex(currentIndex + 1);
@@ -1734,6 +1831,7 @@ const MOTIVATION_MESSAGES = {
   ]
 };
 function getTaskMotivation(t){
+  if(t.microGoal) return 'A surprise minute for the goals you set. Do it now, then back to it.';
   const ageDays = daysSince(t.createdAt || Date.now());
   let pool;
   if(t.mustDo) pool = MOTIVATION_MESSAGES.mustDo;
@@ -2110,6 +2208,8 @@ function formatNotBeforeTime(t){
 
 function openReviewModal(budget){
   reviewBudget = budget;
+  if(!keepPickSeed) pickSeed = String(Math.random()); // a fresh shuffle for every new plan; edits made inside the plan keep it steady
+  keepPickSeed = false;
   let pending = tasks.filter(t => !t.done && !isScheduledForFuture(t) && !isWrongTimeOfDay(t) && !isBeforeEarliestTime(t)); // current order reflects whichever quick sort is active
   if(budgetTagFilters.size > 0) pending = pending.filter(t => t.tag && budgetTagFilters.has(t.tag));
   const selected = pickTasksForBudget(pending, budget);
@@ -2140,10 +2240,11 @@ function getWithinTierWeight(t){
 /* Small tie-breakers so equal peers rotate instead of the oldest-added always winning:
    recurring tasks done longest ago go first, plus a per-day shuffle. Kept below the
    value of a single extra minute-of-fill so it never stops the timer being filled. */
+let pickSeed = String(Math.random()), keepPickSeed = false;
 function getFairnessNudge(t){
-  let h = 0; const key = String(t.id) + todayStr();
+  let h = 0; const key = String(t.id) + pickSeed;
   for(let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
-  let n = (h % 100) / 100 * 0.0008;
+  let n = (h % 1000) / 1000 * 0.004;
   if(t.recurring) n += Math.min(t.lastDoneAt ? daysSince(t.lastDoneAt) : 7, 7) * 0.0001;
   return n;
 }
@@ -2226,15 +2327,20 @@ const MUSTDO_NAG_MESSAGES = [
   "This has been overdue a while — sure you want to skip it again?",
   "You keep coming back to this without doing it. Sure about that?",
 ];
-function showMustDoConfirm(t, onConfirm){
+function showMustDoConfirm(t, onConfirm, opts){
+  opts = opts || {};
   const modal = document.getElementById('mustdo-confirm-modal');
-  document.getElementById('mustdo-confirm-text').textContent = MUSTDO_NAG_MESSAGES[Math.floor(Math.random() * MUSTDO_NAG_MESSAGES.length)];
+  const word = opts.word || 'yes';
+  const msgs = opts.messages || MUSTDO_NAG_MESSAGES;
+  document.getElementById('mustdo-confirm-text').textContent = msgs[Math.floor(Math.random() * msgs.length)];
+  document.getElementById('mustdo-confirm-hint').textContent = 'Type "' + word + '" if you\'re sure you want to leave it out.';
+  document.getElementById('mustdo-confirm-input').placeholder = word;
   const input = document.getElementById('mustdo-confirm-input');
   input.value = '';
   modal.classList.remove('hidden');
   input.focus();
   document.getElementById('mustdo-confirm-ok-btn').onclick = () => {
-    if(input.value.trim().toLowerCase() === 'yes'){
+    if(input.value.trim().toLowerCase() === word.toLowerCase()){
       modal.classList.add('hidden');
       onConfirm();
     } else {
@@ -2301,6 +2407,7 @@ document.getElementById('review-start-btn').onclick = () => {
   const checked = [...document.querySelectorAll('#review-list input:checked')].map(cb => cb.dataset.id);
   if(checked.length === 0) return;
   sessionTaskIds = checked;
+  sessionMoveAround = budgetTagFilters.has('movearound'); sessionMinsSinceBreak = 0;
   document.getElementById('review-modal').classList.add('hidden');
   beginRun();
 };
@@ -2351,7 +2458,7 @@ document.getElementById('pick-modal-close-btn').onclick = () => {
 
 /* ---------- completed report ---------- */
 function getAllCompleted(){
-  return [...tasks.filter(t => t.done), ...deletedCompleted];
+  return [...tasks.filter(t => t.done && !t.microGoal), ...deletedCompleted];
 }
 function openReportModal(){
   const completed = getAllCompleted();
@@ -2796,7 +2903,7 @@ document.getElementById('report-clear-btn').onclick = () => {
 function renderTaskList(){
   const container = document.getElementById('task-list-container');
   container.innerHTML = '';
-  const visible = tasks.filter(t => !t.done && !isScheduledForFuture(t));
+  const visible = tasks.filter(t => !t.done && !t.microGoal && !isScheduledForFuture(t));
   if(visible.length === 0){
     container.innerHTML = '<div class="empty">Nothing pending — add a task above.</div>';
     return;
@@ -2830,6 +2937,7 @@ function buildTaskRow(t){
       </div>
       <div class="task-row-line2">
         ${getPrereq(t) && !getPrereq(t).done ? `<span class="tag-badge" title="Held until the task it comes after is done">🔗 after ${getPrereq(t).name.replace(/</g, '&lt;').slice(0, 18)}</span>` : ''}
+        ${t.pin === 'first' ? '<span class="tag-badge" title="Always done first in a timer run">🥇 first</span>' : t.pin === 'last' ? '<span class="tag-badge" title="Always done last in a timer run">🏁 last</span>' : ''}
         ${t.autoWalk ? '<span class="tag-badge" title="Added automatically to help hit your step goal">🤖 auto</span>' : ''}
         ${t.steps > 0 ? `<span class="tag-badge" title="${t.steps.toLocaleString()} steps">👣 ${t.steps.toLocaleString()}</span>` : ''}
         ${t.escalated ? '<span class="tag-badge" title="Bumped up — this sat pending for 2+ weeks">⏫</span>' : ''}
@@ -3188,6 +3296,46 @@ function buildSegmented(container, options, selected, onSelect){
   });
 }
 
+/* ---------- daily goal nudges settings ---------- */
+(function(){
+  let draft = null;
+  const list = document.getElementById('goals-list');
+  const esc = v => String(v).replace(/"/g, '&quot;');
+  function draw(){
+    list.innerHTML = '';
+    draft.goals.forEach((g, i) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex; gap:6px; align-items:center;';
+      row.innerHTML = `<input type="text" value="${esc(g.emoji || '')}" maxlength="2" style="width:44px; text-align:center;" data-f="emoji">
+        <input type="text" value="${esc(g.name)}" placeholder="e.g. Drink water" style="flex:1; min-width:0;" data-f="name">
+        <input type="number" value="${g.perDay || 1}" min="1" style="width:52px;" data-f="perDay" title="times per day">
+        <span style="color:var(--muted); font-size:0.75rem;">/day</span>
+        <button type="button" class="board-chip-btn" data-del="1" title="Remove">✕</button>`;
+      row.querySelectorAll('input').forEach(inp => inp.oninput = () => { g[inp.dataset.f] = inp.dataset.f === 'perDay' ? (parseInt(inp.value) || 1) : inp.value; });
+      row.querySelector('[data-del]').onclick = () => { draft.goals.splice(i, 1); draw(); };
+      list.appendChild(row);
+    });
+  }
+  document.getElementById('settings-goals-btn').onclick = () => {
+    draft = JSON.parse(JSON.stringify(loadGoals()));
+    if(draft.goals.length === 0) draft.goals = [{ id: 'g' + Date.now(), emoji: '💧', name: 'Drink water', perDay: 6 }, { id: 'g' + (Date.now() + 1), emoji: '🧘', name: 'Stretch', perDay: 3 }];
+    document.getElementById('goals-enabled').checked = !!draft.enabled;
+    document.getElementById('goals-every').value = draft.everyMins || 20;
+    draw();
+    document.getElementById('settings-modal').classList.add('hidden');
+    document.getElementById('goals-modal').classList.remove('hidden');
+  };
+  document.getElementById('goals-add-btn').onclick = () => { draft.goals.push({ id: 'g' + Date.now(), emoji: '🎯', name: '', perDay: 3 }); draw(); };
+  document.getElementById('goals-cancel-btn').onclick = () => document.getElementById('goals-modal').classList.add('hidden');
+  document.getElementById('goals-save-btn').onclick = () => {
+    draft.enabled = document.getElementById('goals-enabled').checked;
+    draft.everyMins = Math.max(5, parseInt(document.getElementById('goals-every').value) || 20);
+    draft.goals = draft.goals.filter(g => g.name.trim());
+    localStorage.setItem('powerHourGoals', JSON.stringify(draft));
+    document.getElementById('goals-modal').classList.add('hidden');
+  };
+})();
+
 /* ---------- backup code: whole-app copy/restore as text ---------- */
 (function(){
   const skip = ['powerHourSession','powerHourSyncAt','powerHourBackupBeforeSync'];
@@ -3230,6 +3378,7 @@ function buildSegmented(container, options, selected, onSelect){
 })();
 
 restoreSession();
+{ const keepId = (currentIndex !== -1 && tasks[currentIndex]) ? tasks[currentIndex].id : null; const before = tasks.length; tasks = tasks.filter(t => !t.microGoal || t.id === keepId); if(tasks.length !== before) save(); }
 render();
 checkDayRollover();
 </script>
