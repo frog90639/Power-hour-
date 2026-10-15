@@ -13,12 +13,21 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
+<script>try{document.documentElement.dataset.theme = localStorage.getItem('powerHourTheme') || 'dark';}catch(e){}</script>
 <style>
   :root{
     --bg:#15171D; --card:#1D2029; --card-raised:#242833; --accent:#5EA88A; --accent2:#D98E4A;
     --text:#EAEBEF; --muted:#8B90A0; --danger:#E0616B; --edit:#6F9BD6;
     --p1:#E0616B; --p2:#D98E4A; --p3:#E0BE5C; --p4:#6F9BD6; --p5:#5EA88A;
-    --hairline:#2A2E3A;
+    --hairline:#2A2E3A; --btn:#2a2e37; --scheme:dark;
+  }
+  :root[data-theme=light]{
+    --bg:#F3F4F7; --card:#FFFFFF; --card-raised:#F7F8FB; --text:#1B1E26; --muted:#6A7080; --hairline:#DADDE5; --btn:#E4E7EE; --scheme:light;
+  }
+  @media (prefers-color-scheme: light){
+    :root[data-theme=auto]{
+      --bg:#F3F4F7; --card:#FFFFFF; --card-raised:#F7F8FB; --text:#1B1E26; --muted:#6A7080; --hairline:#DADDE5; --btn:#E4E7EE; --scheme:light;
+    }
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   input, textarea{-webkit-user-select:text; user-select:text; -webkit-touch-callout:default;}
@@ -39,7 +48,7 @@
   /* add row */
   .add-row{display:flex; gap:8px; margin-bottom:8px; align-items:center; flex-wrap:wrap;}
   input[type=text]{
-    flex:1; min-width:150px; padding:12px 14px; border-radius:10px; border:1px solid #2a2e37;
+    flex:1; min-width:150px; padding:12px 14px; border-radius:10px; border:1px solid var(--btn);
     background:var(--card); color:var(--text); font-size:1rem;
   }
   #add-steps-input, #edit-steps-input{
@@ -49,7 +58,7 @@
 
   .time-stepper{
     display:flex; align-items:center; gap:4px; background:var(--card);
-    border:1px solid #2a2e37; border-radius:10px; padding:4px 6px; flex-shrink:0;
+    border:1px solid var(--btn); border-radius:10px; padding:4px 6px; flex-shrink:0;
   }
   .time-stepper button{background:none; border:none; color:var(--text); font-size:1.1rem; cursor:pointer; padding:2px 6px;}
   .time-stepper span{min-width:40px; text-align:center; font-variant-numeric:tabular-nums; font-size:0.85rem;}
@@ -71,17 +80,17 @@
   }
   .time-limit-picker{display:flex; gap:6px; overflow-x:auto; margin-left:auto;}
   .time-limit-btn{
-    flex-shrink:0; background:var(--card); border:1px solid #2a2e37; color:var(--muted);
+    flex-shrink:0; background:var(--card); border:1px solid var(--btn); color:var(--muted);
     padding:6px 12px; border-radius:20px; font-size:0.78rem; cursor:pointer; white-space:nowrap;
   }
   .time-limit-btn.selected{background:var(--edit); color:#fff; border-color:var(--edit);}
   .tag-btn{
-    flex-shrink:0; background:var(--card); border:1px solid #2a2e37; color:var(--muted);
+    flex-shrink:0; background:var(--card); border:1px solid var(--btn); color:var(--muted);
     padding:7px 12px; border-radius:20px; font-size:0.78rem; cursor:pointer; white-space:nowrap;
   }
   .tag-btn.selected{background:var(--edit); color:#fff; border-color:var(--edit);}
   .tag-badge{
-    font-size:0.68rem; color:var(--muted); background:#2a2e37; padding:2px 8px;
+    font-size:0.68rem; color:var(--muted); background:var(--btn); padding:2px 8px;
     border-radius:10px; flex-shrink:0; white-space:nowrap;
   }
   .recurring-toggle{
@@ -90,7 +99,7 @@
   .recurring-toggle input[type=checkbox]{width:18px; height:18px; flex-shrink:0;}
   .recurring-badge{font-size:0.75rem; flex-shrink:0;}
 
-  .steps-bar-track{display:flex; height:14px; border-radius:8px; overflow:hidden; background:#2a2e37; margin:12px 0 8px;}
+  .steps-bar-track{display:flex; height:14px; border-radius:8px; overflow:hidden; background:var(--btn); margin:12px 0 8px;}
   .steps-bar-segment{height:100%; transition:width 0.2s;}
   .steps-completed{background:var(--accent);}
   .steps-planned{background:var(--accent2);}
@@ -104,11 +113,11 @@
   .pace-suggestion p{margin:0 0 10px; font-size:0.85rem; color:var(--text);}
   .budget-row{display:flex; align-items:center; gap:8px; font-size:0.95rem; flex-wrap:wrap;}
   .budget-row input[type=number]{
-    width:70px; padding:10px; border-radius:8px; border:1px solid #2a2e37; background:var(--bg);
+    width:70px; padding:10px; border-radius:8px; border:1px solid var(--btn); background:var(--bg);
     color:var(--text); font-size:1rem; text-align:center;
   }
 
-  .review-item{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid #2a2e37;}
+  .review-item{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--btn);}
   .review-item input[type=checkbox]{width:19px; height:19px; flex-shrink:0;}
   .review-item .name{flex:1; font-size:0.9rem;}
   #review-total{font-weight:600;}
@@ -129,7 +138,7 @@
   }
   .timer-screen-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
   .timer-screen-header .title{font-weight:700;}
-  .icon-btn{width:42px; height:42px; border-radius:50%; border:1px solid #2a2e37; background:var(--card); color:var(--text); font-size:1.1rem; cursor:pointer;}
+  .icon-btn{width:42px; height:42px; border-radius:50%; border:1px solid var(--btn); background:var(--card); color:var(--text); font-size:1.1rem; cursor:pointer;}
   .icon-btn:disabled{opacity:0.3; cursor:default;}
   .timer-screen-body{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;}
   .timer-priority-badge{font-size:0.8rem; font-weight:700; padding:4px 10px; border-radius:20px; margin-bottom:10px; color:#0f1115;}
@@ -141,21 +150,21 @@
   .timer-controls button{padding:14px 22px; border-radius:12px; border:none; font-size:1rem; font-weight:600; cursor:pointer;}
   #done-current-btn{background:var(--accent); color:#0f1115;}
   #pause-btn{background:var(--accent2); color:#0f1115;}
-  #skip-btn{background:#2a2e37; color:var(--text);}
-  #stop-btn{background:#2a2e37; color:var(--text);}
-  #done-export-btn, #done-close-btn{background:#2a2e37; color:var(--text);}
+  #skip-btn{background:var(--btn); color:var(--text);}
+  #stop-btn{background:var(--btn); color:var(--text);}
+  #done-export-btn, #done-close-btn{background:var(--btn); color:var(--text);}
   #done-remove-btn:disabled{opacity:0.4; cursor:default;}
-  #report-export-btn{background:#2a2e37; color:var(--text);}
-  #escalation-close-btn, #escalation-reset-btn{background:#2a2e37; color:var(--text); font-size:0.85rem;}
+  #report-export-btn{background:var(--btn); color:var(--text);}
+  #escalation-close-btn, #escalation-reset-btn{background:var(--btn); color:var(--text); font-size:0.85rem;}
   #report-clear-btn{background:var(--danger); color:#fff;}
   #report-clear-btn:disabled{opacity:0.4; cursor:default;}
   .up-next{color:var(--muted); font-size:0.85rem;}
 
   /* top action row */
   .top-action-row{display:flex; align-items:center; gap:10px; margin:14px 0 18px;}
-  .icon-btn-accent{background:var(--card); border-color:#2a2e37; font-size:1.3rem; flex-shrink:0;}
+  .icon-btn-accent{background:var(--card); border-color:var(--btn); font-size:1.3rem; flex-shrink:0;}
   .mini-steps-bar{
-    flex:1; height:42px; border-radius:10px; background:var(--card); border:1px solid #2a2e37;
+    flex:1; height:42px; border-radius:10px; background:var(--card); border:1px solid var(--btn);
     position:relative; overflow:hidden; cursor:pointer; padding:0; display:flex; align-items:center;
   }
   .mini-steps-track{position:absolute; inset:0; display:flex;}
@@ -202,7 +211,7 @@
   /* mini bar */
   .mini-bar{
     position:fixed; left:16px; right:16px; bottom:calc(16px + env(safe-area-inset-bottom)); background:var(--card);
-    border:1px solid #2a2e37; border-radius:14px; padding:10px 14px; display:flex;
+    border:1px solid var(--btn); border-radius:14px; padding:10px 14px; display:flex;
     align-items:center; gap:10px; z-index:150; box-shadow:0 6px 20px rgba(0,0,0,0.4);
   }
   .mini-info{flex:1; min-width:0;}
@@ -236,12 +245,12 @@
   .modal{position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:300; display:flex; align-items:flex-end; justify-content:center;}
   #add-modal{transition:opacity 0.12s;}
   #add-modal:not(.modal-open){opacity:0; pointer-events:none;}
-  .modal-card{background:var(--card); border-radius:16px 16px 0 0; padding:20px; width:100%; max-width:480px; border:1px solid #2a2e37;}
+  .modal-card{background:var(--card); border-radius:16px 16px 0 0; padding:20px; width:100%; max-width:480px; border:1px solid var(--btn);}
   .modal-card h3{margin:0 0 14px;}
   .modal-row{margin-bottom:12px;}
   .modal-actions{display:flex; gap:10px; margin-top:8px;}
   .modal-actions button{flex:1; padding:12px; border-radius:10px; border:none; font-size:1rem; font-weight:600; cursor:pointer;}
-  #edit-cancel-btn{background:#2a2e37; color:var(--text);}
+  #edit-cancel-btn{background:var(--btn); color:var(--text);}
 
   .review-actions-top{margin-top:2px; margin-bottom:14px;}
   .review-action-compact{
@@ -250,7 +259,7 @@
   }
   .review-action-compact-accent{color:var(--accent); border-color:var(--accent);}
   .settings-item{
-    width:100%; text-align:left; background:none; border:1px solid #2a2e37; color:var(--text);
+    width:100%; text-align:left; background:none; border:1px solid var(--btn); color:var(--text);
     padding:14px; border-radius:10px; font-size:0.95rem; cursor:pointer; margin-bottom:8px;
   }
   .settings-group-label{
@@ -303,29 +312,74 @@
   .cal-selected .cal-dot{background:#fff;}
   #calendar-day-detail{margin-top:14px;}
   #calendar-day-detail .cal-day-label{font-weight:600; margin-bottom:8px;}
+
+  /* polish pass */
+  .undo-toast{ top:calc(12px + env(safe-area-inset-top)); bottom:auto; z-index:900; }
+  .top-action-row{margin:10px 0 0;}
+  .pill-btn{flex:1; height:42px; border-radius:10px; background:var(--card); border:1px solid var(--btn); color:var(--text); font-size:0.9rem; font-weight:600; cursor:pointer;}
+  .start-btn{width:100%; height:54px; margin:12px 0 10px; border-radius:14px; border:none; background:var(--accent); color:#0f1115; font-size:1.05rem; font-weight:800; cursor:pointer; letter-spacing:0.01em;}
+  .mini-steps-planned{background-image:repeating-linear-gradient(45deg, rgba(249,115,22,0.45) 0 6px, rgba(249,115,22,0.22) 6px 12px); background-color:transparent;}
+  select, input[type=date], input[type=time], input[type=number]{
+    color-scheme:var(--scheme); background:var(--card); color:var(--text); border:1px solid var(--hairline); border-radius:10px; padding:9px 10px; font-size:0.95rem;
+  }
+  #add-steps-input, #edit-steps-input{background:var(--card); color:var(--text);}
+  .settings-group-label.collapsible{cursor:pointer; display:flex; justify-content:space-between; align-items:center;}
+  .done-today{margin-top:22px;}
+  .done-today-head{display:flex; justify-content:space-between; align-items:center; color:var(--muted); font-size:0.78rem; font-weight:700; letter-spacing:0.04em; cursor:pointer; padding:6px 0;}
+  .done-today-row{display:flex; align-items:center; gap:10px; padding:10px 12px; margin-top:6px; border-radius:10px; background:var(--card); color:var(--muted); font-size:0.9rem;}
+  .done-today-row span{flex:1; min-width:0; text-decoration:line-through; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .done-today-row button{background:none; border:1px solid var(--hairline); color:var(--text); border-radius:8px; padding:5px 10px; cursor:pointer; font-size:0.8rem;}
+  .tidy-row{padding:10px 0; border-bottom:1px solid var(--hairline);}
+  .tidy-row.tidy-done{opacity:0.45;}
+  .tidy-name{font-weight:600; font-size:0.92rem; margin-bottom:8px;}
+  .tidy-chips{display:flex; gap:6px; flex-wrap:wrap;}
+  .tidy-chip{padding:7px 11px; border-radius:999px; border:1px solid var(--hairline); background:var(--card); color:var(--text); font-size:0.82rem; cursor:pointer;}
+  .tidy-chip.on{background:var(--accent); color:#0f1115; border-color:var(--accent);}
+
+  /* round 2 */
+  textarea{background:var(--card); color:var(--text); border:1px solid var(--hairline); border-radius:10px; padding:10px 12px; font-size:0.95rem; font-family:inherit; width:100%;}
+  .icon-btn{min-width:44px; min-height:44px;}
+  .settings-item, .modal-actions button{min-height:46px;}
+  .task-check{width:24px !important; height:24px !important;}
+  .update-banner{position:fixed; left:16px; right:16px; top:calc(64px + env(safe-area-inset-top)); z-index:880; background:var(--accent); color:#0f1115; border-radius:12px; padding:12px 16px; font-weight:700; font-size:0.9rem; text-align:center; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,0.35);}
+  .ins-bars{display:flex; align-items:flex-end; gap:8px; height:110px; margin:10px 0 4px;}
+  .ins-bar{flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; height:100%; gap:4px; font-size:0.7rem; color:var(--muted);}
+  .ins-bar-fill{width:100%; background:var(--accent); border-radius:6px 6px 2px 2px; min-height:3px;}
+  .ins-stat{display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--hairline); font-size:0.9rem;}
+  .snap-row{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 0; border-bottom:1px solid var(--hairline); font-size:0.88rem;}
+  .snap-row button{background:var(--btn); color:var(--text); border:none; border-radius:8px; padding:8px 12px; cursor:pointer;}
+  .welcome-card{text-align:center;}
+  .welcome-emoji{font-size:3rem; margin-bottom:8px;}
+  .filter-chip{padding:7px 12px; border-radius:999px; border:1px solid var(--hairline); background:var(--card); color:var(--text); font-size:0.82rem; cursor:pointer;}
+  .filter-chip.on{background:var(--accent); color:#0f1115; border-color:var(--accent);}
 </style>
 </head>
 <body>
 
+<script>window.__freshInstall = (localStorage.getItem('powerHourTasks') === null && localStorage.getItem('powerHourDayLog') === null);</script>
 <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
   <h1 style="margin:0;">⏱️ Power Hour</h1>
   <button class="icon-btn" id="open-settings-btn" title="Settings">⚙️</button>
 </div>
-<div class="sub">Tap a task to edit, swipe for quick actions, or press and hold to reprioritize.</div>
+<div class="sub" id="help-line">Tap a task to edit, swipe for quick actions, or press and hold to reprioritize.</div>
 
-<div class="top-action-row">
-  <button class="icon-btn icon-btn-accent" id="open-add-btn" title="Add task">➕</button>
-  <button class="mini-steps-bar" id="mini-steps-bar" title="Steps">
-    <div class="mini-steps-track">
-      <div class="mini-steps-segment mini-steps-completed" id="mini-steps-completed-fill"></div>
-      <div class="mini-steps-segment mini-steps-planned" id="mini-steps-planned-fill"></div>
-    </div>
-    <span class="mini-steps-label" id="mini-steps-label">👣 0 / 10,000</span>
-  </button>
-  <button class="icon-btn icon-btn-accent" id="open-pick-btn" title="Pick tasks for my time">🎯</button>
-  <button class="icon-btn" id="open-report-btn" title="End of day — Completed report">🌇</button>
+<button class="mini-steps-bar" id="mini-steps-bar" title="Steps" style="width:100%; flex:none; margin-top:10px;">
+  <div class="mini-steps-track">
+    <div class="mini-steps-segment mini-steps-completed" id="mini-steps-completed-fill"></div>
+    <div class="mini-steps-segment mini-steps-planned" id="mini-steps-planned-fill"></div>
+  </div>
+  <span class="mini-steps-label" id="mini-steps-label">👣 0 / 10,000</span>
+</button>
+<button class="start-btn" id="open-pick-btn" title="Pick tasks for my time">▶ Start a Power Hour</button>
+<div class="top-action-row" style="margin-bottom:18px;">
+  <button class="pill-btn" id="open-add-btn" title="Add task">＋ Add task</button>
+  <button class="pill-btn" id="open-report-btn" title="End of day — Completed report">🌇 End of day</button>
 </div>
 
+<div id="list-filter-row" class="hidden" style="margin-bottom:10px;">
+  <input type="text" id="list-search" placeholder="🔍 Search tasks" style="width:100%; min-width:0; padding:10px 12px;">
+  <div id="list-filter-chips" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;"></div>
+</div>
 <div class="task-list-container" id="task-list-container"></div>
 
 <!-- add task modal -->
@@ -371,6 +425,15 @@
         <input type="date" id="add-date-input" style="margin-left:auto;">
         <button type="button" id="add-date-clear-btn" class="board-chip-btn" title="Clear — do it today/whenever">✕</button>
       </div>
+      <div class="modal-row budget-row">
+        <span style="color:var(--muted); font-size:0.85rem;">🔗 Do after</span>
+        <select id="add-after-select" style="margin-left:auto; max-width:60%;"></select>
+      </div>
+      <div class="modal-row budget-row">
+        <span style="color:var(--muted); font-size:0.85rem;">🔗 Do before</span>
+        <select id="add-before-select" style="margin-left:auto; max-width:60%;"></select>
+      </div>
+      <div class="modal-row"><textarea id="add-notes-input" rows="2" placeholder="📝 Notes (optional)"></textarea></div>
       <label class="modal-row recurring-toggle" id="add-recurring-toggle">
         <input type="checkbox" id="add-recurring-checkbox">
         <span>🔁 Recurring — comes back after I reset the day</span>
@@ -419,7 +482,7 @@
     <div class="steps-legend">
       <span><i class="steps-dot" style="background:var(--accent);"></i> Taken</span>
       <span><i class="steps-dot" style="background:var(--accent2);"></i> Planned</span>
-      <span><i class="steps-dot" style="background:#2a2e37;"></i> Yet to plan</span>
+      <span><i class="steps-dot" style="background:var(--btn);"></i> Yet to plan</span>
     </div>
     <div class="steps-summary" id="steps-summary" style="margin-bottom:14px;"></div>
     <div class="pace-suggestion hidden" id="pace-suggestion">
@@ -456,13 +519,14 @@
       <div class="timer-current" id="timer-current">Task 1 of 1</div>
       <div class="timer-task" id="timer-task">—</div>
       <div class="timer-motivation" id="timer-motivation"></div>
+      <div id="timer-notes" style="color:var(--muted); font-size:0.88rem; max-width:320px; text-align:center; margin:-4px auto 10px; white-space:pre-wrap;"></div>
       <div class="timer-clock" id="timer-clock">00:00</div>
+      <div class="up-next" id="timer-progress" style="margin-bottom:4px;"></div>
       <div class="up-next" id="up-next" style="margin-bottom:20px;"></div>
       <div class="timer-controls">
         <button id="done-current-btn">✓ Done</button>
         <button id="pause-btn">Pause</button>
         <button id="skip-btn">Skip</button>
-        <button id="stop-btn">Stop</button>
       </div>
     </div>
     <div id="timer-done-view" class="hidden">
@@ -539,6 +603,8 @@
       <span style="color:var(--muted); font-size:0.85rem;">👣 Est. steps</span>
       <input type="number" id="edit-steps-input" min="0" step="100" style="margin-left:auto; width:100px;">
     </div>
+    <button type="button" id="edit-more-toggle" class="more-options-toggle">More options ▾</button>
+    <div id="edit-more-options" class="hidden">
     <div class="modal-row budget-row">
       <span style="color:var(--muted); font-size:0.85rem;">⏰ Must be done by</span>
       <div class="time-limit-picker" id="edit-time-limit-picker"></div>
@@ -569,6 +635,7 @@
       <span style="color:var(--muted); font-size:0.85rem;">⏳ Age (days)</span>
       <input type="number" id="edit-age-input" min="0" step="1" style="margin-left:auto; width:80px;">
     </div>
+    <div class="modal-row"><textarea id="edit-notes-input" rows="2" placeholder="📝 Notes (optional)"></textarea></div>
     <label class="modal-row recurring-toggle" id="edit-recurring-toggle">
       <input type="checkbox" id="edit-recurring-checkbox">
       <span>🔁 Recurring — comes back after I reset the day</span>
@@ -578,10 +645,12 @@
       <input type="number" id="edit-recur-interval-input" min="1" step="1" value="1" style="margin-left:8px; width:60px;">
       <span style="color:var(--muted); font-size:0.85rem;">day(s)</span>
     </div>
+    </div>
     <div class="modal-actions">
       <button id="edit-cancel-btn">Cancel</button>
       <button id="edit-save-btn" class="add-btn">Save</button>
     </div>
+    <button id="edit-delete-btn" style="width:100%; margin-top:12px; background:none; border:1px solid var(--danger); color:var(--danger); padding:10px; border-radius:10px; cursor:pointer; font-weight:600;">Delete task</button>
   </div>
 </div>
 
@@ -594,7 +663,7 @@
       Ask Claude in chat to write this list for you, then paste it here.
     </p>
     <div class="modal-row">
-      <textarea id="bulk-textarea" rows="6" style="width:100%; padding:12px; border-radius:10px; border:1px solid #2a2e37; background:var(--bg); color:var(--text); font-family:inherit; font-size:0.9rem;" placeholder="Reply to emails, 15, p2&#10;Tidy desk - 5 min - P4&#10;10m call with Sam p1&#10;Plan tomorrow"></textarea>
+      <textarea id="bulk-textarea" rows="6" style="width:100%; padding:12px; border-radius:10px; border:1px solid var(--btn); background:var(--bg); color:var(--text); font-family:inherit; font-size:0.9rem;" placeholder="Reply to emails, 15, p2&#10;Tidy desk - 5 min - P4&#10;10m call with Sam p1&#10;Plan tomorrow"></textarea>
     </div>
     <div class="modal-actions">
       <button id="bulk-cancel-btn">Cancel</button>
@@ -613,26 +682,113 @@
     <div class="settings-group-label">Views</div>
     <button id="settings-calendar-btn" class="settings-item">🗓️ Calendar</button>
     <button id="settings-habits-btn" class="settings-item">🔥 Habit tracker</button>
-    <button id="settings-report-btn" class="settings-item">📋 Completed report</button>
-    <button id="settings-aging-btn" class="settings-item">⏳ Aging tasks</button>
-    <div class="settings-group-label">Configure</div>
+    <button id="settings-insights-btn" class="settings-item">📊 Weekly insights</button>
+    <div class="settings-group-label">Customise</div>
     <button id="settings-escalation-btn" class="settings-item">📈 Escalation timing</button>
     <button id="settings-gestures-btn" class="settings-item">👆 Gestures</button>
-    <button id="settings-goals-btn" class="settings-item">🎯 Daily goal nudges</button>
+    <button id="settings-goals-btn" class="settings-item">💧 Daily goal nudges</button>
+    <button id="settings-theme-btn" class="settings-item">🎨 Appearance</button>
+    <button id="settings-alerts-btn" class="settings-item">🔔 Timer alerts</button>
     <div class="settings-group-label">Data</div>
     <button id="settings-daylog-btn" class="settings-item">📅 Day log</button>
+    <button id="settings-data-btn" class="settings-item">💾 Data &amp; backup</button>
+    <button id="settings-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--btn); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+    <div style="text-align:center; color:var(--muted); font-size:0.72rem; margin-top:10px;">Power Hour · version <span class="app-version-label"></span></div>
+  </div>
+</div>
+
+<!-- data & backup -->
+<div class="modal hidden" id="data-modal">
+  <div class="modal-card" style="max-height:85vh; overflow-y:auto;">
+    <h3>💾 Data &amp; backup</h3>
     <button id="settings-bulk-add-btn" class="settings-item">＋ Bulk add (paste a list)</button>
     <button id="settings-export-btn" class="settings-item">⇧ Export tasks</button>
-    <button id="settings-backup-btn" class="settings-item">💾 Backup code (copy / restore)</button>
+    <button id="settings-backup-btn" class="settings-item">📋 Backup code (copy / restore)</button>
     <button id="settings-sync-btn" class="settings-item">☁️ Cloud backup <span id="sync-badge" style="float:right; color:var(--muted); font-size:0.8rem;"></span></button>
-    <button id="settings-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+    <div class="settings-group-label" style="margin-top:16px;">Automatic daily snapshots</div>
+    <p style="color:var(--muted); font-size:0.8rem; margin:4px 0 6px;">A copy of everything is saved the first time you open the app each day (last 7 kept, on this device).</p>
+    <div id="snap-list"></div>
+    <button id="data-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
+<!-- appearance -->
+<div class="modal hidden" id="theme-modal">
+  <div class="modal-card">
+    <h3>🎨 Appearance</h3>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <button class="settings-item" data-theme="dark">🌙 Dark</button>
+      <button class="settings-item" data-theme="light">☀️ Light</button>
+      <button class="settings-item" data-theme="auto">📱 Match my phone</button>
+    </div>
+    <button id="theme-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
+<!-- weekly insights -->
+<div class="modal hidden" id="insights-modal">
+  <div class="modal-card" style="max-height:85vh; overflow-y:auto;">
+    <h3>📊 Weekly insights</h3>
+    <div id="insights-body"></div>
+    <button id="insights-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
+<!-- first-run welcome -->
+<div class="modal hidden" id="welcome-modal" style="z-index:700;">
+  <div class="modal-card welcome-card">
+    <div class="welcome-emoji" id="welcome-emoji"></div>
+    <h3 id="welcome-title"></h3>
+    <p id="welcome-text" style="color:var(--muted); font-size:0.95rem; line-height:1.45;"></p>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button id="welcome-skip-btn">Skip</button>
+      <button id="welcome-next-btn" class="add-btn">Next</button>
+    </div>
+  </div>
+</div>
+
+<div class="update-banner hidden" id="update-banner">✨ A new version is ready — tap to update</div>
+
+<!-- app confirm -->
+<div class="modal hidden" id="confirm-modal" style="z-index:800;">
+  <div class="modal-card">
+    <h3 id="confirm-title">Are you sure?</h3>
+    <p id="confirm-text" style="font-size:0.92rem; line-height:1.4;"></p>
+    <div class="modal-actions">
+      <button id="confirm-cancel-btn">Cancel</button>
+      <button id="confirm-ok-btn" class="add-btn">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- quick tidy: untagged tasks -->
+<div class="modal hidden" id="tidy-modal" style="z-index:630;">
+  <div class="modal-card" style="max-height:80vh; overflow-y:auto;">
+    <h3>🏷️ Quick tidy</h3>
+    <p id="tidy-sub" style="color:var(--muted); font-size:0.85rem; margin-top:-6px;"></p>
+    <div id="tidy-list"></div>
+    <button id="tidy-done-btn" class="add-btn" style="width:100%; margin-top:14px; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer;">Done</button>
+  </div>
+</div>
+
+<!-- possible duplicate -->
+<div class="modal hidden" id="dup-modal" style="z-index:620;">
+  <div class="modal-card">
+    <h3>👀 Already on your list?</h3>
+    <p style="color:var(--muted); font-size:0.88rem; margin-top:-6px;">This looks a lot like:</p>
+    <div id="dup-matches" style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;"></div>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <button id="dup-open-btn" style="width:100%; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer; background:var(--btn); color:var(--text);">Open the existing one</button>
+      <button id="dup-add-btn" style="width:100%; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer;" class="add-btn">Add it anyway</button>
+      <button id="dup-cancel-btn" style="width:100%; padding:10px; border-radius:10px; border:1px solid var(--hairline); background:none; color:var(--text); cursor:pointer;">Don't add</button>
+    </div>
   </div>
 </div>
 
 <!-- daily goal nudges -->
 <div class="modal hidden" id="goals-modal" style="z-index:650;">
   <div class="modal-card" style="max-height:85vh; overflow-y:auto;">
-    <h3>🎯 Daily goal nudges</h3>
+    <h3>💧 Daily goal nudges</h3>
     <p style="color:var(--muted); font-size:0.85rem; margin-top:-6px;">Optional. While you run a timer with <b>Move around</b> selected, and once your P1s are done, a surprise 1-minute goal break is slipped in between tasks. It won't be in your plan, and it's deliberately hard to skip.</p>
     <label class="modal-row recurring-toggle"><input type="checkbox" id="goals-enabled"><span>Turn nudges on</span></label>
     <div class="modal-row budget-row">
@@ -657,7 +813,7 @@
     <textarea id="backup-textarea" autocapitalize="off" autocorrect="off" spellcheck="false" rows="5" style="width:100%; font-size:0.75rem;" placeholder="Paste a backup code here to restore"></textarea>
     <div style="display:flex; gap:10px; margin-top:10px;">
       <button id="backup-copy-btn" class="add-btn" style="flex:1; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer;">Copy this device's code</button>
-      <button id="backup-restore-btn" style="flex:1; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer; background:#2a2e37; color:var(--text);">Restore from pasted code</button>
+      <button id="backup-restore-btn" style="flex:1; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer; background:var(--btn); color:var(--text);">Restore from pasted code</button>
     </div>
     <p id="backup-msg" style="color:var(--muted); font-size:0.82rem; min-height:1.2em;"></p>
     <button id="backup-close-btn" style="width:100%; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
@@ -668,17 +824,17 @@
 <div class="modal hidden" id="sync-modal" style="z-index:650;">
   <div class="modal-card">
     <h3>☁️ Cloud backup</h3>
-    <div style="color:var(--muted); font-size:0.7rem; margin-top:-8px;">build 10-Oct-c</div>
+    <div style="color:var(--muted); font-size:0.7rem; margin-top:-8px;">version <span class="app-version-label"></span></div>
     <p id="sync-status" style="color:var(--muted); font-size:0.88rem; margin-top:-6px;"></p>
     <div id="sync-choice" class="hidden" style="display:none; flex-direction:column; gap:10px; margin:8px 0;">
       <button id="sync-merge-btn" class="add-btn" style="width:100%; padding:13px; border-radius:10px; border:none; font-weight:600; cursor:pointer;">Combine both (recommended)</button>
-      <button id="sync-keep-local-btn" style="width:100%; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer; background:#2a2e37; color:var(--text);">Keep this device only</button>
-      <button id="sync-use-cloud-btn" style="width:100%; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer; background:#2a2e37; color:var(--text);">Use cloud copy only</button>
+      <button id="sync-keep-local-btn" style="width:100%; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer; background:var(--btn); color:var(--text);">Keep this device only</button>
+      <button id="sync-use-cloud-btn" style="width:100%; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer; background:var(--btn); color:var(--text);">Use cloud copy only</button>
     </div>
     <div id="sync-actions" style="display:flex; flex-direction:column; gap:10px; margin-top:6px;">
       <button id="sync-signin-btn" class="add-btn" style="width:100%; padding:13px; border-radius:10px; border:none; font-weight:600; cursor:pointer;">Sign in with Google</button>
       <button id="sync-redirect-btn" style="display:none; width:100%; padding:12px; border-radius:10px; border:1px solid var(--hairline); background:none; color:var(--text); cursor:pointer;">Full-page sign-in</button>
-      <button id="sync-now-btn" style="display:none; width:100%; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer; background:#2a2e37; color:var(--text);">Sync now</button>
+      <button id="sync-now-btn" style="display:none; width:100%; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer; background:var(--btn); color:var(--text);">Sync now</button>
       <button id="sync-signout-btn" style="display:none; width:100%; padding:12px; border-radius:10px; border:1px solid var(--hairline); background:none; color:var(--text); cursor:pointer;">Sign out</button>
     </div>
     <button id="sync-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
@@ -691,41 +847,38 @@
     <h3>❓ How Power Hour works</h3>
 
     <h4>The basics</h4>
-    <p>Add a task with the ➕ button — give it a name, a time estimate, and a priority from P1 (most urgent) to P5 (someday). Tasks are shown in one list, grouped by priority. Tick the checkbox to mark something done.</p>
+    <p>Tap <b>＋ Add task</b>, give it a name, a time estimate and a priority from P1 (urgent) to P5 (someday). Tasks sit in one list grouped by priority. If the name looks like something already on your list, you'll be asked before it's added. Under <b>More options</b> you can add a tag, a deadline, a start time, a date, notes, order rules and recurrence. Finished tasks drop into <b>Done today</b> at the bottom, where you can undo them.</p>
 
-    <h4>Gestures — no clutter, everything's a touch</h4>
+    <h4>Gestures</h4>
     <ul>
-      <li><b>Tap</b> a task to open and edit it.</li>
-      <li><b>Swipe</b> left or right for a quick action — by default, right completes it and left deletes it. Change what each direction does in <b>Settings → Gestures</b>.</li>
-      <li><b>Press and hold</b>, then drag up or down to reprioritize on the spot — a small picker pops up next to your finger showing all 5 levels, and you can jump straight to any of them in one motion. You can also set this gesture to shift a task's scheduled date instead, in <b>Settings → Gestures</b>.</li>
+      <li><b>Tap</b> a task to edit it (or delete it from there).</li>
+      <li><b>Swipe</b> right or left for a quick action. Choose what each does in <b>Settings → Customise → Gestures</b>.</li>
+      <li><b>Press and hold</b>, then drag up or down to change priority; hold near the left edge to reorder within a priority.</li>
     </ul>
 
-    <h4>Power Hour — the timer</h4>
-    <p>Tap 🎯 and give it a time budget (say, 60 minutes). It picks the best combination of your pending tasks to fill that time — not just the first ones that fit, but the combination that uses the time best. Review the picks, adjust if you like (you can tap a task right there to edit it, and the picks update live), then start. Each task gets its own countdown; mark it done, skip it, or let the timer move on.</p>
+    <h4>Start a Power Hour</h4>
+    <p>Tap <b>▶ Start a Power Hour</b> and say how many minutes you have. The app picks the best mix of tasks: P1 first, then whatever time is left flows down. Must-dos, escalated tasks and deadlines get priority within a level, and equal tasks are shuffled so the same ones don't always win. You can edit or untick anything before you start. During the timer, ✕ ends the session (after a check) and the bar under the clock shows what's done and what's left.</p>
 
-    <h4>Tasks that sit too long take care of themselves</h4>
-    <p>A task left pending too long automatically moves up in priority — lower priorities get more patience (P5 gets 3 weeks, P2 just a week, by default). A P1 task that's still not done after a couple of days gets flagged <b>❗ must do</b>, since it can't escalate any further. All of these timings are yours to change in <b>Settings → Escalation timing</b>. You'll also get a quick toast whenever this happens automatically, with the option to undo it.</p>
+    <h4>Order rules</h4>
+    <p>In a task's options, <b>Do after</b> and <b>Do before</b> link it to another task, or pin it as <b>🥇 first</b> or <b>🏁 last</b>. The picker pulls in what a task depends on, and the timer always respects the order.</p>
 
-    <h4>Steps</h4>
-    <p>Set a daily step goal and log steps as you go. If you're falling behind pace, the app automatically adds a "Walk" task sized to close the gap — and the closer it gets to 9pm, the more urgently that task gets prioritized, so it doesn't get lost among everything else. Any task with steps assigned shows a 👣 badge; tap the steps bar to see exactly which tasks are contributing to your planned total, and tap through to edit any of them.</p>
+    <h4>Tasks that sit too long</h4>
+    <p>A pending task moves up a priority after a set number of days, and a P1 that stays put is flagged <b>❗ must do</b>, which is hard to untick. Timings are in <b>Settings → Customise → Escalation timing</b>, where you can also see <b>aging tasks</b>. Editing only restarts a task's clock if you change its priority, date or age.</p>
 
-    <h4>Scheduling for later</h4>
-    <p>Give a task a specific day under "More options" when adding or editing it, and it disappears from your list until that day arrives — no need to look at things before they're relevant. See everything coming up in <b>Settings → Calendar</b>, which shows a month view with a dot on any day with something scheduled, plus an upcoming list.</p>
+    <h4>Tags and Quick tidy</h4>
+    <p>Tags (🎧 No hands, 🏃 Errands, 🚶 Move around) let you filter what the timer picks. If you've been away for 5+ hours, a <b>Quick tidy</b> prompt offers to tag anything untagged.</p>
 
-    <h4>Time-of-day limits</h4>
-    <p>Mark a task 🌅 AM, 🌆 PM, or give it a specific deadline time. It'll show a badge (turning red once the time's passed), and — importantly — it won't be offered up by the timer's picker at the wrong time of day, so you won't get handed a morning routine at 4pm.</p>
+    <h4>Steps and daily goal nudges</h4>
+    <p>Set a step goal and log steps; if you fall behind, a Walk task appears automatically. In <b>Customise → Daily goal nudges</b> you can set goals like water or stretching. With Move around selected, and once your P1s are done, a surprise 1-minute break appears between tasks. It's deliberately hard to skip.</p>
 
-    <h4>Recurring tasks</h4>
-    <p>Mark a task recurring and it comes back fresh each time you hit "Clear day" on the Completed report, rather than needing to be re-added daily.</p>
+    <h4>Dates, times and recurring</h4>
+    <p>Give a task a date and it stays out of sight until then. <b>Must be done by</b> sets AM, PM or a time; <b>Don't pick up before</b> keeps it out of the timer until later. Recurring tasks come back fresh when you clear the day.</p>
 
-    <h4>Undo</h4>
-    <p>Completed something by accident? A toast with an Undo button appears for a few seconds right after. Missed that window — the <b>Completed report</b> keeps an ↩ Undo next to every entry, no matter how long ago.</p>
+    <h4>Ending the day</h4>
+    <p>Tap <b>🌇 End of day</b> for highlights or the full list, then clear the day. If you forget, the app asks "How did yesterday go?" the next morning. Past days are in <b>Settings → Day log</b>, consistency is in <b>Habit tracker</b>, and <b>Weekly insights</b> shows your last 7 days.</p>
 
-    <h4>Day log &amp; Completed report</h4>
-    <p>Every time you clear your day, that day's wins are archived. Flip between days with the ‹ › arrows in <b>Settings → Day log</b>. The Completed report shows everything done today with a bit of well-earned celebration that scales with how much you got through.</p>
-
-    <h4>Everything else in Settings</h4>
-    <p>Bulk add lets you paste in a list of tasks at once. Export gives you a plain-text copy of what's been completed. Gestures and Escalation timing let you make the automatic behaviors feel like yours.</p>
+    <h4>Backup and updates</h4>
+    <p><b>Settings → Data &amp; backup</b> has Cloud backup (Google sign-in, best used in Safari), a copyable Backup code, bulk add, export and automatic daily snapshots. A banner appears when a new version is ready. <b>Appearance</b> switches between dark, light and matching your phone, and <b>Timer alerts</b> turns the end-of-task chime on or off.</p>
 
     <button id="guide-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
   </div>
@@ -737,7 +890,7 @@
       Pending tasks, oldest first. Lower-priority tasks get more patience before bumping up; higher-priority ones escalate faster.
     </p>
     <div id="aging-list"></div>
-    <button id="aging-close-btn" style="width:100%; margin-top:10px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+    <button id="aging-close-btn" style="width:100%; margin-top:10px; background:none; border:1px solid var(--btn); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
   </div>
 </div>
 
@@ -762,7 +915,7 @@
     </div>
     <div id="calendar-grid"></div>
     <div id="calendar-day-detail"></div>
-    <button id="calendar-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+    <button id="calendar-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--btn); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
   </div>
 </div>
 
@@ -796,6 +949,7 @@
     <p style="color:var(--muted); font-size:0.8rem; margin-top:-8px;">
       Days a pending task can sit at each priority before it bumps up one level. Lower priorities default to more patience.
     </p>
+    <button id="esc-aging-btn" class="settings-item" style="margin-bottom:10px;">⏳ See aging tasks</button>
     <div class="modal-row budget-row">
       <span style="color:var(--p5); font-weight:700;">P5 → P4</span>
       <input type="number" id="esc-p5-input" min="1" step="1" style="margin-left:auto; width:80px;">
@@ -839,7 +993,7 @@
       <button type="button" id="daylog-next-btn" class="icon-btn">›</button>
     </div>
     <div id="daylog-list"></div>
-    <button id="daylog-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+    <button id="daylog-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--btn); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
   </div>
 </div>
 
@@ -850,7 +1004,7 @@
       Copy this to back it up, or paste it back into Bulk add later to restore it (completed tasks are marked with [x]).
     </p>
     <div class="modal-row">
-      <textarea id="export-textarea" rows="8" readonly style="width:100%; padding:12px; border-radius:10px; border:1px solid #2a2e37; background:var(--bg); color:var(--text); font-family:inherit; font-size:0.9rem;"></textarea>
+      <textarea id="export-textarea" rows="8" readonly style="width:100%; padding:12px; border-radius:10px; border:1px solid var(--btn); background:var(--bg); color:var(--text); font-family:inherit; font-size:0.9rem;"></textarea>
     </div>
     <div class="modal-actions">
       <button id="export-close-btn">Close</button>
@@ -867,7 +1021,7 @@
     <p style="color:var(--muted); font-size:0.85rem; margin-top:-8px;">How do you want to look back at today?</p>
     <div style="display:flex; flex-direction:column; gap:10px; margin-top:6px;">
       <button id="report-choice-highlights-btn" class="add-btn" style="width:100%; padding:14px; border-radius:10px; border:none; font-size:1rem; font-weight:600; cursor:pointer;">✨ See Highlights</button>
-      <button id="report-choice-list-btn" style="width:100%; padding:14px; border-radius:10px; border:none; font-size:1rem; font-weight:600; cursor:pointer; background:#2a2e37; color:var(--text);">📋 See List</button>
+      <button id="report-choice-list-btn" style="width:100%; padding:14px; border-radius:10px; border:none; font-size:1rem; font-weight:600; cursor:pointer; background:var(--btn); color:var(--text);">📋 See List</button>
     </div>
     <button id="report-choice-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
   </div>
@@ -880,7 +1034,7 @@
     <p id="rollover-sub" style="color:var(--muted); font-size:0.85rem; margin-top:-8px;"></p>
     <div style="display:flex; flex-direction:column; gap:10px; margin-top:6px;">
       <button id="rollover-highlights-btn" class="add-btn" style="width:100%; padding:14px; border-radius:10px; border:none; font-size:1rem; font-weight:600; cursor:pointer;">✨ See Highlights</button>
-      <button id="rollover-list-btn" style="width:100%; padding:14px; border-radius:10px; border:none; font-size:1rem; font-weight:600; cursor:pointer; background:#2a2e37; color:var(--text);">📋 See List</button>
+      <button id="rollover-list-btn" style="width:100%; padding:14px; border-radius:10px; border:none; font-size:1rem; font-weight:600; cursor:pointer; background:var(--btn); color:var(--text);">📋 See List</button>
       <button id="rollover-clear-btn" style="width:100%; padding:12px; border-radius:10px; border:1px solid var(--accent); font-size:0.95rem; font-weight:600; cursor:pointer; background:none; color:var(--accent);">Clear day &amp; reset daily tasks</button>
     </div>
     <button id="rollover-later-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Not now</button>
@@ -892,7 +1046,7 @@
   <div class="modal-card" style="max-height:85vh; overflow-y:auto;">
     <div id="highlights-content"></div>
     <div class="modal-actions">
-      <button id="highlights-list-instead-btn" style="background:#2a2e37; color:var(--text);">See list</button>
+      <button id="highlights-list-instead-btn" style="background:var(--btn); color:var(--text);">See list</button>
       <button id="highlights-clear-btn" class="add-btn">Clear day</button>
     </div>
     <button id="highlights-close-btn" style="width:100%; margin-top:10px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
@@ -908,7 +1062,7 @@
       <button id="report-export-btn">⇧ Export</button>
       <button id="report-clear-btn">Clear day</button>
     </div>
-    <button id="report-close-btn" style="width:100%; margin-top:10px; background:none; border:1px solid #2a2e37; color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+    <button id="report-close-btn" style="width:100%; margin-top:10px; background:none; border:1px solid var(--btn); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
   </div>
 </div>
 
@@ -1280,7 +1434,7 @@ function updateStepsBar(){
   const elapsedFraction = getElapsedDayFraction();
   const fullProgress = actualSteps + plannedSteps;
   const stillBehind = stepGoal > 0 && elapsedFraction >= 0.4 && fullProgress < stepGoal * elapsedFraction;
-  document.getElementById('mini-steps-label').textContent = `${stillBehind ? '⚠️ ' : ''}👣 ${actualSteps.toLocaleString()} / ${stepGoal.toLocaleString()}`;
+  document.getElementById('mini-steps-label').textContent = `${stillBehind ? '⚠️ ' : ''}👣 ${actualSteps.toLocaleString()} / ${stepGoal.toLocaleString()}${plannedSteps > 0 ? ' · ' + plannedSteps.toLocaleString() + ' planned' : ''}`;
 
   const autoWalkTask = tasks.find(t => t.autoWalk && !t.done);
   const note = document.getElementById('pace-suggestion');
@@ -1373,7 +1527,64 @@ document.getElementById('minus-btn').onclick = () => { pendingMins = Math.max(5,
 document.getElementById('add-btn').onclick = addTask;
 taskInput.addEventListener('keydown', e => { if(e.key === 'Enter') addTask(); });
 
+/* ---------- duplicate check ---------- */
+const DUP_STOP = new Set(['the','a','an','to','my','for','and','of','up','out','some','do','get','on','in','at','with']);
+function dupTokens(str){
+  return str.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w && !DUP_STOP.has(w)).map(w => w.length > 3 ? w.replace(/(ing|es|s|ed)$/, '') : w);
+}
+function editDistance(a, b){
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for(let j = 1; j <= b.length; j++) dp[0][j] = j;
+  for(let i = 1; i <= a.length; i++) for(let j = 1; j <= b.length; j++)
+    dp[i][j] = Math.min(dp[i-1][j] + 1, dp[i][j-1] + 1, dp[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+  return dp[a.length][b.length];
+}
+function namesSimilar(x, y){
+  const a = dupTokens(x), b = dupTokens(y);
+  if(a.length === 0 || b.length === 0) return x.trim().toLowerCase() === y.trim().toLowerCase();
+  const ja = a.join(' '), jb = b.join(' ');
+  if(ja === jb) return true;
+  const A = new Set(a), B = new Set(b);
+  const inter = [...A].filter(w => B.has(w)).length;
+  const union = new Set([...A, ...B]).size;
+  if(inter / union >= 0.6) return true;
+  const [small, big] = A.size <= B.size ? [A, B] : [B, A];
+  if([...small].every(w => big.has(w)) && (small.size >= 2 || big.size <= 2)) return true;
+  const longest = Math.max(ja.length, jb.length);
+  return longest >= 5 && 1 - editDistance(ja, jb) / longest >= 0.8; // typos / small rewordings
+}
+function findSimilarTasks(name){
+  return tasks.filter(t => !t.done && !t.microGoal && namesSimilar(name, t.name));
+}
 function addTask(){
+  const name = taskInput.value.trim();
+  if(!name) return;
+  const similar = findSimilarTasks(name);
+  if(similar.length === 0){ addTaskNow(); return; }
+  const box = document.getElementById('dup-matches');
+  box.innerHTML = '';
+  similar.slice(0, 3).forEach(t => {
+    const d = document.createElement('div');
+    d.style.cssText = 'padding:10px 12px; border-radius:10px; background:var(--btn); font-size:0.9rem;';
+    d.textContent = t.name + ' \u00b7 ' + t.priority.toUpperCase() + ' \u00b7 ' + t.mins + ' min';
+    box.appendChild(d);
+  });
+  document.getElementById('dup-modal').classList.remove('hidden');
+  document.getElementById('dup-add-btn').onclick = () => { document.getElementById('dup-modal').classList.add('hidden'); addTaskNow(); };
+  document.getElementById('dup-cancel-btn').onclick = () => document.getElementById('dup-modal').classList.add('hidden');
+  document.getElementById('dup-open-btn').onclick = () => {
+    document.getElementById('dup-modal').classList.add('hidden');
+    document.getElementById('add-modal').classList.remove('modal-open');
+    openEditModal(similar[0].id);
+  };
+}
+function fillAddDepSelects(){
+  const others = tasks.filter(x => !x.done && !x.microGoal).sort(byNameAZ);
+  const opts = special => '<option value="">— none —</option>' + special + others.map(x => `<option value="${x.id}">${x.name.replace(/</g, '&lt;')}</option>`).join('');
+  document.getElementById('add-after-select').innerHTML = opts('<option value="__last">🏁 Last thing — after everything</option>');
+  document.getElementById('add-before-select').innerHTML = opts('<option value="__first">🥇 First thing — before everything</option>');
+}
+function addTaskNow(){
   const name = taskInput.value.trim();
   if(!name) return;
   const recurringCb = document.getElementById('add-recurring-checkbox');
@@ -1387,7 +1598,13 @@ function addTask(){
   const timeConstraint = pendingTimeLimit === 'specific' ? (specificTimeInput.value || null) : pendingTimeLimit;
   const notBeforeTime = notBeforeInput.value || null;
   const recurEveryDays = Math.max(1, parseInt(recurIntervalInput.value) || 1);
-  tasks.push({ id: uid(), name, mins: pendingMins, priority: pendingPriority, tag: pendingTag, steps, recurring: recurringCb.checked, recurEveryDays, done: false, createdAt: Date.now(), staleSince: Date.now(), scheduledDate, timeConstraint, notBeforeTime });
+  const afterRaw = document.getElementById('add-after-select').value, beforeRaw = document.getElementById('add-before-select').value;
+  const newTask = { id: uid(), name, mins: pendingMins, priority: pendingPriority, tag: pendingTag, steps, recurring: recurringCb.checked, recurEveryDays, done: false, createdAt: Date.now(), staleSince: Date.now(), scheduledDate, timeConstraint, notBeforeTime };
+  newTask.notes = (document.getElementById('add-notes-input').value || '').trim() || null;
+  newTask.pin = beforeRaw === '__first' ? 'first' : (afterRaw === '__last' ? 'last' : null);
+  if(afterRaw && afterRaw !== '__last') newTask.afterId = afterRaw;
+  tasks.push(newTask);
+  if(beforeRaw && beforeRaw !== '__first'){ const o = tasks.find(x => x.id === beforeRaw); if(o && !wouldCycle(o.id, newTask.id)) o.afterId = newTask.id; }
   taskInput.value = '';
   pendingMins = 5; pendingPriority = 'p3'; pendingTag = null; pendingTimeLimit = null;
   recurringCb.checked = false;
@@ -1397,6 +1614,8 @@ function addTask(){
   dateInput.value = '';
   specificTimeInput.value = '';
   notBeforeInput.value = '';
+  document.getElementById('add-notes-input').value = '';
+  fillAddDepSelects();
   minsDisplay.textContent = '5 min';
   refreshAddPriorityPicker();
   refreshAddTagPicker();
@@ -1410,6 +1629,7 @@ document.getElementById('add-recurring-checkbox').onchange = (e) => {
 };
 
 document.getElementById('open-add-btn').onclick = () => {
+  fillAddDepSelects();
   document.getElementById('add-modal').classList.add('modal-open');
   taskInput.focus();
 };
@@ -1427,6 +1647,7 @@ function deleteTaskById(id){
 
 /* ---------- edit modal ---------- */
 const editModal = document.getElementById('edit-modal');
+const byNameAZ = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
 /* ---------- ordering rules: "A must come after B" (stored on A as afterId = B.id) ---------- */
 function getPrereq(t){ return t && t.afterId ? tasks.find(x => x.id === t.afterId) || null : null; }
 function wouldCycle(taskId, prereqId){
@@ -1436,7 +1657,7 @@ function wouldCycle(taskId, prereqId){
 }
 let editBeforeOriginalId = null;
 function fillDepSelects(t){
-  const others = tasks.filter(x => !x.done && x.id !== t.id);
+  const others = tasks.filter(x => !x.done && !x.microGoal && x.id !== t.id).sort(byNameAZ);
   const opts = special => '<option value="">— none —</option>' + special + others.map(x => `<option value="${x.id}">${x.name.replace(/</g, '&lt;')}</option>`).join('');
   const a = document.getElementById('edit-after-select'), b = document.getElementById('edit-before-select');
   a.innerHTML = opts('<option value="__last">🏁 Last thing — after everything</option>'); b.innerHTML = opts('<option value="__first">🥇 First thing — before everything</option>');
@@ -1451,6 +1672,10 @@ function openEditModal(id){
   editTaskId = id;
   document.getElementById('edit-name-input').value = t.name;
   fillDepSelects(t);
+  document.getElementById('edit-notes-input').value = t.notes || '';
+  { const adv = t.notes || t.timeConstraint || t.notBeforeTime || t.scheduledDate || t.afterId || t.pin || t.recurring || tasks.some(x => !x.done && x.afterId === t.id);
+    document.getElementById('edit-more-options').classList.toggle('hidden', !adv);
+    document.getElementById('edit-more-toggle').textContent = adv ? 'Fewer options ▴' : 'More options ▾'; }
   editMins = t.mins;
   editPriority = t.priority;
   editTag = t.tag || null;
@@ -1515,7 +1740,9 @@ document.getElementById('edit-save-btn').onclick = () => {
   if(t){
     const newName = document.getElementById('edit-name-input').value.trim();
     if(newName) t.name = newName;
+    const prevPriority = t.priority, prevDate = t.scheduledDate || null, prevAge = Math.max(0, daysSince(t.createdAt || Date.now()));
     t.mins = editMins;
+    t.notes = (document.getElementById('edit-notes-input').value || '').trim() || null;
     t.priority = editPriority;
     t.tag = editTag;
     t.steps = editTag === 'errands' ? (parseInt(document.getElementById('edit-steps-input').value) || 0) : 0;
@@ -1541,10 +1768,12 @@ document.getElementById('edit-save-btn').onclick = () => {
     t.autoWalk = false; // a manual edit means the user now owns this task, not the auto-pace system
     const ageDays = Math.max(0, parseInt(document.getElementById('edit-age-input').value) || 0);
     const now = new Date();
-    t.createdAt = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ageDays, 12, 0, 0).getTime();
-    t.staleSince = Date.now(); // acknowledging the task via edit gives it a fresh window before it can escalate again
-    t.escalated = false;
-    t.mustDo = false;
+    if(ageDays !== prevAge) t.createdAt = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ageDays, 12, 0, 0).getTime();
+    if(prevPriority !== t.priority || prevDate !== (t.scheduledDate || null) || ageDays !== prevAge){
+      t.staleSince = Date.now(); // a deliberate change to priority, date or age gives it a fresh window; a rename or tweak does not
+      t.escalated = false;
+      t.mustDo = false;
+    }
     save(); refreshTimerDisplays();
   }
   editModal.classList.add('hidden'); editTaskId = null;
@@ -1609,6 +1838,7 @@ function sessionPosition(){
 
 function beginRun(){
   if(tasks.length === 0) return;
+  unlockAudio(); requestWake();
   if(timerState === 'idle' && sessionTaskIds){
     // anything that was available but left out of this session gets a small standing boost next time
     tasks.forEach(t => { if(!t.done && !isScheduledForFuture(t) && !sessionTaskIds.includes(t.id)) t.passedOver = (t.passedOver || 0) + 1; });
@@ -1634,11 +1864,14 @@ function startInterval(){
   clearInterval(timerInterval);
   timerInterval = setInterval(tick, 1000);
 }
+let chimedFor = null;
 function tick(){
   if(timerState !== 'running') return;
+  requestWake();
   const remaining = Math.round((taskEndTime - Date.now()) / 1000);
   if(remaining <= 0){
-    if(tasks[currentIndex] && tasks[currentIndex].microGoal){ secondsLeft = 0; refreshTimerDisplays(); return; } // goal breaks wait for you; they never time out into a skip
+    if(tasks[currentIndex] && tasks[currentIndex].microGoal){ if(chimedFor !== tasks[currentIndex].id){ chimedFor = tasks[currentIndex].id; chime(); } secondsLeft = 0; refreshTimerDisplays(); return; } // goal breaks wait for you; they never time out into a skip
+    chime();
     skipCurrentTask(); return;
   } // time ran out without an explicit Done — ask about it later
   secondsLeft = remaining;
@@ -1729,7 +1962,7 @@ function advanceAfterCurrent(startAt){
   }
   if(next === -1){
     clearInterval(timerInterval);
-    timerState = 'done'; currentIndex = -1; taskEndTime = null;
+    timerState = 'done'; currentIndex = -1; taskEndTime = null; releaseWake();
   } else {
     currentIndex = next;
     taskEndTime = Date.now() + tasks[currentIndex].mins * 60 * 1000;
@@ -1992,10 +2225,15 @@ function refreshTimerDisplays(){
     lastMotivationTaskId = t.id;
     document.getElementById('timer-motivation').textContent = getTaskMotivation(t);
   }
+  document.getElementById('timer-notes').textContent = t.notes || '';
   document.getElementById('timer-clock').textContent = formatTime(secondsLeft);
   document.getElementById('pause-btn').textContent = timerState === 'paused' ? 'Resume' : 'Pause';
 
   const nextIdx = findNextIndex(currentIndex + 1);
+  { const sessIds = sessionTaskIds || tasks.map(x => x.id);
+    const restMins = tasks.filter(x => sessIds.includes(x.id) && !x.done && !x.microGoal && x.id !== t.id && !sessionSkipped.some(k => k.id === x.id)).reduce((m, x) => m + x.mins, 0);
+    const left = Math.ceil((secondsLeft || 0) / 60) + restMins;
+    document.getElementById('timer-progress').textContent = sessionCompleted.length + ' done \u00b7 ' + left + ' min left'; }
   document.getElementById('up-next').textContent = nextIdx === -1 ? 'Last task 🎯' : `Up next: ${tasks[nextIdx].name}`;
 
   document.getElementById('mini-task').textContent = t.name;
@@ -2020,6 +2258,7 @@ function showMinimized(){
   persistSession();
 }
 function closeTimerFully(){
+  releaseWake();
   clearInterval(timerInterval);
   timerState = 'idle'; currentIndex = -1; secondsLeft = 0; sessionTaskIds = null; taskEndTime = null;
   timerScreen.classList.add('hidden');
@@ -2034,7 +2273,7 @@ function closeTimerFully(){
 document.getElementById('minimize-btn').onclick = showMinimized;
 document.getElementById('mini-expand').onclick = showMaximized;
 document.getElementById('mini-expand-area').onclick = showMaximized;
-document.getElementById('close-timer-btn').onclick = closeTimerFully;
+document.getElementById('close-timer-btn').onclick = async () => { if(await appConfirm({ title: 'End this Power Hour?', text: 'Tasks you\'ve already ticked off stay done. The rest go back on your list.', okLabel: 'End session', danger: true })) closeTimerFully(); };
 
 document.getElementById('pause-btn').onclick = () => {
   if(timerState === 'running'){
@@ -2056,7 +2295,7 @@ document.getElementById('done-current-btn').onclick = completeCurrentTask;
 document.getElementById('mini-done').onclick = completeCurrentTask;
 document.getElementById('skip-btn').onclick = skipCurrentTask;
 
-document.getElementById('stop-btn').onclick = closeTimerFully;
+
 
 /* ---------- settings ---------- */
 document.getElementById('open-settings-btn').onclick = () => {
@@ -2122,16 +2361,21 @@ function parseTaskLine(raw){
 document.getElementById('bulk-save-btn').onclick = () => {
   const raw = document.getElementById('bulk-textarea').value;
   const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  const seenNames = [];
+  const skipped = [];
   lines.forEach(line => {
     let done = false;
     const doneMatch = line.match(/^\[x\]\s*/i);
     if(doneMatch){ done = true; line = line.slice(doneMatch[0].length); }
     const parsed = parseTaskLine(line);
     if(!parsed.name) return;
+    if(!done && (findSimilarTasks(parsed.name).length || seenNames.some(n => namesSimilar(n, parsed.name)))){ skipped.push(parsed.name); return; }
+    seenNames.push(parsed.name);
     tasks.push({ id: uid(), name: parsed.name, mins: parsed.mins, priority: parsed.priority, tag: parsed.tag, steps: parsed.steps || 0, done, createdAt: Date.now(), staleSince: Date.now() });
   });
   save(); render();
   bulkModal.classList.add('hidden');
+  if(skipped.length) setTimeout(() => alert('Skipped ' + skipped.length + ' that looked like duplicates:\n\n' + skipped.join('\n')), 100);
 };
 
 /* ---------- export ---------- */
@@ -2488,7 +2732,6 @@ function openReportChoice(){
   document.getElementById('settings-modal').classList.add('hidden');
   document.getElementById('report-choice-modal').classList.remove('hidden');
 }
-document.getElementById('settings-report-btn').onclick = openReportChoice;
 document.getElementById('open-report-btn').onclick = openReportChoice;
 document.getElementById('report-choice-close-btn').onclick = () => document.getElementById('report-choice-modal').classList.add('hidden');
 document.getElementById('report-choice-list-btn').onclick = () => {
@@ -2587,9 +2830,9 @@ document.getElementById('highlights-list-instead-btn').onclick = () => {
   document.getElementById('highlights-modal').classList.add('hidden');
   openReportModal();
 };
-document.getElementById('highlights-clear-btn').onclick = () => {
+document.getElementById('highlights-clear-btn').onclick = async () => {
   if(document.getElementById('highlights-clear-btn').disabled) return;
-  if(clearDay()) document.getElementById('highlights-modal').classList.add('hidden');
+  if(await clearDay()) document.getElementById('highlights-modal').classList.add('hidden');
 };
 document.getElementById('report-close-btn').onclick = () => document.getElementById('report-modal').classList.add('hidden');
 
@@ -2617,7 +2860,8 @@ function undoCompletedTask(id){
 }
 
 /* ---------- aging tasks ---------- */
-document.getElementById('settings-aging-btn').onclick = () => {
+document.getElementById('esc-aging-btn').addEventListener('click', () => document.getElementById('escalation-modal').classList.add('hidden'));
+document.getElementById('esc-aging-btn').onclick = () => {
   const pending = tasks.filter(t => !t.done).sort((a, b) => (a.staleSince || a.createdAt) - (b.staleSince || b.createdAt));
   const list = document.getElementById('aging-list');
   if(pending.length === 0){
@@ -2867,10 +3111,10 @@ document.getElementById('rollover-list-btn').onclick = () => { hideRollover(); o
 document.getElementById('rollover-clear-btn').onclick = () => { hideRollover(); clearDay(true); };
 document.getElementById('rollover-later-btn').onclick = () => { rolloverDismissedFor = todayStr(); hideRollover(); };
 
-function clearDay(skipConfirm){
+async function clearDay(skipConfirm){
   const logDate = openDay && openDay < todayStr() ? openDay : todayStr();
   const isPast = logDate !== todayStr();
-  if(skipConfirm !== true && !confirm(isPast ? 'Close out ' + logDate + '? Completed tasks are logged under that date, and recurring ones come back fresh.' : 'Clear all completed tasks for today? Recurring ones will come back fresh instead of being removed.')) return false;
+  if(skipConfirm !== true && !(await appConfirm({ title: isPast ? 'Close out ' + logDate + '?' : 'Clear the day?', text: isPast ? 'Completed tasks are logged under that date, and recurring ones come back fresh.' : 'Completed tasks are logged and cleared. Recurring ones come back fresh instead of being removed.', okLabel: 'Clear day' }))) return false;
 
   const completedToday = getAllCompleted();
   dayLog.push({
@@ -2895,17 +3139,37 @@ function clearDay(skipConfirm){
   save(); render();
   return true;
 }
-document.getElementById('report-clear-btn').onclick = () => {
+document.getElementById('report-clear-btn').onclick = async () => {
   if(document.getElementById('report-clear-btn').disabled) return;
-  if(clearDay()) document.getElementById('report-modal').classList.add('hidden');
+  if(await clearDay()) document.getElementById('report-modal').classList.add('hidden');
 };
 
+let listSearch = '', listTagFilter = null;
+function buildListFilters(){
+  const box = document.getElementById('list-filter-chips');
+  box.innerHTML = '';
+  TAGS.forEach(tag => {
+    const c = document.createElement('button'); c.className = 'filter-chip' + (listTagFilter === tag ? ' on' : '');
+    c.textContent = TAG_ICONS[tag] + ' ' + TAG_LABELS[tag];
+    c.onclick = () => { listTagFilter = listTagFilter === tag ? null : tag; buildListFilters(); renderTaskList(); };
+    box.appendChild(c);
+  });
+}
 function renderTaskList(){
   const container = document.getElementById('task-list-container');
   container.innerHTML = '';
-  const visible = tasks.filter(t => !t.done && !t.microGoal && !isScheduledForFuture(t));
+  const allVisible = tasks.filter(t => !t.done && !t.microGoal && !isScheduledForFuture(t));
+  const showFilters = allVisible.length >= 6 || listSearch || listTagFilter;
+  document.getElementById('list-filter-row').classList.toggle('hidden', !showFilters);
+  const visible = allVisible.filter(t => (!listSearch || t.name.toLowerCase().includes(listSearch.toLowerCase())) && (!listTagFilter || t.tag === listTagFilter));
+  const filtering = !!(listSearch || listTagFilter);
+  if(visible.length === 0 && filtering){
+    container.innerHTML = '<div class="empty">No tasks match.</div>';
+    return;
+  }
   if(visible.length === 0){
-    container.innerHTML = '<div class="empty">Nothing pending — add a task above.</div>';
+    container.innerHTML = '<div class="empty" style="text-align:center; padding:28px 10px;"><div style="font-size:2.2rem; margin-bottom:6px;">🌤️</div>All clear. Tap <b>＋ Add task</b> when something comes to mind.</div>';
+    renderDoneToday(container);
     return;
   }
   let lastPriority = null;
@@ -2919,6 +3183,7 @@ function renderTaskList(){
     }
     container.appendChild(buildTaskRow(t));
   });
+  if(!filtering) renderDoneToday(container);
 }
 
 function buildTaskRow(t){
@@ -2937,6 +3202,7 @@ function buildTaskRow(t){
       </div>
       <div class="task-row-line2">
         ${getPrereq(t) && !getPrereq(t).done ? `<span class="tag-badge" title="Held until the task it comes after is done">🔗 after ${getPrereq(t).name.replace(/</g, '&lt;').slice(0, 18)}</span>` : ''}
+        ${t.notes ? '<span class="tag-badge" title="Has notes">📝</span>' : ''}
         ${t.pin === 'first' ? '<span class="tag-badge" title="Always done first in a timer run">🥇 first</span>' : t.pin === 'last' ? '<span class="tag-badge" title="Always done last in a timer run">🏁 last</span>' : ''}
         ${t.autoWalk ? '<span class="tag-badge" title="Added automatically to help hit your step goal">🤖 auto</span>' : ''}
         ${t.steps > 0 ? `<span class="tag-badge" title="${t.steps.toLocaleString()} steps">👣 ${t.steps.toLocaleString()}</span>` : ''}
@@ -2987,7 +3253,7 @@ function showToast(message, actionLabel, actionFn){
   }
   document.getElementById('undo-toast').classList.remove('hidden');
   clearTimeout(appToastTimer);
-  appToastTimer = setTimeout(() => { document.getElementById('undo-toast').classList.add('hidden'); }, 6000);
+  appToastTimer = setTimeout(() => { document.getElementById('undo-toast').classList.add('hidden'); }, 4500);
 }
 
 /* ---------- configurable gestures: swipe left/right, long-press + vertical drag ---------- */
@@ -3336,9 +3602,264 @@ function buildSegmented(container, options, selected, onSelect){
   };
 })();
 
+/* ---------- polish pass: shared confirm, done-today list, quick tidy, help line, settings sections ---------- */
+function appConfirm({ title, text, okLabel, danger }){
+  return new Promise(resolve => {
+    const m = document.getElementById('confirm-modal');
+    document.getElementById('confirm-title').textContent = title || 'Are you sure?';
+    document.getElementById('confirm-text').textContent = text || '';
+    const ok = document.getElementById('confirm-ok-btn');
+    ok.textContent = okLabel || 'OK';
+    ok.style.background = danger ? 'var(--danger)' : ''; ok.style.color = danger ? '#fff' : '';
+    m.classList.remove('hidden');
+    const close = v => { m.classList.add('hidden'); resolve(v); };
+    ok.onclick = () => close(true);
+    document.getElementById('confirm-cancel-btn').onclick = () => close(false);
+  });
+}
+
+let doneTodayOpen = false;
+function renderDoneToday(container){
+  const done = tasks.filter(t => t.done && !t.microGoal);
+  if(done.length === 0) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'done-today';
+  wrap.innerHTML = `<div class="done-today-head"><span>✓ DONE TODAY (${done.length})</span><span>${doneTodayOpen ? '▴' : '▾'}</span></div>`;
+  wrap.firstChild.onclick = () => { doneTodayOpen = !doneTodayOpen; renderTaskList(); };
+  if(doneTodayOpen){
+    done.forEach(t => {
+      const row = document.createElement('div');
+      row.className = 'done-today-row';
+      const nm = document.createElement('span'); nm.textContent = t.name;
+      const btn = document.createElement('button'); btn.textContent = '↩ Undo';
+      btn.onclick = () => undoCompletedTask(t.id);
+      row.appendChild(nm); row.appendChild(btn); wrap.appendChild(row);
+    });
+  }
+  container.appendChild(wrap);
+}
+
+/* quick tidy: after a long break, offer to tag anything still untagged */
+const TIDY_GAP_MS = 5 * 60 * 60 * 1000;
+function checkTagTidy(){
+  const now = Date.now();
+  const last = parseInt(localStorage.getItem('powerHourLastOpen') || '0') || 0;
+  if(timerState === 'running' || timerState === 'paused') return;
+  if(!document.getElementById('rollover-modal').classList.contains('hidden')) return; // let the day-rollover prompt go first
+  localStorage.setItem('powerHourLastOpen', String(now));
+  if(!last || now - last < TIDY_GAP_MS) return;
+  const untagged = tasks.filter(t => !t.done && !t.microGoal && !t.autoWalk && !t.tag && !isScheduledForFuture(t));
+  if(untagged.length === 0) return;
+  const list = document.getElementById('tidy-list');
+  list.innerHTML = '';
+  document.getElementById('tidy-sub').textContent = untagged.length + ' task' + (untagged.length === 1 ? ' has' : 's have') + ' no tag yet. Tag them now so the timer can match them to your situation.';
+  untagged.forEach(t => {
+    const row = document.createElement('div'); row.className = 'tidy-row';
+    const nm = document.createElement('div'); nm.className = 'tidy-name'; nm.textContent = t.name;
+    const chips = document.createElement('div'); chips.className = 'tidy-chips';
+    TAGS.forEach(tag => {
+      const c = document.createElement('button'); c.className = 'tidy-chip'; c.textContent = TAG_ICONS[tag] + ' ' + TAG_LABELS[tag];
+      c.onclick = () => {
+        t.tag = tag; save(); render();
+        row.classList.add('tidy-done');
+        chips.querySelectorAll('.tidy-chip').forEach(x => x.classList.remove('on')); c.classList.add('on');
+      };
+      chips.appendChild(c);
+    });
+    row.appendChild(nm); row.appendChild(chips); list.appendChild(row);
+  });
+  document.getElementById('tidy-modal').classList.remove('hidden');
+}
+document.getElementById('tidy-done-btn').onclick = () => document.getElementById('tidy-modal').classList.add('hidden');
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') setTimeout(checkTagTidy, 50); });
+
+/* help line only for the first few opens */
+(function(){
+  const n = (parseInt(localStorage.getItem('powerHourHelpSeen') || '0') || 0) + 1;
+  localStorage.setItem('powerHourHelpSeen', String(n));
+  if(n > 5) document.getElementById('help-line').classList.add('hidden');
+})();
+
+/* settings: collapsible sections (Help stays open) */
+(function(){
+  const card = document.querySelector('#settings-modal .modal-card');
+  const labels = [...card.querySelectorAll('.settings-group-label')];
+  labels.forEach((label, i) => {
+    if(i === 0) return;
+    const items = [];
+    let n = label.nextElementSibling;
+    while(n && !n.classList.contains('settings-group-label') && n.id !== 'settings-close-btn'){ items.push(n); n = n.nextElementSibling; }
+    label.classList.add('collapsible');
+    const caret = document.createElement('span'); caret.textContent = '▸'; label.appendChild(caret);
+    items.forEach(el => el.classList.add('hidden'));
+    label.onclick = () => { const open = items[0].classList.contains('hidden'); items.forEach(el => el.classList.toggle('hidden', !open)); caret.textContent = open ? '▾' : '▸'; };
+  });
+})();
+
+/* edit modal: more options + delete */
+document.getElementById('edit-more-toggle').onclick = () => {
+  const panel = document.getElementById('edit-more-options');
+  const nowHidden = panel.classList.toggle('hidden');
+  document.getElementById('edit-more-toggle').textContent = nowHidden ? 'More options ▾' : 'Fewer options ▴';
+};
+document.getElementById('edit-delete-btn').onclick = async () => {
+  const t = tasks.find(x => x.id === editTaskId);
+  if(!t) return;
+  if(!(await appConfirm({ title: 'Delete this task?', text: '"' + t.name + '" will be removed.', okLabel: 'Delete', danger: true }))) return;
+  const id = editTaskId;
+  editModal.classList.add('hidden'); editTaskId = null;
+  deleteTaskById(id);
+  if(editOpenedFromReview){ editOpenedFromReview = false; keepPickSeed = true; openReviewModal(reviewBudget); }
+};
+
+/* ---------- round 2: version/updates, snapshots, alerts, theme, insights, welcome, data hub ---------- */
+const APP_VERSION = '2026-10-15-b';
+const SKIP_KEYS = ['powerHourSession','powerHourSyncAt','powerHourBackupBeforeSync','powerHourBackupBeforeRestore','powerHourSnapshots','powerHourLastOpen','powerHourHelpSeen','powerHourWelcomeSeen'];
+document.querySelectorAll('.app-version-label').forEach(e => e.textContent = APP_VERSION);
+
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+async function checkForUpdate(){
+  if(!location.protocol.startsWith('http')) return;
+  try{
+    const r = await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' });
+    const txt = await r.text();
+    const m = txt.match(/APP_VERSION\s*=\s*'([^']+)'/);
+    if(m && m[1] !== APP_VERSION) document.getElementById('update-banner').classList.remove('hidden');
+  }catch(e){}
+}
+document.getElementById('update-banner').onclick = async () => {
+  try{ const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); }catch(e){}
+  location.replace(location.pathname + '?r=' + Date.now());
+};
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') checkForUpdate(); });
+setTimeout(checkForUpdate, 1500);
+
+/* automatic daily snapshots */
+function snapshotKeys(){ const o = {}; for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(k.startsWith('powerHour') && !SKIP_KEYS.includes(k)) o[k] = localStorage.getItem(k); } return o; }
+function loadSnapshots(){ try{ return JSON.parse(localStorage.getItem('powerHourSnapshots') || '{}') || {}; }catch(e){ return {}; } }
+function takeSnapshot(){
+  const snaps = loadSnapshots(), today = todayStr();
+  if(snaps[today]) return;
+  const tk = JSON.parse(snapshotKeys().powerHourTasks || '[]');
+  if(tk.length === 0 && Object.keys(snaps).length === 0) return;
+  snaps[today] = JSON.stringify(snapshotKeys());
+  let keep = 7;
+  for(;;){
+    const dates = Object.keys(snaps).sort();
+    while(dates.length > keep) delete snaps[dates.shift()];
+    try{ localStorage.setItem('powerHourSnapshots', JSON.stringify(snaps)); return; }catch(e){ if(keep <= 1) return; keep--; }
+  }
+}
+function renderSnapshots(){
+  const box = document.getElementById('snap-list'); box.innerHTML = '';
+  const snaps = loadSnapshots(), dates = Object.keys(snaps).sort().reverse();
+  if(dates.length === 0){ box.innerHTML = '<div style="color:var(--muted); font-size:0.85rem; padding:6px 0;">None yet. The first one is saved the next time you open the app.</div>'; return; }
+  dates.forEach(d => {
+    let n = 0; try{ n = JSON.parse(JSON.parse(snaps[d]).powerHourTasks || '[]').length; }catch(e){}
+    const row = document.createElement('div'); row.className = 'snap-row';
+    row.innerHTML = '<span></span>'; row.firstChild.textContent = d + ' · ' + n + ' tasks';
+    const b = document.createElement('button'); b.textContent = 'Restore';
+    b.onclick = async () => {
+      if(!(await appConfirm({ title: 'Restore ' + d + '?', text: 'Everything in the app is replaced with that day’s copy. What’s here now is kept first.', okLabel: 'Restore', danger: true }))) return;
+      localStorage.setItem('powerHourBackupBeforeRestore', JSON.stringify(snapshotKeys()));
+      Object.keys(snapshotKeys()).forEach(k => localStorage.removeItem(k));
+      const o = JSON.parse(snaps[d]);
+      Object.entries(o).forEach(([k, v]) => localStorage.setItem(k, v));
+      location.reload();
+    };
+    row.appendChild(b); box.appendChild(row);
+  });
+}
+document.getElementById('settings-data-btn').onclick = () => { document.getElementById('settings-modal').classList.add('hidden'); renderSnapshots(); document.getElementById('data-modal').classList.remove('hidden'); };
+document.getElementById('data-close-btn').onclick = () => document.getElementById('data-modal').classList.add('hidden');
+['settings-bulk-add-btn','settings-export-btn','settings-backup-btn','settings-sync-btn'].forEach(id => document.getElementById(id).addEventListener('click', () => document.getElementById('data-modal').classList.add('hidden')));
+takeSnapshot();
+
+/* timer alerts: chime, vibration, screen kept awake */
+let alertsOn = localStorage.getItem('powerHourAlerts') !== 'off';
+function refreshAlertsLabel(){ document.getElementById('settings-alerts-btn').textContent = '🔔 Timer alerts: ' + (alertsOn ? 'On' : 'Off'); }
+refreshAlertsLabel();
+document.getElementById('settings-alerts-btn').onclick = () => { alertsOn = !alertsOn; localStorage.setItem('powerHourAlerts', alertsOn ? 'on' : 'off'); refreshAlertsLabel(); if(alertsOn){ unlockAudio(); chime(); } };
+let audioCtx = null;
+function unlockAudio(){ try{ audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); if(audioCtx.state === 'suspended') audioCtx.resume(); }catch(e){} }
+document.addEventListener('pointerdown', unlockAudio, { once: true });
+function chime(){
+  if(!alertsOn) return;
+  try{ if(navigator.vibrate) navigator.vibrate([200, 100, 200]); }catch(e){}
+  if(!audioCtx) return;
+  [[660, 0], [880, 0.22]].forEach(([f, t]) => {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    const t0 = audioCtx.currentTime + t;
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.45);
+    o.connect(g); g.connect(audioCtx.destination); o.start(t0); o.stop(t0 + 0.5);
+  });
+}
+let wakeLock = null;
+async function requestWake(){ try{ if(alertsOn && 'wakeLock' in navigator && !wakeLock){ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } }catch(e){} }
+function releaseWake(){ try{ if(wakeLock) wakeLock.release(); }catch(e){} wakeLock = null; }
+
+/* appearance */
+function applyTheme(mode){ document.documentElement.dataset.theme = mode; localStorage.setItem('powerHourTheme', mode); document.querySelectorAll('#theme-modal [data-theme]').forEach(b => b.style.outline = b.dataset.theme === mode ? '2px solid var(--accent)' : ''); }
+document.getElementById('settings-theme-btn').onclick = () => { document.getElementById('settings-modal').classList.add('hidden'); applyTheme(document.documentElement.dataset.theme || 'dark'); document.getElementById('theme-modal').classList.remove('hidden'); };
+document.querySelectorAll('#theme-modal [data-theme]').forEach(b => b.onclick = () => applyTheme(b.dataset.theme));
+document.getElementById('theme-close-btn').onclick = () => document.getElementById('theme-modal').classList.add('hidden');
+
+/* search + tag filter on the main list */
+document.getElementById('list-search').addEventListener('input', e => { listSearch = e.target.value.trim(); renderTaskList(); });
+buildListFilters();
+
+/* weekly insights */
+function renderInsights(){
+  const days = [];
+  for(let i = 6; i >= 0; i--){ const d = new Date(); d.setDate(d.getDate() - i); days.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')); }
+  const stats = days.map(d => {
+    const entries = dayLog.filter(e => e.date === d);
+    let count = entries.reduce((s, e) => s + (e.completedCount || 0), 0), mins = entries.reduce((s, e) => s + (e.totalMins || 0), 0), steps = entries.reduce((s, e) => s + (e.actualSteps || 0), 0);
+    if(d === todayStr()){ const dn = getAllCompleted(); count += dn.length; mins += dn.reduce((s, t) => s + t.mins, 0); steps += actualSteps; }
+    return { d, count, mins, steps };
+  });
+  const total = stats.reduce((s, x) => s + x.count, 0), mins = stats.reduce((s, x) => s + x.mins, 0), steps = stats.reduce((s, x) => s + x.steps, 0);
+  const best = stats.reduce((a, x) => x.count > a.count ? x : a, stats[0]);
+  const max = Math.max(1, ...stats.map(x => x.count));
+  const dow = d => ['Su','Mo','Tu','We','Th','Fr','Sa'][new Date(d + 'T12:00:00').getDay()];
+  let html = '<div class="ins-bars">' + stats.map(x => `<div class="ins-bar"><span>${x.count}</span><div class="ins-bar-fill" style="height:${Math.round(x.count / max * 80)}%"></div><span>${dow(x.d)}</span></div>`).join('') + '</div>';
+  html += `<div class="ins-stat"><span>Tasks completed</span><b>${total}</b></div><div class="ins-stat"><span>Focused minutes</span><b>${mins}</b></div><div class="ins-stat"><span>Steps logged</span><b>${steps.toLocaleString()}</b></div>`;
+  if(best.count > 0) html += `<div class="ins-stat"><span>Best day</span><b>${dow(best.d)} · ${best.count} tasks</b></div>`;
+  const names = [...new Set(tasks.filter(t => t.recurring).map(t => t.name))];
+  const streaks = names.map(n => { const h = getHabitHistory(n, 14); let st = 0; for(let i = h.length - 1; i >= 0; i--){ if(h[i].done) st++; else if(i === h.length - 1) continue; else break; } return { n, st }; }).filter(x => x.st > 0).sort((a, b) => b.st - a.st).slice(0, 3);
+  if(streaks.length) html += '<h4 style="margin:14px 0 4px;">🔥 Streaks</h4>' + streaks.map(x => `<div class="ins-stat"><span>${x.n.replace(/</g, '&lt;')}</span><b>${x.st} day${x.st === 1 ? '' : 's'}</b></div>`).join('');
+  const pushed = tasks.filter(t => !t.done && !t.microGoal && daysSince(t.createdAt || Date.now()) >= 7).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).slice(0, 5);
+  if(pushed.length) html += '<h4 style="margin:14px 0 4px;">🧗 Keeps getting pushed back</h4>' + pushed.map(t => `<div class="ins-stat"><span>${t.name.replace(/</g, '&lt;')}</span><b>${daysSince(t.createdAt)}d old</b></div>`).join('');
+  document.getElementById('insights-body').innerHTML = html;
+}
+document.getElementById('settings-insights-btn').onclick = () => { document.getElementById('settings-modal').classList.add('hidden'); renderInsights(); document.getElementById('insights-modal').classList.remove('hidden'); };
+document.getElementById('insights-close-btn').onclick = () => document.getElementById('insights-modal').classList.add('hidden');
+
+/* first-run welcome */
+(function(){
+  if(!window.__freshInstall || localStorage.getItem('powerHourWelcomeSeen')) return;
+  const slides = [
+    ['⏱️', 'Welcome to Power Hour', 'A task list that decides what to do next. Add tasks with a time and a priority, and let the app fit them to the time you have.'],
+    ['▶', 'Start a Power Hour', 'Tell it how many minutes you have. It picks the best tasks and times them one by one. Anything left waiting gradually moves up on its own.'],
+    ['👆', 'Everything’s a touch', 'Tap a task to edit, swipe for quick actions, press and hold to change priority. You can change what swipes do in Settings.']
+  ];
+  let i = 0;
+  const show = () => {
+    document.getElementById('welcome-emoji').textContent = slides[i][0]; document.getElementById('welcome-title').textContent = slides[i][1]; document.getElementById('welcome-text').textContent = slides[i][2];
+    document.getElementById('welcome-next-btn').textContent = i === slides.length - 1 ? 'Get started' : 'Next';
+  };
+  const close = () => { localStorage.setItem('powerHourWelcomeSeen', '1'); document.getElementById('welcome-modal').classList.add('hidden'); };
+  document.getElementById('welcome-next-btn').onclick = () => { if(i === slides.length - 1) close(); else { i++; show(); } };
+  document.getElementById('welcome-skip-btn').onclick = close;
+  show(); document.getElementById('welcome-modal').classList.remove('hidden');
+})();
+
 /* ---------- backup code: whole-app copy/restore as text ---------- */
 (function(){
-  const skip = ['powerHourSession','powerHourSyncAt','powerHourBackupBeforeSync'];
+  const skip = SKIP_KEYS;
   const keys = () => { const k = []; for(let i = 0; i < localStorage.length; i++){ const n = localStorage.key(i); if(n.startsWith('powerHour') && !skip.includes(n)) k.push(n); } return k; };
   const msg = t => document.getElementById('backup-msg').textContent = t;
   const ta = document.getElementById('backup-textarea');
@@ -3355,7 +3876,7 @@ function buildSegmented(container, options, selected, onSelect){
     try{ await navigator.clipboard.writeText(code); { const nt = JSON.parse(o.powerHourTasks || '[]').length, nl = JSON.parse(o.powerHourDayLog || '[]').length; msg('Copied: ' + nt + ' tasks, ' + nl + ' logged days, plus settings (' + code.length + ' characters). Paste it into the other app\u2019s Backup code screen.'); } }
     catch(e){ ta.focus(); ta.select(); try{ document.execCommand('copy'); msg('Copied. Paste it into the other app\u2019s Backup code screen.'); }catch(e2){ msg('Select all the text in the box and copy it manually.'); } }
   };
-  document.getElementById('backup-restore-btn').onclick = () => {
+  document.getElementById('backup-restore-btn').onclick = async () => {
     let o;
     const raw = ta.value;
     const at = raw.toLowerCase().indexOf('powerhour1:');
@@ -3368,7 +3889,7 @@ function buildSegmented(container, options, selected, onSelect){
     }
     if(!o || typeof o !== 'object' || !o.powerHourTasks){ msg('The code was read but has no tasks in it \u2014 check you copied it from the app that has your tasks.'); return; }
     const n = (JSON.parse(o.powerHourTasks) || []).length;
-    if(!confirm('Replace everything in this app with the backup (' + n + ' tasks)? A copy of what\u2019s here now is kept first.')) return;
+    if(!(await appConfirm({ title: 'Replace everything?', text: 'This app will be replaced with the backup (' + n + ' tasks). A copy of what\u2019s here now is kept first.', okLabel: 'Restore', danger: true }))) return;
     const cur = {}; keys().forEach(k => cur[k] = localStorage.getItem(k));
     localStorage.setItem('powerHourBackupBeforeRestore', JSON.stringify(cur));
     keys().forEach(k => localStorage.removeItem(k));
@@ -3381,6 +3902,7 @@ restoreSession();
 { const keepId = (currentIndex !== -1 && tasks[currentIndex]) ? tasks[currentIndex].id : null; const before = tasks.length; tasks = tasks.filter(t => !t.microGoal || t.id === keepId); if(tasks.length !== before) save(); }
 render();
 checkDayRollover();
+setTimeout(checkTagTidy, 300);
 </script>
 
 <script type="module">
@@ -3396,7 +3918,7 @@ const configured = !FIREBASE_CONFIG.apiKey.startsWith('PASTE');
 show0('Starting\u2026');
 function show0(m){ const e = document.getElementById('sync-status'); if(e) e.textContent = m; }
 const V = '10.14.1';
-const isSyncKey = k => typeof k === 'string' && k.startsWith('powerHour') && !['powerHourSession','powerHourSyncAt','powerHourBackupBeforeSync'].includes(k);
+const isSyncKey = k => typeof k === 'string' && k.startsWith('powerHour') && !SKIP_KEYS.includes(k);
 const snapshotLocal = () => { const o = {}; for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(isSyncKey(k)) o[k] = localStorage.getItem(k); } return o; };
 const parse = (v, d) => { try{ return JSON.parse(v); }catch(e){ return d; } };
 const hasLocalData = () => { const o = snapshotLocal(); return parse(o.powerHourTasks, []).length > 0 || parse(o.powerHourDayLog, []).length > 0; };
