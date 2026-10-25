@@ -565,7 +565,8 @@
       <div class="timer-controls" style="flex-wrap:wrap;">
         <button id="done-export-btn">⇧ Export list</button>
         <button id="done-remove-btn" style="background:var(--danger); color:#fff;">Remove completed</button>
-        <button id="done-close-btn">Close</button>
+        <button id="done-eod-btn" class="add-btn hidden" style="width:100%;">🌇 End of day</button>
+        <button id="done-close-btn">Back to list</button>
       </div>
     </div>
   </div>
@@ -1296,6 +1297,22 @@ function escalateStaleTasks(){
         escalatedNow.push({ id: t.id, name: t.name, fromPriority, toPriority: t.priority });
       } else break;
     }
+    // a task with a time slot (AM / PM / specific time) that has now passed unfinished gets bumped up one level, once per day
+    if(t.timeConstraint && isPastTimeConstraint(t) && t.timeBumpedOn !== todayStr()){
+      const dl = getTimeConstraintDeadlineMinutes(t), mid = new Date(); mid.setHours(0, 0, 0, 0);
+      const wasThereInTime = (t.createdAt || 0) < mid.getTime() + dl * 60000; // added after its slot already passed doesn't count as missed
+      if(wasThereInTime){
+        t.timeBumpedOn = todayStr();
+        if(t.priority !== 'p1'){
+          const fromPriority = t.priority;
+          t.priority = PRIORITIES[PRIORITIES.indexOf(t.priority) - 1];
+          t.staleSince = now; t.escalated = true; changed = true;
+          escalatedNow.push({ id: t.id, name: t.name, fromPriority, toPriority: t.priority });
+        } else if(!t.mustDo){
+          t.mustDo = true; changed = true; mustDoNow.push({ id: t.id, name: t.name });
+        }
+      }
+    }
     if(t.priority === 'p1' && !t.mustDo){
       const mustDoDays = escalationDays.p1 || DEFAULT_ESCALATION_DAYS.p1;
       if(daysSince(t.staleSince) >= mustDoDays){
@@ -1316,11 +1333,11 @@ function notifyEscalations(escalatedNow, mustDoNow){
   if(total === 0) return;
   if(total === 1 && escalatedNow.length === 1){
     const e = escalatedNow[0];
-    showToast(`⏫ Bumped to ${PRIORITY_LABELS[e.toPriority]}: ${e.name}`, 'Undo', () => revertEscalation(e.id, e.fromPriority));
+    showToast(`⏫ Bumped to ${PRIORITY_LABELS[e.toPriority]}: ${e.name}`, 'Undo', () => revertEscalation(e.id, e.fromPriority), () => openEditModal(e.id));
   } else if(total === 1 && mustDoNow.length === 1){
-    showToast(`❗ Flagged must do: ${mustDoNow[0].name}`, null, null);
+    showToast(`❗ Flagged must do: ${mustDoNow[0].name}`, null, null, () => openEditModal(mustDoNow[0].id));
   } else {
-    showToast(`⏫ ${total} task${total > 1 ? 's' : ''} bumped up — see Aging tasks`, null, null);
+    showToast(`⏫ ${total} task${total > 1 ? 's' : ''} bumped up — tap to see Aging tasks`, null, null, () => document.getElementById('esc-aging-btn').click());
   }
 }
 function revertEscalation(id, fromPriority){
@@ -1339,7 +1356,7 @@ function render(){
 }
 
 /* also sweep for staleness on an hourly timer, in case the app/tab is left open for a long stretch */
-setInterval(() => { if(escalateStaleTasks()) render(); }, 60 * 60 * 1000);
+setInterval(() => { if(escalateStaleTasks()) render(); }, 10 * 60 * 1000);
 
 /* ---------- steps tracker (Errand tasks; "completed" = manually confirmed steps taken) ---------- */
 const stepGoalInput = document.getElementById('step-goal-input');
@@ -1647,6 +1664,8 @@ function addTaskNow(){
   refreshAddTagPicker();
   refreshAddTimeLimitPicker();
   save(); render();
+  showToast('✓ Added: ' + name, 'Undo', () => deleteTaskById(newTask.id));
+  document.getElementById('add-modal-close-btn').textContent = 'Done';
 }
 document.getElementById('add-date-clear-btn').onclick = () => { document.getElementById('add-date-input').value = ''; };
 document.getElementById('add-not-before-clear-btn').onclick = () => { document.getElementById('add-not-before-input').value = ''; };
@@ -1656,6 +1675,7 @@ document.getElementById('add-recurring-checkbox').onchange = (e) => {
 
 document.getElementById('open-add-btn').onclick = () => {
   fillAddDepSelects();
+  document.getElementById('add-modal-close-btn').textContent = 'Close';
   document.getElementById('add-modal').classList.add('modal-open');
   taskInput.focus();
 };
@@ -2088,7 +2108,7 @@ function restoreSession(){
 
 /* resync immediately when the tab/app comes back to the foreground, rather than waiting for the next tick */
 document.addEventListener('visibilitychange', () => {
-  if(document.visibilityState === 'visible'){ if(timerState === 'running') tick(); checkDayRollover(); }
+  if(document.visibilityState === 'visible'){ if(timerState === 'running') tick(); if(escalateStaleTasks()) render(); checkDayRollover(); }
 });
 window.addEventListener('pageshow', () => {
   if(timerState === 'running') tick();
@@ -2119,6 +2139,8 @@ function getTaskMotivation(t){
   if(t.microGoal) return 'A surprise minute for the goals you set. Do it now, then back to it.';
   const ageDays = daysSince(t.createdAt || Date.now());
   let pool;
+  const _gap = habitGapDays(t);
+  if(_gap) return COMEBACK_LINES[Math.floor(Math.random() * COMEBACK_LINES.length)](_gap);
   if(t.mustDo) pool = MOTIVATION_MESSAGES.mustDo;
   else if(t.escalated || ageDays >= 10) pool = MOTIVATION_MESSAGES.aged;
   else if(t.autoWalk) pool = MOTIVATION_MESSAGES.walk;
@@ -2155,6 +2177,24 @@ function getCurrentStreak(history){
   }
   return streak;
 }
+/* how many days a recurring task has been missed, once that is long enough to matter (else 0) */
+function habitGapDays(t){
+  if(!t || !t.recurring) return 0;
+  const h = getHabitHistory(t.name, 14);
+  if(h[h.length - 1].done) return 0;
+  let last = -1;
+  for(let i = h.length - 2; i >= 0; i--) if(h[i].done){ last = i; break; }
+  if(last === -1) return 0; // never done recently — not a broken habit, just a new or rare one
+  const gap = h.length - 1 - last;
+  const threshold = (t.recurDays && t.recurDays.length) ? 8 : Math.max(3, 2 * (t.recurEveryDays || 1));
+  return gap >= threshold ? gap : 0;
+}
+const COMEBACK_LINES = [
+  d => `${d} days off — that's okay. One small go today restarts it. 🌱`,
+  d => `It's been ${d} days. No guilt — just start again today.`,
+  d => `${d} days since the last one. Today's a great day to pick it back up.`,
+  d => `Missed ${d} days? The streak resets, the habit doesn't. Start small today. 💪`,
+];
 function renderHabitTracker(){
   const recurringNames = [...new Set(tasks.filter(t => t.recurring).map(t => t.name))];
   const list = document.getElementById('habits-list');
@@ -2166,12 +2206,14 @@ function renderHabitTracker(){
   list.innerHTML = recurringNames.map(name => {
     const history = getHabitHistory(name, 14);
     const streak = getCurrentStreak(history);
+    const _ht = tasks.find(x => x.recurring && x.name === name); const _gap = habitGapDays(_ht);
     return `
       <div class="habit-row">
         <div class="habit-name">
           <span>${name}</span>
           ${streak > 0 ? `<span class="habit-streak">🔥 ${streak}d</span>` : ''}
         </div>
+        ${_gap ? `<div style="color:var(--accent); font-size:0.8rem; margin:-2px 0 8px;">${COMEBACK_LINES[_gap % COMEBACK_LINES.length](_gap)}</div>` : ''}
         <div class="habit-ticks">
           ${history.map(h => `<div class="habit-tick ${h.done ? 'done' : ''} ${h.date === today ? 'today' : ''}" title="${h.date}">${h.done ? '✓' : ''}</div>`).join('')}
         </div>
@@ -2217,6 +2259,7 @@ function refreshTimerDisplays(){
         <span class="mins">${t.mins} min</span>
       </div>
     `).join('');
+    document.getElementById('done-eod-btn').classList.toggle('hidden', tasks.some(t => !t.done && !t.microGoal));
     const removeBtn = document.getElementById('done-remove-btn');
     removeBtn.textContent = 'Remove completed';
     removeBtn.disabled = tasks.every(t => !t.done);
@@ -2755,9 +2798,11 @@ document.getElementById('done-remove-btn').onclick = () => {
   btn.disabled = true;
 };
 document.getElementById('done-close-btn').onclick = closeTimerFully;
+document.getElementById('done-eod-btn').onclick = () => { closeTimerFully(); openReportChoice(); };
 
 /* ---------- pick tasks modal ---------- */
 document.getElementById('open-pick-btn').onclick = () => {
+  if(!tasks.some(t => !t.done && !t.microGoal && !isScheduledForFuture(t))){ showToast('Add a task first'); document.getElementById('open-add-btn').click(); return; }
   document.getElementById('pick-modal').classList.remove('hidden');
 };
 document.getElementById('pick-modal-close-btn').onclick = () => {
@@ -3046,6 +3091,7 @@ function renderCalendar(){
     return;
   }
   const dayTasks = tasksByDate[calendarSelectedDate] || [];
+  const _selDate = calendarSelectedDate;
   const label = new Date(calendarSelectedDate + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
   detail.innerHTML = `<div class="cal-day-label">${label} <button type="button" id="cal-deselect-btn" class="board-chip-btn" title="Back to upcoming" style="margin-left:6px;">✕</button></div>` + (
     dayTasks.length === 0
@@ -3060,6 +3106,14 @@ function renderCalendar(){
       `).join('')
   );
   document.getElementById('cal-deselect-btn').onclick = () => { calendarSelectedDate = null; renderCalendar(); };
+  { const ab = document.createElement('button'); ab.type = 'button'; ab.className = 'empty-add'; ab.textContent = '＋ Add a task on this day';
+    ab.onclick = () => {
+      document.getElementById('calendar-modal').classList.add('hidden');
+      document.getElementById('open-add-btn').click();
+      document.getElementById('add-date-input').value = _selDate;
+      if(document.getElementById('add-more-options').classList.contains('hidden')) document.getElementById('add-more-toggle').click();
+    };
+    detail.appendChild(ab); }
   detail.querySelectorAll('.cal-edit').forEach(btn => {
     btn.onclick = () => { document.getElementById('calendar-modal').classList.add('hidden'); openEditModal(btn.dataset.id); };
   });
@@ -3151,7 +3205,7 @@ document.getElementById('report-export-btn').onclick = () => {
 
 /* ---- day rollover: prompt to close out the previous day's log ---- */
 let openDay = localStorage.getItem('powerHourOpenDay') || todayStr();
-let rolloverDismissedFor = null;
+let rolloverDismissedFor = localStorage.getItem('powerHourRolloverLater');
 if(!localStorage.getItem('powerHourOpenDay')) localStorage.setItem('powerHourOpenDay', openDay);
 function setOpenDay(d){ openDay = d; try{ localStorage.setItem('powerHourOpenDay', d); }catch(e){} }
 function checkDayRollover(){
@@ -3173,7 +3227,7 @@ function hideRollover(){ document.getElementById('rollover-modal').classList.add
 document.getElementById('rollover-highlights-btn').onclick = () => { hideRollover(); openHighlights(); };
 document.getElementById('rollover-list-btn').onclick = () => { hideRollover(); openReportModal(); };
 document.getElementById('rollover-clear-btn').onclick = () => { hideRollover(); clearDay(true); };
-document.getElementById('rollover-later-btn').onclick = () => { rolloverDismissedFor = todayStr(); hideRollover(); };
+document.getElementById('rollover-later-btn').onclick = () => { rolloverDismissedFor = todayStr(); try{ localStorage.setItem('powerHourRolloverLater', rolloverDismissedFor); }catch(e){} hideRollover(); };
 
 async function clearDay(skipConfirm){
   const logDate = openDay && openDay < todayStr() ? openDay : todayStr();
@@ -3313,8 +3367,11 @@ function boardMarkDone(id){
 }
 
 let appToastTimer = null;
-function showToast(message, actionLabel, actionFn){
-  document.getElementById('undo-toast-text').textContent = message;
+function showToast(message, actionLabel, actionFn, bodyFn){
+  const tx = document.getElementById('undo-toast-text');
+  tx.textContent = message;
+  tx.style.cursor = bodyFn ? 'pointer' : ''; tx.style.textDecoration = bodyFn ? 'underline' : '';
+  tx.onclick = bodyFn ? () => { clearTimeout(appToastTimer); document.getElementById('undo-toast').classList.add('hidden'); bodyFn(); } : null;
   const btn = document.getElementById('undo-toast-btn');
   if(actionLabel && actionFn){
     btn.textContent = actionLabel;
@@ -3787,7 +3844,30 @@ document.getElementById('edit-delete-btn').onclick = async () => {
 };
 
 /* ---------- round 2: version/updates, snapshots, alerts, theme, insights, welcome, data hub ---------- */
-const APP_VERSION = '2026-10-15-e';
+const APP_VERSION = '2026-10-25-c';
+/* backup status default (the cloud module overwrites it once it loads) */
+(function(){ const el = document.getElementById('sync-badge'); if(!el) return; const at = parseInt(localStorage.getItem('powerHourSyncAt') || '0');
+  el.textContent = at ? 'Last: ' + new Date(at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Off — tap to set up'; })();
+/* closing a screen opened from Settings returns to Settings */
+(function(){
+  const ids = ['calendar-modal','habits-modal','insights-modal','daylog-modal','escalation-modal','aging-modal','gestures-modal','goals-modal','theme-modal','data-modal','guide-modal'];
+  let ret = false;
+  const settings = document.getElementById('settings-modal');
+  const isOpen = m => m.id === 'add-modal' ? m.classList.contains('modal-open') : !m.classList.contains('hidden');
+  settings.addEventListener('click', e => { if(e.target.closest('.settings-item')) ret = true; });
+  document.getElementById('settings-close-btn').addEventListener('click', () => { ret = false; });
+  ids.forEach(id => {
+    const m = document.getElementById(id); if(!m) return;
+    let was = isOpen(m);
+    new MutationObserver(() => {
+      const now = isOpen(m);
+      if(was && !now && ret) setTimeout(() => {
+        if(![...document.querySelectorAll('.modal')].some(isOpen) && timerState !== 'running' || ![...document.querySelectorAll('.modal')].some(isOpen)){ ret = false; settings.classList.remove('hidden'); }
+      }, 40);
+      was = now;
+    }).observe(m, { attributes: true, attributeFilter: ['class'] });
+  });
+})();
 /* History: one place with tabs for Week / Habits / Day log */
 (function(){
   const tabs = [['insights','insights-modal','settings-insights-btn','Week'],['habits','habits-modal','settings-habits-btn','Habits'],['daylog','daylog-modal','settings-daylog-btn','Day log']];
@@ -3815,7 +3895,7 @@ const APP_VERSION = '2026-10-15-e';
     const b = top.querySelector('[id$="close-btn"],[id$="cancel-btn"]'); if(b) b.click();
   });
 })();
-const SKIP_KEYS = ['powerHourSession','powerHourSyncAt','powerHourBackupBeforeSync','powerHourBackupBeforeRestore','powerHourSnapshots','powerHourLastOpen','powerHourHelpSeen','powerHourWelcomeSeen'];
+const SKIP_KEYS = ['powerHourSession','powerHourSyncAt','powerHourBackupBeforeSync','powerHourBackupBeforeRestore','powerHourSnapshots','powerHourLastOpen','powerHourHelpSeen','powerHourWelcomeSeen','powerHourOpenDay','powerHourRolloverLater'];
 document.querySelectorAll('.app-version-label').forEach(e => e.textContent = APP_VERSION);
 
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
@@ -4057,7 +4137,7 @@ if(!configured){
       const at = Date.now();
       await F.setDoc(ref(), { data: JSON.stringify(snapshotLocal()), updatedAt: at });
       origSet.call(localStorage, 'powerHourSyncAt', String(at));
-      badge('✓ synced'); show('Signed in as ' + user.email + '. Backed up just now.');
+      badge('✓ ' + new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })); show('Signed in as ' + user.email + '. Backed up just now.');
     }catch(e){ badge('⚠ offline'); show('Couldn’t reach the cloud — will retry on the next change. (' + (e.code || e.message) + ')'); }
   }
 
@@ -4135,7 +4215,7 @@ if(!configured){
     $('sync-now-btn').style.display = u ? '' : 'none';
     $('sync-signout-btn').style.display = u ? '' : 'none';
     if(u){ show('Signed in as ' + u.email + '.'); reconcile(); }
-    else { ready = false; badge('off'); show('Sign in with Google to back up your tasks and keep them in sync across devices. Your existing tasks come with you.'); }
+    else { ready = false; badge('Off — tap to set up'); show('Sign in with Google to back up your tasks and keep them in sync across devices. Your existing tasks come with you.'); }
   });
   $('sync-signin-btn').onclick = async () => {
     const prov = new A.GoogleAuthProvider();
