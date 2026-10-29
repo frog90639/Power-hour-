@@ -2822,7 +2822,7 @@ document.getElementById('budget-build-btn').onclick = () => {
 };
 
 function isWrongTimeOfDay(t){
-  if(t.timeConstraint === 'am') return new Date().getHours() >= 12;
+  // an AM task that's been missed is overdue, not hidden: it stays in the plan and is bumped up
   if(t.timeConstraint === 'pm') return new Date().getHours() < 12;
   return false;
 }
@@ -4374,7 +4374,7 @@ document.getElementById('edit-delete-btn').onclick = async () => {
 };
 
 /* ---------- round 2: version/updates, snapshots, alerts, theme, insights, welcome, data hub ---------- */
-const APP_VERSION = '2026-10-29-l';
+const APP_VERSION = '2026-10-29-m';
 /* confetti: a quick burst of colour for wins */
 function confetti(n){
   if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
