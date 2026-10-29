@@ -454,6 +454,7 @@
 </div>
 <div class="list-summary hidden" id="list-summary"></div>
 <div class="task-list-container" id="task-list-container"></div>
+<button id="inbox-pill" class="hidden" aria-label="Quick notes to sort" style="position:fixed; right:88px; bottom:calc(32px + env(safe-area-inset-bottom)); z-index:150; background:var(--card-raised); color:var(--text); border:1px solid var(--hairline); border-radius:20px; padding:8px 14px; font-weight:600; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.3);"></button>
 <button class="fab" id="open-add-btn" title="Add task" aria-label="Add task">＋</button>
 
 <!-- add more time -->
@@ -617,7 +618,8 @@
       <div class="timer-clock" id="timer-clock">00:00</div>
       <div class="up-next" id="timer-progress" style="margin-bottom:4px;"></div>
       <div class="up-next" id="up-next" style="margin-bottom:6px;"></div>
-      <button id="add-time-btn" class="eod-link" style="margin-bottom:14px;">＋ Add more time</button>
+      <button id="add-time-btn" class="eod-link" style="margin-bottom:6px;">＋ Add more time</button>
+      <button id="quick-note-btn" class="eod-link" style="margin-bottom:14px;">📝 Quick note</button>
       <div class="timer-controls">
         <button id="done-current-btn">✓ Done</button>
         <button id="pause-btn">Pause</button>
@@ -637,6 +639,7 @@
       <div class="timer-controls" style="flex-wrap:wrap;">
         <button id="done-export-btn">⇧ Export list</button>
         <button id="done-remove-btn" style="background:var(--danger); color:#fff;">Remove completed</button>
+        <button id="done-inbox-btn" class="add-btn hidden" style="width:100%;">📥 Sort quick notes</button>
         <button id="done-more-btn" class="hidden" style="width:100%;">＋ Add more time</button>
         <button id="done-eod-btn" class="add-btn hidden" style="width:100%;">🌇 End of day</button>
         <button id="done-close-btn">Back to list</button>
@@ -787,6 +790,7 @@
     <button id="settings-escalation-btn" class="settings-item">📈 Escalation timing</button>
     <button id="settings-gestures-btn" class="settings-item">👆 Gestures</button>
     <button id="settings-goals-btn" class="settings-item">💧 Daily goal nudges</button>
+    <button id="settings-learn-btn" class="settings-item">🧠 What I've learned</button>
     <button id="settings-theme-btn" class="settings-item">🎨 Appearance</button>
     <button id="settings-alerts-btn" class="settings-item">🔔 Timer alerts</button>
     <div class="settings-group-label">Data</div>
@@ -953,6 +957,7 @@
     <ul>
       <li><b>Tap</b> a task to edit it (or delete it from there).</li>
       <li><b>Swipe</b> right or left for a quick action. Choose what each does in <b>Settings → Customise → Gestures</b>.</li>
+      <li>On the plan screen, <b>drag a task</b> (or tap ▲ / ▼) between Planned and Left out, then say why. After two similar moves I adjust future plans within a priority; see <b>Settings → Customise → What I've learned</b>.</li>
       <li><b>Press and hold</b>, then drag up or down to change priority; hold near the left edge to reorder within a priority.</li>
     </ul>
 
@@ -1021,6 +1026,37 @@
 
 <!-- escalation timing settings -->
 <!-- gesture settings -->
+<div class="modal hidden" id="note-modal">
+  <div class="modal-card">
+    <h3>📝 Quick note</h3>
+    <p style="color:var(--muted); font-size:0.8rem; margin-top:-8px;">Jot it down and carry on. You'll set it up after your Power Hour. The timer keeps running.</p>
+    <input type="text" id="note-input" placeholder="What came to mind?" style="width:100%;" maxlength="200">
+    <div style="display:flex; gap:8px; margin-top:12px;">
+      <button id="note-cancel-btn" style="flex:1; background:none; border:1px solid var(--btn); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Cancel</button>
+      <button id="note-save-btn" class="add-btn" style="flex:1;">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="inbox-modal">
+  <div class="modal-card">
+    <h3>📥 Quick notes</h3>
+    <p style="color:var(--muted); font-size:0.8rem; margin-top:-8px;">Tap Set up to turn a note into a task with its priority, time and so on.</p>
+    <div id="inbox-list" style="max-height:50vh; overflow-y:auto;"></div>
+    <button id="inbox-close-btn" style="width:100%; margin-top:10px; background:none; border:1px solid var(--btn); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
+<div class="modal hidden" id="learn-modal">
+  <div class="modal-card">
+    <h3>🧠 What I've learned</h3>
+    <p style="color:var(--muted); font-size:0.8rem; margin-top:-8px;">When you move tasks in or out of a plan and say why, I nudge future plans. It only reorders tasks within the same priority — P1s still come first.</p>
+    <div id="learn-list"></div>
+    <button id="learn-reset-btn" class="settings-item" style="margin-top:10px;">Reset everything I've learned</button>
+    <button id="learn-close-btn" style="width:100%; margin-top:10px; background:none; border:1px solid var(--btn); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
 <div class="modal hidden" id="gestures-modal">
   <div class="modal-card">
     <h3>👆 Gestures</h3>
@@ -1711,6 +1747,51 @@ function fillAddDepSelects(){
   document.getElementById('add-after-select').innerHTML = opts('<option value="__last">🏁 Last thing — after everything</option>');
   document.getElementById('add-before-select').innerHTML = opts('<option value="__first">🥇 First thing — before everything</option>');
 }
+/* ---------- quick notes: jot things down mid-session, set them up afterwards ---------- */
+let inbox = (() => { try{ const a = JSON.parse(localStorage.getItem('powerHourInbox') || '[]'); return Array.isArray(a) ? a : []; }catch(e){ return []; } })();
+let inboxPendingId = null;
+function saveInbox(){ try{ localStorage.setItem('powerHourInbox', JSON.stringify(inbox)); }catch(e){} refreshInboxUI(); }
+function refreshInboxUI(){
+  const n = inbox.length;
+  const pill = document.getElementById('inbox-pill'); if(pill){ pill.classList.toggle('hidden', n === 0); pill.textContent = '📥 ' + n; }
+  const b = document.getElementById('done-inbox-btn'); if(b){ b.classList.toggle('hidden', n === 0); b.textContent = '📥 Sort ' + n + ' quick note' + (n === 1 ? '' : 's'); }
+}
+function openInbox(){
+  const box = document.getElementById('inbox-list'); box.innerHTML = '';
+  if(!inbox.length){ box.innerHTML = '<div class="empty">All sorted.</div>'; }
+  inbox.forEach(note => {
+    const row = document.createElement('div'); row.className = 'modal-row'; row.style.cssText = 'gap:8px; align-items:center;';
+    const sp = document.createElement('span'); sp.style.flex = '1'; sp.textContent = note.text;
+    const set = document.createElement('button'); set.className = 'empty-add'; set.style.margin = '0'; set.textContent = 'Set up';
+    set.onclick = () => {
+      inboxPendingId = note.id; document.getElementById('inbox-modal').classList.add('hidden');
+      fillAddDepSelects(); taskInput.value = note.text;
+      document.getElementById('add-modal-close-btn').textContent = 'Close';
+      document.getElementById('add-modal').classList.add('modal-open'); taskInput.focus();
+    };
+    const del = document.createElement('button'); del.setAttribute('aria-label', 'Discard note'); del.textContent = '✕'; del.style.cssText = 'background:none; border:none; color:var(--muted); font-size:1.1rem; cursor:pointer;';
+    del.onclick = () => { const gone = note; inbox = inbox.filter(x => x.id !== note.id); saveInbox(); openInbox(); showToast('Note discarded', 'Undo', () => { inbox.push(gone); saveInbox(); }); };
+    row.append(sp, set, del); box.appendChild(row);
+  });
+  document.getElementById('inbox-modal').classList.remove('hidden');
+}
+function openQuickNote(){ const i = document.getElementById('note-input'); i.value = ''; document.getElementById('note-modal').classList.remove('hidden'); i.focus(); }
+function saveQuickNote(){
+  const i = document.getElementById('note-input'), text = i.value.trim();
+  if(!text) return;
+  inbox.push({ id: 'n' + Date.now() + Math.random().toString(36).slice(2, 5), text, at: Date.now() }); saveInbox();
+  document.getElementById('note-modal').classList.add('hidden');
+  showToast('📝 Saved. Sort it after your Power Hour.');
+}
+document.getElementById('quick-note-btn').onclick = openQuickNote;
+document.getElementById('note-save-btn').onclick = saveQuickNote;
+document.getElementById('note-cancel-btn').onclick = () => document.getElementById('note-modal').classList.add('hidden');
+document.getElementById('note-input').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); saveQuickNote(); } });
+document.getElementById('inbox-pill').onclick = openInbox;
+document.getElementById('done-inbox-btn').onclick = openInbox;
+document.getElementById('inbox-close-btn').onclick = () => document.getElementById('inbox-modal').classList.add('hidden');
+refreshInboxUI();
+
 function addTaskNow(){
   const name = taskInput.value.trim();
   if(!name) return;
@@ -1731,6 +1812,7 @@ function addTaskNow(){
   newTask.pin = beforeRaw === '__first' ? 'first' : (afterRaw === '__last' ? 'last' : null);
   if(afterRaw && afterRaw !== '__last') newTask.afterId = afterRaw;
   tasks.push(newTask);
+  if(inboxPendingId){ inbox = inbox.filter(x => x.id !== inboxPendingId); inboxPendingId = null; saveInbox(); if(inbox.length){ setTimeout(() => { document.getElementById('add-modal').classList.remove('modal-open'); openInbox(); }, 250); } }
   if(beforeRaw && beforeRaw !== '__first'){ const o = tasks.find(x => x.id === beforeRaw); if(o && !wouldCycle(o.id, newTask.id)) o.afterId = newTask.id; }
   taskInput.value = '';
   pendingMins = 5; pendingPriority = 'p3'; pendingTag = null; pendingTimeLimit = null;
@@ -1758,12 +1840,13 @@ document.getElementById('add-recurring-checkbox').onchange = (e) => {
 };
 
 document.getElementById('open-add-btn').onclick = () => {
+  inboxPendingId = null;
   fillAddDepSelects();
   document.getElementById('add-modal-close-btn').textContent = 'Close';
   document.getElementById('add-modal').classList.add('modal-open');
   taskInput.focus();
 };
-document.getElementById('add-modal-close-btn').onclick = () => document.getElementById('add-modal').classList.remove('modal-open');
+document.getElementById('add-modal-close-btn').onclick = () => { inboxPendingId = null; document.getElementById('add-modal').classList.remove('modal-open'); };
 
 /* keep the running timer pointed at the same task when the list is rearranged or filtered */
 function currentTaskId(){ return (currentIndex !== -1 && tasks[currentIndex]) ? tasks[currentIndex].id : null; }
@@ -2695,6 +2778,7 @@ function getWithinTierWeight(t){
   if(t.escalated) weight += 3;
   if(t.timeConstraint) weight += isPastTimeConstraint(t) ? 6 : (isUrgentSlot(t) ? 4 : 0);
   weight += Math.min(t.passedOver || 0, 10) * 0.3; // keeps getting left out of sessions -> climbs within its tier
+  weight += learnedWeight(t);
   return weight;
 }
 
@@ -2760,7 +2844,8 @@ function pickTasksForBudget(pendingOrig, budget){
   for(const { t, root } of routine){
     if(blocked.has(root.id)) continue;
     const pre = getPrereq(t);
-    if((pre && !pre.done && !claimed.has(pre.id)) || sz(t) > rleft){ blocked.add(root.id); continue; }
+    // a routine step ranked below its starter doesn't jump the queue ahead of higher-priority tasks; it competes by its own priority
+    if((pre && !pre.done && !claimed.has(pre.id)) || sz(t) > rleft || PRIORITIES.indexOf(t.priority) > PRIORITIES.indexOf(root.priority)){ blocked.add(root.id); continue; }
     claimed.add(t.id); rleft -= sz(t);
   }
   const rest = pendingOrig.filter(t => !claimed.has(t.id)).map(t => isSplit(t) ? { ...t, mins: Math.min(t.chunkMins || 5, remMins(t)) } : t);
@@ -2794,18 +2879,24 @@ function pickCore(pending, budget, claimed){
     if(remaining <= 0) break;
     const tierTasks = pending.filter(t => t.priority === priority);
     if(tierTasks.length === 0) continue;
-    const tierSelected = knapsackWithinTier(tierTasks, remaining);
-    if(tierSelected.size === 0) continue;
-    let usedMins = 0;
-    tierTasks.forEach(t => { if(tierSelected.has(t.id)){ selected.add(t.id); usedMins += t.mins; } });
-    // ordering rules, resolved before lower tiers can claim the time: pull in what this task must come after, or drop it
-    tierTasks.forEach(t => {
-      if(!selected.has(t.id)) return;
-      const pre = getPrereq(t);
-      if(!pre || pre.done || selected.has(pre.id) || claimed.has(pre.id)) return;
-      if(pending.some(x => x.id === pre.id) && usedMins + pre.mins <= remaining){ selected.add(pre.id); usedMins += pre.mins; }
-      else { selected.delete(t.id); usedMins -= t.mins; }
-    });
+    // pick within the tier; if an ordering rule drops a task, hand its time to the tier's other tasks before lower tiers can have it
+    const banned = new Set(), pulled = new Set(); let usedMins = 0, tries = 0;
+    while(tries++ < 20){
+      const pool = tierTasks.filter(t => !banned.has(t.id));
+      const tierSelected = pool.length ? knapsackWithinTier(pool, remaining) : new Set();
+      tierTasks.forEach(t => selected.delete(t.id)); pulled.forEach(id => selected.delete(id)); pulled.clear();
+      usedMins = 0;
+      pool.forEach(t => { if(tierSelected.has(t.id)){ selected.add(t.id); usedMins += t.mins; } });
+      let dropped = false;
+      tierTasks.forEach(t => {
+        if(!selected.has(t.id)) return;
+        const pre = getPrereq(t);
+        if(!pre || pre.done || selected.has(pre.id) || claimed.has(pre.id)) return;
+        if(pending.some(x => x.id === pre.id) && usedMins + pre.mins <= remaining){ selected.add(pre.id); pulled.add(pre.id); usedMins += pre.mins; }
+        else { selected.delete(t.id); usedMins -= t.mins; banned.add(t.id); dropped = true; }
+      });
+      if(!dropped) break;
+    }
     remaining -= usedMins;
   }
   // ordering rules: a task that must come after another is only picked if that one is done,
@@ -2860,7 +2951,108 @@ function showMustDoConfirm(t, onConfirm, opts){
 }
 
 function planMins(t){ return isSplit(t) ? (lastPickPlan.get(t.id) || Math.min(t.chunkMins || 5, remMins(t))) : t.mins; }
+/* ---------- learning from plan overrides (rule-based, no AI) ---------- */
+let learnData = (() => { try{ const d = JSON.parse(localStorage.getItem('powerHourLearn') || '{}'); return { net: d.net || {}, names: d.names || {} }; }catch(e){ return { net: {}, names: {} }; } })();
+function saveLearn(){ try{ localStorage.setItem('powerHourLearn', JSON.stringify(learnData)); }catch(e){} }
+function learnKeysFor(t){ const k = ['task:' + t.id]; if(t.tag) k.push('tag:' + t.tag); if(t.mins <= 10) k.push('short'); if(t.mins >= 25) k.push('long'); return k; }
+function learnedWeight(t){
+  let w = 0;
+  learnKeysFor(t).forEach(k => { const n = learnData.net[k] || 0; if(Math.abs(n) >= 2) w += Math.sign(n) * Math.min(2 + (Math.abs(n) - 2) * 0.5, 4); });
+  return w;
+}
+function learnLabel(key, t){
+  if(key.startsWith('task:')) return '“' + (t ? t.name : (learnData.names[key] || 'a task')) + '”';
+  if(key.startsWith('tag:')) return TAG_ICONS[key.slice(4)] + ' ' + TAG_LABELS[key.slice(4)] + ' tasks';
+  return key === 'short' ? 'Short tasks (10 min or less)' : 'Long tasks (25 min or more)';
+}
+function learnReasons(t, up){
+  const r = up ? [
+    ['task', 'It matters more than its priority says'],
+    ['task', "It's urgent or has a deadline"],
+    ['short', 'Quick win, I like short ones'],
+  ] : [
+    ['task', 'It can wait'],
+    ['long', 'Too long for now'],
+  ];
+  if(t.tag) r.push(['tag', up ? 'I want to do this kind of task more' : 'Not in the mood for this kind of task']);
+  return r;
+}
+function applyLearn(t, kind, up){
+  const key = kind === 'task' ? 'task:' + t.id : kind === 'tag' ? 'tag:' + t.tag : kind;
+  const before = learnData.net[key] || 0, d = up ? 1 : -1;
+  learnData.net[key] = before + d; if(learnData.net[key] === 0) delete learnData.net[key];
+  learnData.names[key] = t.name; saveLearn();
+  const after = learnData.net[key] || 0;
+  const undo = () => { learnData.net[key] = before; if(!before) delete learnData.net[key]; saveLearn(); };
+  if(Math.abs(after) >= 2 && Math.abs(before) < 2) showToast('Learned: ' + (after > 0 ? 'favour ' : 'delay ') + learnLabel(key, t), 'Undo', undo);
+  else if(Math.abs(after) >= 2) showToast('Learned a bit more about ' + learnLabel(key, t), 'Undo', undo);
+  else showToast('Noted. One more like that and I’ll adjust future plans.', 'Undo', undo);
+}
+function askWhy(t, up){
+  const old = document.getElementById('why-modal'); if(old) old.remove();
+  const m = document.createElement('div'); m.className = 'modal'; m.id = 'why-modal';
+  const card = document.createElement('div'); card.className = 'modal-card';
+  const h = document.createElement('h3'); h.textContent = up ? 'Why add it?' : 'Why leave it out?'; card.appendChild(h);
+  const p = document.createElement('p'); p.style.cssText = 'color:var(--muted); font-size:0.8rem; margin-top:-8px;'; p.textContent = '“' + t.name + '”. Your answer teaches future plans.'; card.appendChild(p);
+  const close = () => m.remove();
+  learnReasons(t, up).forEach(([kind, label]) => {
+    const b = document.createElement('button'); b.className = 'settings-item'; b.textContent = label;
+    b.onclick = () => { close(); applyLearn(t, kind, up); };
+    card.appendChild(b);
+  });
+  const skip = document.createElement('button'); skip.style.cssText = 'width:100%; margin-top:10px; background:none; border:1px solid var(--btn); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;'; skip.textContent = 'Just this once'; skip.onclick = close; card.appendChild(skip);
+  m.appendChild(card); m.addEventListener('click', e => { if(e.target === m) close(); });
+  document.body.appendChild(m);
+}
+function renderLearnList(){
+  const box = document.getElementById('learn-list'); box.innerHTML = '';
+  const keys = Object.keys(learnData.net).filter(k => !k.startsWith('task:') || tasks.some(t => 'task:' + t.id === k && !t.done));
+  if(!keys.length){ box.innerHTML = '<div class="empty">Nothing yet. Move a task on the plan screen and tell me why.</div>'; return; }
+  keys.sort((a, b) => Math.abs(learnData.net[b]) - Math.abs(learnData.net[a])).forEach(k => {
+    const n = learnData.net[k], on = Math.abs(n) >= 2;
+    const row = document.createElement('div'); row.className = 'modal-row'; row.style.cssText = 'gap:8px; align-items:center;';
+    const sp = document.createElement('span'); sp.style.flex = '1';
+    const t = k.startsWith('task:') ? tasks.find(x => 'task:' + x.id === k) : null;
+    sp.textContent = (on ? (n > 0 ? '⬆️ Favour ' : '⬇️ Delay ') : '… Still learning: ') + learnLabel(k, t);
+    if(!on) sp.style.color = 'var(--muted)';
+    const b = document.createElement('button'); b.className = 'empty-add'; b.style.margin = '0'; b.textContent = 'Forget';
+    b.onclick = () => { delete learnData.net[k]; saveLearn(); renderLearnList(); };
+    row.append(sp, b); box.appendChild(row);
+  });
+}
+document.getElementById('settings-learn-btn').onclick = () => { renderLearnList(); document.getElementById('settings-modal').classList.add('hidden'); document.getElementById('learn-modal').classList.remove('hidden'); };
+document.getElementById('learn-close-btn').onclick = () => document.getElementById('learn-modal').classList.add('hidden');
+document.getElementById('learn-reset-btn').onclick = async () => { if(await appConfirm({ title: 'Reset learning?', text: 'Forget everything learned from your plan changes?', okLabel: 'Reset', danger: true })){ learnData = { net: {}, names: {} }; saveLearn(); renderLearnList(); } };
+
+/* move a task between Planned and Left out on the review screen */
+let reviewPending = [];
+function moveInReview(id, up){
+  const t = reviewPending.find(x => x.id === id); if(!t) return;
+  const sel = new Set([...document.querySelectorAll('#review-list input:checked')].map(cb => cb.dataset.id));
+  if(up) sel.add(id); else sel.delete(id);
+  renderReviewList(reviewPending, sel); updateReviewTotal();
+  askWhy(t, up);
+}
+function attachReviewDrag(handle, row, id, fromPlanned){
+  handle.style.touchAction = 'none';
+  handle.onpointerdown = e => {
+    e.preventDefault(); handle.setPointerCapture(e.pointerId);
+    const y0 = e.clientY; row.style.position = 'relative'; row.style.zIndex = 5; row.style.opacity = '0.85'; row.style.boxShadow = '0 6px 18px rgba(0,0,0,.35)';
+    const mv = ev => { row.style.transform = 'translateY(' + (ev.clientY - y0) + 'px)'; };
+    const end = ev => {
+      handle.removeEventListener('pointermove', mv); handle.removeEventListener('pointerup', end); handle.removeEventListener('pointercancel', end);
+      const hdr = document.getElementById('review-left-header'); const hy = hdr ? hdr.getBoundingClientRect().top : null;
+      row.style.transform = ''; row.style.position = ''; row.style.zIndex = ''; row.style.opacity = ''; row.style.boxShadow = '';
+      if(ev.type === 'pointercancel' || hy === null) return;
+      if(!fromPlanned && ev.clientY < hy) moveInReview(id, true);
+      else if(fromPlanned && ev.clientY > hy) moveInReview(id, false);
+    };
+    handle.addEventListener('pointermove', mv); handle.addEventListener('pointerup', end); handle.addEventListener('pointercancel', end);
+  };
+}
+
 function renderReviewList(pending, selectedIds){
+  reviewPending = pending;
   const list = document.getElementById('review-list');
   list.innerHTML = '';
   if(pending.length === 0){
@@ -2883,7 +3075,7 @@ function renderReviewList(pending, selectedIds){
   const picked = pending.filter(t => selectedIds.has(t.id)), left = pending.filter(t => !selectedIds.has(t.id));
   [['', picked], ['Left out', left]].forEach(([label, group]) => {
     if(!group.length) return;
-    if(label){ const h = document.createElement('div'); h.className = 'settings-group-label'; h.textContent = label + ' (' + group.length + ')'; h.style.marginTop = '12px'; list.appendChild(h); }
+    if(label){ const h = document.createElement('div'); h.className = 'settings-group-label'; h.textContent = label + ' (' + group.length + ')'; h.style.marginTop = '12px'; h.id = 'review-left-header'; list.appendChild(h); }
     group.forEach(t => {
       const row = document.createElement('div');
       row.className = 'review-item';
@@ -2895,7 +3087,11 @@ function renderReviewList(pending, selectedIds){
         ${selectedIds.has(t.id) ? chips(t) : ''}
         ${t.tag ? `<span class="tag-badge">${TAG_ICONS[t.tag]}</span>` : ''}
         <span class="mins">${planMins(t)} min</span>
+        <button type="button" class="mv-btn" aria-label="${selectedIds.has(t.id) ? 'Move to left out' : 'Move to planned'}" style="background:none; border:1px solid var(--btn); color:var(--text); border-radius:8px; padding:2px 8px; cursor:pointer;">${selectedIds.has(t.id) ? '▼' : '▲'}</button>
+        <span class="drag-handle" aria-hidden="true" style="cursor:grab; color:var(--muted); padding:0 4px; user-select:none;">⠿</span>
       `;
+      row.querySelector('.mv-btn').onclick = () => moveInReview(t.id, !selectedIds.has(t.id));
+      attachReviewDrag(row.querySelector('.drag-handle'), row, t.id, selectedIds.has(t.id));
       list.appendChild(row);
     });
   });
@@ -4070,7 +4266,7 @@ document.getElementById('edit-delete-btn').onclick = async () => {
 };
 
 /* ---------- round 2: version/updates, snapshots, alerts, theme, insights, welcome, data hub ---------- */
-const APP_VERSION = '2026-10-29-e';
+const APP_VERSION = '2026-10-29-h';
 /* confetti: a quick burst of colour for wins */
 function confetti(n){
   if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -4088,7 +4284,7 @@ function confetti(n){
   el.textContent = at ? 'Last: ' + new Date(at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Off — tap to set up'; })();
 /* closing a screen opened from Settings returns to Settings */
 (function(){
-  const ids = ['calendar-modal','habits-modal','insights-modal','daylog-modal','escalation-modal','aging-modal','gestures-modal','goals-modal','theme-modal','data-modal','guide-modal'];
+  const ids = ['calendar-modal','habits-modal','insights-modal','daylog-modal','escalation-modal','aging-modal','gestures-modal','learn-modal','goals-modal','theme-modal','data-modal','guide-modal'];
   let ret = false;
   const settings = document.getElementById('settings-modal');
   const isOpen = m => m.id === 'add-modal' ? m.classList.contains('modal-open') : !m.classList.contains('hidden');
