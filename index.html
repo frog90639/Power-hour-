@@ -257,6 +257,8 @@
   .split-bar{height:4px; border-radius:2px; background:var(--btn); margin:8px 0 0 34px; overflow:hidden;}
   .split-bar i{display:block; height:100%; background:var(--accent);}
   .fab{position:fixed; right:18px; bottom:calc(20px + env(safe-area-inset-bottom)); width:58px; height:58px; border-radius:50%; border:none; background:var(--accent); color:#0f1115; font-size:2rem; line-height:1; font-weight:500; box-shadow:0 6px 18px rgba(0,0,0,0.4); cursor:pointer; z-index:200; display:flex; align-items:center; justify-content:center; padding:0;}
+  body:has(#mini-bar:not(.hidden)) .fab{bottom:calc(88px + env(safe-area-inset-bottom));}
+  body:has(#mini-bar:not(.hidden)) #task-list-container{padding-bottom:170px;}
   .fab:active{transform:scale(0.94);}
   .eod-link{display:block; width:100%; background:none; border:none; color:var(--muted); font-size:0.88rem; font-weight:600; padding:8px 0; cursor:pointer; text-align:center; margin-bottom:6px;}
   #task-list-container{padding-bottom:90px;}
@@ -908,7 +910,7 @@
     </ul>
 
     <h4>Start a Power Hour</h4>
-    <p>Tap <b>▶ Start a Power Hour</b> and say how many minutes you have. The app picks the best mix of tasks: P1 first, then whatever time is left flows down. Must-dos, escalated tasks and deadlines get priority within a level, and equal tasks are shuffled so the same ones don't always win. You can edit or untick anything before you start. During the timer, ✕ ends the session (after a check) and the bar under the clock shows what's done and what's left.</p>
+    <p>Tap <b>▶ Start a Power Hour</b> and say how many minutes you have. The app picks the best mix of tasks: P1 first, then whatever time is left flows down. Must-dos, escalated tasks and deadlines get priority within a level, and equal tasks are shuffled so the same ones don't always win. Tasks you've marked <b>Do it in bits</b> soak up spare time in small chunks, and a <b>do-first routine</b> (a do-first task plus everything chained after it) is always planned before anything else and carries on in the next session if it doesn't all fit. The plan shows what was picked, what was left out and why. You can edit or untick anything before you start. Need longer? Tap <b>＋ Add more time</b> on the timer. During the timer, ✕ ends the session (after a check) and the bar under the clock shows what's done and what's left.</p>
 
     <h4>Order rules</h4>
     <p>In a task's options, <b>Do after</b> and <b>Do before</b> link it to another task, or pin it as <b>🥇 first</b> or <b>🏁 last</b>. The picker pulls in what a task depends on, and the timer always respects the order.</p>
@@ -923,7 +925,7 @@
     <p>Set a step goal and log steps; if you fall behind, a Walk task appears automatically. In <b>Customise → Daily goal nudges</b> you can set goals like water or stretching. With Move around selected, and once your P1s are done, a surprise 1-minute break appears between tasks. It's deliberately hard to skip.</p>
 
     <h4>Dates, times and recurring</h4>
-    <p>Give a task a date and it stays out of sight until then. <b>Must be done by</b> sets AM, PM or a time; <b>Don't pick up before</b> keeps it out of the timer until later. Recurring tasks come back fresh when you clear the day.</p>
+    <p>Give a task a date and it stays out of sight until then. <b>Must be done by</b> sets AM, PM or a time; <b>Don't pick up before</b> keeps it out of the timer until later. A task with a <b>must be done by</b> time is bumped up as it gets close, and by more if the time passes. Recurring tasks come back fresh when you clear the day, either every N days or on set weekdays. <b>Do it in bits</b> (under More options) breaks a long task like “Tidy room, 40 min” into 5–30 minute chunks with a progress bar; progress carries over to the next day.</p>
 
     <h4>Ending the day</h4>
     <p>Tap <b>🌇 End of day</b> for highlights or the full list, then clear the day. If you forget, the app asks "How did yesterday go?" the next morning. Past days, habit consistency and your last 7 days are all in <b>Settings → History</b>.</p>
@@ -1599,28 +1601,6 @@ document.getElementById('steps-edit-save-btn').onclick = () => {
   document.getElementById('steps-edit-modal').classList.add('hidden');
 };
 
-/* shared by the priority board's checkbox */
-function toggleTaskDone(id, checked){
-  const t = tasks.find(t => t.id === id);
-  if(!t) return;
-  const sessionActive = timerState === 'running' || timerState === 'paused';
-
-  if(checked && !t.done){
-    if(sessionActive && currentIndex !== -1 && tasks[currentIndex] && tasks[currentIndex].id === id){
-      completeCurrentTask(); // it's the task currently being timed — advance properly
-      return;
-    }
-    t.done = true;
-    if(sessionActive) sessionCompleted.push({ ...t });
-  } else if(!checked && t.done){
-    t.done = false;
-    const idx = sessionCompleted.findIndex(x => x.id === id);
-    if(idx !== -1) sessionCompleted.splice(idx, 1);
-  }
-  save(); render();
-  if(sessionActive) refreshTimerDisplays();
-}
-
 /* ---------- add task ---------- */
 document.getElementById('plus-btn').onclick = () => { pendingMins += 5; minsDisplay.textContent = pendingMins + ' min'; };
 document.getElementById('minus-btn').onclick = () => { pendingMins = Math.max(5, pendingMins - 5); minsDisplay.textContent = pendingMins + ' min'; };
@@ -1768,7 +1748,7 @@ function splitUI(p){
   };
 }
 const addSplit = splitUI('add'), editSplit = splitUI('edit');
-function niceDate(iso){ try{ return new Date(iso + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }); }catch(e){ return iso; } }
+function niceDate(iso){ try{ const d = new Date(iso + 'T12:00:00'); const o = { weekday: 'short', day: 'numeric', month: 'short' }; if(d.getFullYear() !== new Date().getFullYear()) o.year = 'numeric'; return d.toLocaleDateString(undefined, o); }catch(e){ return iso; } }
 function deleteTaskById(id){
   const idx = tasks.findIndex(t => t.id === id);
   if(idx === -1) return;
@@ -2847,7 +2827,7 @@ function renderReviewList(pending, selectedIds){
     return 'no room left after higher priorities';
   };
   const chips = t => [
-    t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff;" title="Must do">❗ must do</span>' : '',
+    t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff;" title="Must do">must do</span>' : '',
     isRoutineMember(t) ? '<span class="tag-badge" title="Part of a do-first routine">🔁 routine</span>' : '',
     t.timeConstraint && isPastTimeConstraint(t) ? '<span class="tag-badge" title="Its time slot has passed">⏰ slot passed</span>' : (t.timeConstraint && isUrgentSlot(t) ? '<span class="tag-badge" title="Its time slot is close">⏰ due soon</span>' : ''),
     t.escalated ? '<span class="tag-badge" title="Bumped up for waiting">⏫</span>' : ''
@@ -3364,7 +3344,7 @@ function renderDayLog(){
   }
   dayLogIndex = Math.max(0, Math.min(dayLog.length - 1, dayLogIndex));
   const entry = dayLog[dayLogIndex];
-  label.textContent = entry.date;
+  label.textContent = niceDate(entry.date);
   prevBtn.disabled = dayLogIndex <= 0;
   nextBtn.disabled = dayLogIndex >= dayLog.length - 1;
 
@@ -3406,9 +3386,9 @@ function checkDayRollover(){
   if(rolloverDismissedFor === today) return;
   const y = new Date(); y.setDate(y.getDate() - 1);
   const yStr = y.getFullYear() + '-' + String(y.getMonth()+1).padStart(2,'0') + '-' + String(y.getDate()).padStart(2,'0');
-  const label = openDay === yStr ? 'yesterday' : 'on ' + openDay;
+  const label = openDay === yStr ? 'yesterday' : 'on ' + niceDate(openDay);
   const n = getAllCompleted().length;
-  document.getElementById('rollover-title').textContent = openDay === yStr ? '☀️ How did yesterday go?' : '☀️ A new day — how did ' + openDay + ' go?';
+  document.getElementById('rollover-title').textContent = openDay === yStr ? '☀️ How did yesterday go?' : '☀️ A new day — how did ' + niceDate(openDay) + ' go?';
   document.getElementById('rollover-sub').textContent = 'You finished ' + n + ' task' + (n === 1 ? '' : 's') + ' ' + label + ' that haven\'t been closed out. Review it, then clear the day to reset your daily tasks.';
   document.getElementById('rollover-modal').classList.remove('hidden');
 }
@@ -3421,12 +3401,12 @@ document.getElementById('rollover-later-btn').onclick = () => { rolloverDismisse
 async function clearDay(skipConfirm){
   const logDate = openDay && openDay < todayStr() ? openDay : todayStr();
   const isPast = logDate !== todayStr();
-  if(skipConfirm !== true && !(await appConfirm({ title: isPast ? 'Close out ' + logDate + '?' : 'Clear the day?', text: isPast ? 'Completed tasks are logged under that date, and recurring ones come back fresh.' : 'Completed tasks are logged and cleared. Recurring ones come back fresh instead of being removed.', okLabel: 'Clear day' }))) return false;
+  if(skipConfirm !== true && !(await appConfirm({ title: isPast ? 'Close out ' + niceDate(logDate) + '?' : 'Clear the day?', text: isPast ? 'Completed tasks are logged under that date, and recurring ones come back fresh.' : 'Completed tasks are logged and cleared. Recurring ones come back fresh instead of being removed.', okLabel: 'Clear day' }))) return false;
 
   const completedToday = getAllCompleted();
   dayLog.push({
     date: logDate,
-    completedCount: completedToday.length,
+    completedCount: completedToday.filter(t => !t.partial).length,
     totalMins: completedToday.reduce((s, t) => s + t.mins, 0),
     actualSteps,
     stepGoal,
@@ -3522,7 +3502,7 @@ function buildTaskRow(t){
         ${t.autoWalk ? '<span class="tag-badge" title="Added automatically to help hit your step goal">🤖 auto</span>' : ''}
         ${t.steps > 0 ? `<span class="tag-badge" title="${t.steps.toLocaleString()} steps">👣 ${t.steps.toLocaleString()}</span>` : ''}
         ${t.escalated ? '<span class="tag-badge" title="Bumped up — this sat pending for 2+ weeks">⏫</span>' : ''}
-        ${t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff;" title="Sitting at P1 too long — this needs doing">❗</span>' : ''}
+        ${t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff; font-weight:800; padding:0 8px;" title="Sitting at P1 too long — this needs doing">!</span>' : ''}
         ${t.timeConstraint ? `<span class="tag-badge" ${isPastTimeConstraint(t) ? 'style="background:var(--danger); color:#fff;"' : ''} title="Must be done by ${formatTimeConstraint(t)}${isPastTimeConstraint(t) ? ' — that time has passed' : ''}">${formatTimeConstraint(t)}</span>` : ''}
         ${t.scheduledDate ? `<span class="tag-badge" title="Scheduled for ${niceDate(t.scheduledDate)}">📆</span>` : ''}
         ${t.notBeforeTime ? `<span class="tag-badge" title="Won't be offered by the timer before ${formatNotBeforeTime(t)}">🌤 After ${formatNotBeforeTime(t)}</span>` : ''}
@@ -4041,7 +4021,7 @@ document.getElementById('edit-delete-btn').onclick = async () => {
 };
 
 /* ---------- round 2: version/updates, snapshots, alerts, theme, insights, welcome, data hub ---------- */
-const APP_VERSION = '2026-10-29-c';
+const APP_VERSION = '2026-10-29-d';
 /* backup status default (the cloud module overwrites it once it loads) */
 (function(){ const el = document.getElementById('sync-badge'); if(!el) return; const at = parseInt(localStorage.getItem('powerHourSyncAt') || '0');
   el.textContent = at ? 'Last: ' + new Date(at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Off — tap to set up'; })();
@@ -4196,7 +4176,7 @@ function renderInsights(){
   const stats = days.map(d => {
     const entries = dayLog.filter(e => e.date === d);
     let count = entries.reduce((s, e) => s + (e.completedCount || 0), 0), mins = entries.reduce((s, e) => s + (e.totalMins || 0), 0), steps = entries.reduce((s, e) => s + (e.actualSteps || 0), 0);
-    if(d === todayStr()){ const dn = getAllCompleted(); count += dn.length; mins += dn.reduce((s, t) => s + t.mins, 0); steps += actualSteps; }
+    if(d === todayStr()){ const dn = getAllCompleted(); count += dn.filter(t => !t.partial).length; mins += dn.reduce((s, t) => s + t.mins, 0); steps += actualSteps; }
     return { d, count, mins, steps };
   });
   const total = stats.reduce((s, x) => s + x.count, 0), mins = stats.reduce((s, x) => s + x.mins, 0), steps = stats.reduce((s, x) => s + x.steps, 0);
