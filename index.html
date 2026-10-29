@@ -794,6 +794,7 @@
     <button id="settings-escalation-btn" class="settings-item">📈 Escalation timing</button>
     <button id="settings-gestures-btn" class="settings-item">👆 Gestures</button>
     <button id="settings-goals-btn" class="settings-item">💧 Daily goal nudges</button>
+    <button id="settings-features-btn" class="settings-item">🧩 Features &amp; shortcuts</button>
     <button id="settings-learn-btn" class="settings-item">🧠 What I've learned</button>
     <button id="settings-theme-btn" class="settings-item">🎨 Appearance</button>
     <button id="settings-alerts-btn" class="settings-item">🔔 Timer alerts</button>
@@ -961,6 +962,7 @@
     <ul>
       <li><b>Tap</b> a task to edit it (or delete it from there).</li>
       <li><b>Swipe</b> right or left for a quick action. Choose what each does in <b>Settings → Customise → Gestures</b>.</li>
+      <li>Switch features on or off, and edit the time shortcuts and morning-question answers, in <b>Settings → Customise → Features &amp; shortcuts</b>.</li>
       <li>Add a <b>morning question</b> to a task (under More options) and it asks you the first time you open the app each day: normal, do first, urgent, or not today. Those answers last for that day only.</li>
       <li>On the plan screen, <b>drag a task</b> (or tap ▲ / ▼) between Planned and Left out, then say why. After two similar moves I adjust future plans within a priority; see <b>Settings → Customise → What I've learned</b>.</li>
       <li><b>Press and hold</b>, then drag up or down to change priority; hold near the left edge to reorder within a priority.</li>
@@ -1031,14 +1033,26 @@
 
 <!-- escalation timing settings -->
 <!-- gesture settings -->
+<div class="modal hidden" id="features-modal">
+  <div class="modal-card" style="max-height:88vh; overflow-y:auto;">
+    <h3>🧩 Features &amp; shortcuts</h3>
+    <p style="color:var(--muted); font-size:0.8rem; margin-top:-8px;">Switch things on or off, and choose your own shortcuts.</p>
+    <div id="features-toggles"></div>
+    <div class="settings-group-label" style="margin-top:14px;">Time shortcuts (minutes)</div>
+    <input type="text" id="features-presets" placeholder="15, 30, 45, 60, 90" style="width:100%;">
+    <div class="settings-group-label" style="margin-top:14px;">Morning question answers</div>
+    <div id="features-answers"></div>
+    <button id="features-add-answer" class="settings-item">＋ Add an answer</button>
+    <button id="features-reset-answers" class="settings-item">Reset answers to defaults</button>
+    <button id="features-close-btn" style="width:100%; margin-top:10px; background:none; border:1px solid var(--btn); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Done</button>
+  </div>
+</div>
+
 <div class="modal hidden" id="mq-modal" style="z-index:310;">
   <div class="modal-card">
     <h3 id="mq-title">Question</h3>
     <p id="mq-sub" style="color:var(--muted); font-size:0.8rem; margin-top:-8px;"></p>
-    <button class="settings-item" data-a="normal">👍 Normal, as planned</button>
-    <button class="settings-item" data-a="first">🥇 Do it first today</button>
-    <button class="settings-item" data-a="urgent">⚡ Urgent today (treat as P1)</button>
-    <button class="settings-item" data-a="skip">😴 Not today (snooze to tomorrow)</button>
+    <div id="mq-answers"></div>
     <button id="mq-later-btn" style="width:100%; margin-top:10px; background:none; border:1px solid var(--btn); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Ask me later</button>
   </div>
 </div>
@@ -1275,6 +1289,16 @@ let currentView = 'maximized'; // 'maximized' | 'minimized' — for restoring th
 let timerState = 'idle'; // idle | running | paused | done
 
 const taskInput = document.getElementById('task-input');
+const MQ_ACTIONS = { normal: 'No change', first: 'Do it first today', urgent: 'Treat as P1 today', mustdo: 'Mark must-do today', last: 'Do it last today', skip: 'Snooze to tomorrow' };
+const DEFAULT_MQ_ANSWERS = [
+  { label: '👍 Normal, as planned', action: 'normal' },
+  { label: '🥇 Do it first today', action: 'first' },
+  { label: '⚡ Urgent today (treat as P1)', action: 'urgent' },
+  { label: '😴 Not today (snooze to tomorrow)', action: 'skip' }
+];
+const DEFAULT_FEATURES = { morningQ: true, quickNote: true, timePresets: true, learn: true, planMove: true, presetList: [15, 30, 45, 60, 90], mqAnswers: DEFAULT_MQ_ANSWERS };
+let features = (() => { try{ return Object.assign({}, DEFAULT_FEATURES, JSON.parse(localStorage.getItem('powerHourFeatures') || '{}')); }catch(e){ return Object.assign({}, DEFAULT_FEATURES); } })();
+function saveFeatures(){ try{ localStorage.setItem('powerHourFeatures', JSON.stringify(features)); }catch(e){} }
 const minsDisplay = document.getElementById('mins-display');
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -1430,9 +1454,11 @@ function saveEscalationDays(){
 function revertOneOffs(){
   const today = todayStr(); let ch = false;
   tasks.forEach(t => {
-    if(!t.oneOff || t.oneOff.day === today) return;
-    if(t.oneOff.urgent && t.priority === 'p1') t.priority = t.oneOff.prevPriority;
-    if(t.oneOff.first && t.pin === 'first') t.pin = t.oneOff.prevPin || null;
+    const o = t.oneOff;
+    if(!o || o.day === today) return;
+    if(o.urgent && t.priority === 'p1') t.priority = o.prevPriority;
+    if(o.pin && t.pin === o.pin) t.pin = o.prevPin || null;
+    if(o.mustdo) t.mustDo = !!o.prevMust;
     delete t.oneOff; ch = true;
   });
   return ch;
@@ -1440,6 +1466,7 @@ function revertOneOffs(){
 /* tasks with a morning question ask it the first time you open the app each day */
 let mqOpen = false;
 function checkMorningQuestions(){
+  if(!features.morningQ) return;
   if(mqOpen || timerState === 'running' || timerState === 'paused') return;
   if([...document.querySelectorAll('.modal')].some(m => m.id === 'add-modal' ? m.classList.contains('modal-open') : !m.classList.contains('hidden'))) return;
   const today = todayStr();
@@ -1450,12 +1477,19 @@ function checkMorningQuestions(){
   document.getElementById('mq-sub').textContent = t.name + ' · ' + PRIORITY_LABELS[t.priority] + ' · ' + t.mins + ' min';
   const m = document.getElementById('mq-modal'); m.classList.remove('hidden');
   const finish = () => { m.classList.add('hidden'); mqOpen = false; save(); render(); setTimeout(checkMorningQuestions, 250); };
-  m.querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
-    const a = b.dataset.a; t.askedOn = today;
-    if(a === 'urgent' && t.priority !== 'p1'){ t.oneOff = Object.assign(t.oneOff || { day: today }, { day: today, urgent: true, prevPriority: t.priority }); t.priority = 'p1'; }
-    if(a === 'first' && t.pin !== 'first'){ t.oneOff = Object.assign(t.oneOff || { day: today }, { day: today, first: true, prevPin: t.pin || null }); t.pin = 'first'; }
-    if(a === 'skip'){ const d = new Date(); d.setDate(d.getDate() + 1); t.scheduledDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); t.scheduleArrived = false; }
-    finish();
+  const box = document.getElementById('mq-answers'); box.innerHTML = '';
+  (features.mqAnswers && features.mqAnswers.length ? features.mqAnswers : DEFAULT_MQ_ANSWERS).forEach(ans => {
+    const btn = document.createElement('button'); btn.className = 'settings-item'; btn.textContent = ans.label || MQ_ACTIONS[ans.action];
+    btn.onclick = () => {
+      const a = ans.action; t.askedOn = today;
+      const o = () => (t.oneOff = t.oneOff && t.oneOff.day === today ? t.oneOff : { day: today });
+      if(a === 'urgent' && t.priority !== 'p1'){ Object.assign(o(), { urgent: true, prevPriority: t.priority }); t.priority = 'p1'; }
+      if((a === 'first' || a === 'last') && t.pin !== (a === 'first' ? 'first' : 'last')){ Object.assign(o(), { pin: a === 'first' ? 'first' : 'last', prevPin: t.pin || null }); t.pin = a === 'first' ? 'first' : 'last'; }
+      if(a === 'mustdo' && !t.mustDo){ Object.assign(o(), { mustdo: true, prevMust: false }); t.mustDo = true; }
+      if(a === 'skip'){ const d = new Date(); d.setDate(d.getDate() + 1); t.scheduledDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); t.scheduleArrived = false; }
+      finish();
+    };
+    box.appendChild(btn);
   });
   document.getElementById('mq-later-btn').onclick = () => { m.classList.add('hidden'); mqOpen = false; };
 }
@@ -1948,7 +1982,12 @@ function deleteTaskById(id){
 const editModal = document.getElementById('edit-modal');
 const byNameAZ = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
 /* ---------- ordering rules: "A must come after B" (stored on A as afterId = B.id) ---------- */
-function getPrereq(t){ return t && t.afterId ? tasks.find(x => x.id === t.afterId) || null : null; }
+/* A recurring task it depends on that isn't due today doesn't hold it back; any other prerequisite still does */
+function getPrereq(t){
+  const pre = t && t.afterId ? tasks.find(x => x.id === t.afterId) || null : null;
+  if(pre && pre.recurring && !pre.done && isScheduledForFuture(pre)) return null;
+  return pre;
+}
 function wouldCycle(taskId, prereqId){
   let cur = tasks.find(x => x.id === prereqId), guard = 0;
   while(cur && guard++ < 100){ if(cur.id === taskId) return true; cur = cur.afterId ? tasks.find(x => x.id === cur.afterId) : null; }
@@ -2762,12 +2801,19 @@ function refreshBudgetTagPicker(){
 }
 refreshBudgetTagPicker();
 
-[15, 30, 45, 60, 90].forEach(m => {
-  const b = document.createElement('button'); b.type = 'button'; b.className = 'tag-btn'; b.textContent = m;
-  b.style.cssText = 'flex:1; min-width:0; padding:12px 4px; font-weight:700; font-size:1rem;';
-  b.onclick = () => { document.getElementById('budget-input').value = m; document.getElementById('budget-build-btn').click(); };
-  document.getElementById('budget-presets').appendChild(b);
-});
+function buildBudgetPresets(){
+  const box = document.getElementById('budget-presets'); box.innerHTML = '';
+  const list = (features.presetList || []).filter(m => m > 0).slice(0, 6);
+  const hint = box.nextElementSibling;
+  box.style.display = features.timePresets && list.length ? 'flex' : 'none'; if(hint) hint.style.display = box.style.display;
+  list.forEach(m => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'tag-btn'; b.textContent = m;
+    b.style.cssText = 'flex:1; min-width:0; padding:12px 4px; font-weight:700; font-size:1rem;';
+    b.onclick = () => { document.getElementById('budget-input').value = m; document.getElementById('budget-build-btn').click(); };
+    box.appendChild(b);
+  });
+}
+buildBudgetPresets();
 document.getElementById('budget-build-btn').onclick = () => {
   const budget = parseInt(document.getElementById('budget-input').value);
   if(!budget || budget <= 0) return;
@@ -3018,6 +3064,7 @@ function saveLearn(){ try{ localStorage.setItem('powerHourLearn', JSON.stringify
 function learnKeysFor(t){ const k = ['task:' + t.id]; if(t.tag) k.push('tag:' + t.tag); if(t.mins <= 10) k.push('short'); if(t.mins >= 25) k.push('long'); return k; }
 function learnedWeight(t){
   let w = 0;
+  if(!features.learn) return 0;
   learnKeysFor(t).forEach(k => { const n = learnData.net[k] || 0; if(Math.abs(n) >= 2) w += Math.sign(n) * Math.min(2 + (Math.abs(n) - 2) * 0.5, 4); });
   return w;
 }
@@ -3092,7 +3139,7 @@ function moveInReview(id, up){
   const sel = new Set([...document.querySelectorAll('#review-list input:checked')].map(cb => cb.dataset.id));
   if(up) sel.add(id); else sel.delete(id);
   renderReviewList(reviewPending, sel); updateReviewTotal();
-  askWhy(t, up);
+  if(features.learn) askWhy(t, up);
 }
 function attachReviewDrag(handle, row, id, fromPlanned){
   handle.style.touchAction = 'none';
@@ -3148,11 +3195,11 @@ function renderReviewList(pending, selectedIds){
         ${selectedIds.has(t.id) ? chips(t) : ''}
         ${t.tag ? `<span class="tag-badge">${TAG_ICONS[t.tag]}</span>` : ''}
         <span class="mins">${planMins(t)} min</span>
-        <button type="button" class="mv-btn" aria-label="${selectedIds.has(t.id) ? 'Move to left out' : 'Move to planned'}" style="background:none; border:1px solid var(--btn); color:var(--text); border-radius:8px; padding:2px 8px; cursor:pointer;">${selectedIds.has(t.id) ? '▼' : '▲'}</button>
-        <span class="drag-handle" aria-hidden="true" style="cursor:grab; color:var(--muted); padding:0 4px; user-select:none;">⠿</span>
+        <button type="button" class="mv-btn" ${features.planMove ? '' : 'hidden'} aria-label="${selectedIds.has(t.id) ? 'Move to left out' : 'Move to planned'}" style="background:none; border:1px solid var(--btn); color:var(--text); border-radius:8px; padding:2px 8px; cursor:pointer;">${selectedIds.has(t.id) ? '▼' : '▲'}</button>
+        <span class="drag-handle" ${features.planMove ? '' : 'hidden'} aria-hidden="true" style="cursor:grab; color:var(--muted); padding:0 4px; user-select:none;">⠿</span>
       `;
       row.querySelector('.mv-btn').onclick = () => moveInReview(t.id, !selectedIds.has(t.id));
-      attachReviewDrag(row.querySelector('.drag-handle'), row, t.id, selectedIds.has(t.id));
+      if(features.planMove) attachReviewDrag(row.querySelector('.drag-handle'), row, t.id, selectedIds.has(t.id));
       list.appendChild(row);
     });
   });
@@ -4327,7 +4374,7 @@ document.getElementById('edit-delete-btn').onclick = async () => {
 };
 
 /* ---------- round 2: version/updates, snapshots, alerts, theme, insights, welcome, data hub ---------- */
-const APP_VERSION = '2026-10-29-j';
+const APP_VERSION = '2026-10-29-l';
 /* confetti: a quick burst of colour for wins */
 function confetti(n){
   if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -4343,9 +4390,58 @@ function confetti(n){
 /* backup status default (the cloud module overwrites it once it loads) */
 (function(){ const el = document.getElementById('sync-badge'); if(!el) return; const at = parseInt(localStorage.getItem('powerHourSyncAt') || '0');
   el.textContent = at ? 'Last: ' + new Date(at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Off — tap to set up'; })();
+/* ---------- Settings: features on/off + shortcuts ---------- */
+const FEATURE_TOGGLES = [
+  ['morningQ', '❓ Morning questions', 'Ask a question about a task the first time you open the app each day.'],
+  ['quickNote', '📝 Quick notes', 'A button on the timer to jot down a thought and sort it later.'],
+  ['timePresets', '⏱ Time shortcuts', 'One-tap time buttons when starting a Power Hour.'],
+  ['planMove', '↕️ Move tasks on the plan screen', 'Drag or tap ▲ / ▼ to move tasks between Planned and Left out.'],
+  ['learn', '🧠 Learn from plan changes', 'Ask why when you move a task, and adjust future plans.']
+];
+function applyFeatures(){
+  const qn = document.getElementById('quick-note-btn'); if(qn) qn.style.display = features.quickNote ? '' : 'none';
+  ['add-question-input', 'edit-question-input'].forEach(id => { const el = document.getElementById(id); if(el && el.parentElement) el.parentElement.style.display = features.morningQ ? '' : 'none'; });
+  const lb = document.getElementById('settings-learn-btn'); if(lb) lb.style.display = features.learn ? '' : 'none';
+  buildBudgetPresets();
+}
+function renderFeaturesUI(){
+  const tg = document.getElementById('features-toggles'); tg.innerHTML = '';
+  FEATURE_TOGGLES.forEach(([key, title, sub]) => {
+    const row = document.createElement('label'); row.className = 'modal-row'; row.style.cssText = 'display:flex; gap:10px; align-items:center; cursor:pointer;';
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!features[key]; cb.style.cssText = 'width:20px; height:20px; flex:none;';
+    cb.onchange = () => { features[key] = cb.checked; saveFeatures(); applyFeatures(); };
+    const tx = document.createElement('span'); tx.style.flex = '1'; tx.innerHTML = '<b></b><div style="color:var(--muted); font-size:0.78rem;"></div>';
+    tx.firstChild.textContent = title; tx.lastChild.textContent = sub;
+    row.append(cb, tx); tg.appendChild(row);
+  });
+  document.getElementById('features-presets').value = (features.presetList || []).join(', ');
+  const box = document.getElementById('features-answers'); box.innerHTML = '';
+  const answers = features.mqAnswers = (features.mqAnswers && features.mqAnswers.length ? features.mqAnswers : DEFAULT_MQ_ANSWERS.map(a => ({ ...a })));
+  answers.forEach((ans, i) => {
+    const row = document.createElement('div'); row.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:12px;';
+    const inp = document.createElement('input'); inp.type = 'text'; inp.value = ans.label; inp.maxLength = 40; inp.style.cssText = 'flex:1 1 100%; min-width:0;';
+    inp.oninput = () => { ans.label = inp.value; saveFeatures(); };
+    const sel = document.createElement('select'); sel.style.cssText = 'flex:1;';
+    Object.keys(MQ_ACTIONS).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = MQ_ACTIONS[k]; if(k === ans.action) o.selected = true; sel.appendChild(o); });
+    sel.onchange = () => { ans.action = sel.value; saveFeatures(); };
+    const del = document.createElement('button'); del.textContent = '✕'; del.setAttribute('aria-label', 'Remove answer'); del.style.cssText = 'background:none; border:none; color:var(--muted); font-size:1.1rem; cursor:pointer;';
+    del.onclick = () => { if(answers.length <= 1) return; answers.splice(i, 1); saveFeatures(); renderFeaturesUI(); };
+    row.append(inp, sel, del); box.appendChild(row);
+  });
+}
+document.getElementById('features-presets').onchange = e => {
+  features.presetList = e.target.value.split(/[,\s]+/).map(x => parseInt(x)).filter(x => x > 0 && x <= 600).slice(0, 6);
+  saveFeatures(); applyFeatures(); renderFeaturesUI();
+};
+document.getElementById('features-add-answer').onclick = () => { features.mqAnswers = (features.mqAnswers || []).slice(0, 7); features.mqAnswers.push({ label: '🆕 New answer', action: 'normal' }); saveFeatures(); renderFeaturesUI(); };
+document.getElementById('features-reset-answers').onclick = () => { features.mqAnswers = DEFAULT_MQ_ANSWERS.map(a => ({ ...a })); saveFeatures(); renderFeaturesUI(); };
+document.getElementById('settings-features-btn').onclick = () => { renderFeaturesUI(); document.getElementById('settings-modal').classList.add('hidden'); document.getElementById('features-modal').classList.remove('hidden'); };
+document.getElementById('features-close-btn').onclick = () => document.getElementById('features-modal').classList.add('hidden');
+applyFeatures();
+
 /* closing a screen opened from Settings returns to Settings */
 (function(){
-  const ids = ['calendar-modal','habits-modal','insights-modal','daylog-modal','escalation-modal','aging-modal','gestures-modal','learn-modal','goals-modal','theme-modal','data-modal','guide-modal'];
+  const ids = ['calendar-modal','habits-modal','insights-modal','daylog-modal','escalation-modal','aging-modal','gestures-modal','learn-modal','features-modal','goals-modal','theme-modal','data-modal','guide-modal'];
   let ret = false;
   const settings = document.getElementById('settings-modal');
   const isOpen = m => m.id === 'add-modal' ? m.classList.contains('modal-open') : !m.classList.contains('hidden');
