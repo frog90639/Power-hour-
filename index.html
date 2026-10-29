@@ -554,6 +554,8 @@
       <span style="color:var(--muted); font-size:0.85rem;">Filter:</span>
       <div class="tag-picker" id="budget-tag-picker"></div>
     </div>
+    <div id="budget-presets" style="display:flex; gap:6px; margin-bottom:12px;"></div>
+    <div style="color:var(--muted); font-size:0.8rem; margin:-4px 0 6px;">Tap a time (minutes) to start, or enter your own:</div>
     <div class="modal-row budget-row">
       <span>I have</span>
       <input type="number" id="budget-input" min="5" step="5" value="60">
@@ -2707,6 +2709,12 @@ function refreshBudgetTagPicker(){
 }
 refreshBudgetTagPicker();
 
+[15, 30, 45, 60, 90].forEach(m => {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'tag-btn'; b.textContent = m;
+  b.style.cssText = 'flex:1; min-width:0; padding:12px 4px; font-weight:700; font-size:1rem;';
+  b.onclick = () => { document.getElementById('budget-input').value = m; document.getElementById('budget-build-btn').click(); };
+  document.getElementById('budget-presets').appendChild(b);
+});
 document.getElementById('budget-build-btn').onclick = () => {
   const budget = parseInt(document.getElementById('budget-input').value);
   if(!budget || budget <= 0) return;
@@ -4266,7 +4274,7 @@ document.getElementById('edit-delete-btn').onclick = async () => {
 };
 
 /* ---------- round 2: version/updates, snapshots, alerts, theme, insights, welcome, data hub ---------- */
-const APP_VERSION = '2026-10-29-h';
+const APP_VERSION = '2026-10-29-i';
 /* confetti: a quick burst of colour for wins */
 function confetti(n){
   if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
