@@ -622,7 +622,8 @@
       <div class="up-next" id="timer-progress" style="margin-bottom:4px;"></div>
       <div class="up-next" id="up-next" style="margin-bottom:6px;"></div>
       <button id="add-time-btn" class="eod-link" style="margin-bottom:6px;">＋ Add more time</button>
-      <button id="quick-note-btn" class="eod-link" style="margin-bottom:14px;">📝 Quick note</button>
+      <button id="quick-note-btn" class="eod-link" style="margin-bottom:6px;">📝 Quick note</button>
+      <button id="bank-btn" class="eod-link" style="margin-bottom:14px;">⏳ Interrupted? Bank time</button>
       <div class="timer-controls">
         <button id="done-current-btn">✓ Done</button>
         <button id="pause-btn">Pause</button>
@@ -962,6 +963,7 @@
     <ul>
       <li><b>Tap</b> a task to edit it (or delete it from there).</li>
       <li><b>Swipe</b> right or left for a quick action. Choose what each does in <b>Settings → Customise → Gestures</b>.</li>
+      <li>Interrupted mid-task? Tap <b>⏳ Bank time</b> on the timer. The minutes you spent are kept and the rest is planned later.</li>
       <li>Switch features on or off, and edit the time shortcuts and morning-question answers, in <b>Settings → Customise → Features &amp; shortcuts</b>.</li>
       <li>Add a <b>morning question</b> to a task (under More options) and it asks you the first time you open the app each day: normal, do first, urgent, or not today. Those answers last for that day only.</li>
       <li>On the plan screen, <b>drag a task</b> (or tap ▲ / ▼) between Planned and Left out, then say why. After two similar moves I adjust future plans within a priority; see <b>Settings → Customise → What I've learned</b>.</li>
@@ -1296,7 +1298,7 @@ const DEFAULT_MQ_ANSWERS = [
   { label: '⚡ Urgent today (treat as P1)', action: 'urgent' },
   { label: '😴 Not today (snooze to tomorrow)', action: 'skip' }
 ];
-const DEFAULT_FEATURES = { morningQ: true, quickNote: true, timePresets: true, learn: true, planMove: true, presetList: [15, 30, 45, 60, 90], mqAnswers: DEFAULT_MQ_ANSWERS };
+const DEFAULT_FEATURES = { morningQ: true, quickNote: true, bankTime: true, timePresets: true, learn: true, planMove: true, presetList: [15, 30, 45, 60, 90], mqAnswers: DEFAULT_MQ_ANSWERS };
 let features = (() => { try{ return Object.assign({}, DEFAULT_FEATURES, JSON.parse(localStorage.getItem('powerHourFeatures') || '{}')); }catch(e){ return Object.assign({}, DEFAULT_FEATURES); } })();
 function saveFeatures(){ try{ localStorage.setItem('powerHourFeatures', JSON.stringify(features)); }catch(e){} }
 const minsDisplay = document.getElementById('mins-display');
@@ -2292,6 +2294,26 @@ function completeCurrentTask(){
   advanceAfterCurrent();
 }
 /* moves on WITHOUT marking the current task done — it stays pending, and gets asked about at session end */
+/* interrupted: keep the minutes already spent, and the rest goes back in the pool to be planned later */
+function bankCurrentTask(){
+  const t = tasks[currentIndex];
+  if(currentIndex === -1 || !t || t.microGoal || timerState === 'done') return;
+  const spent = Math.round((runMins(t) * 60 - secondsLeft) / 60);
+  if(spent < 1){ showToast('Less than a minute spent, so there is nothing to bank yet.'); return; }
+  if(spent >= remMins(t)){ completeCurrentTask(); return; }
+  const wasSplit = isSplit(t);
+  if(!wasSplit){ t.splittable = true; t.autoSplit = true; t.chunkMins = 1; }
+  const add = creditChunk(t, spent);
+  if(!wasSplit) t.chunkMins = Math.max(1, t.mins - (t.doneMins || 0));
+  sessionMinsSinceBreak += add;
+  sessionCompleted.push({ ...t, mins: add, name: t.name + ' (banked ' + add + ' min)' });
+  sessionPartial.push(t.id);
+  const id = t.id, left = t.mins - (t.doneMins || 0);
+  save();
+  showToast('⏳ Banked ' + add + ' min on ' + t.name + '. ' + left + ' min left for later.', 'Tomorrow', () => snoozeTask(id));
+  advanceAfterCurrent();
+}
+document.getElementById('bank-btn').onclick = bankCurrentTask;
 function skipCurrentTask(){
   if(currentIndex === -1 || !tasks[currentIndex]) return;
   if(tasks[currentIndex].microGoal){
@@ -3257,7 +3279,7 @@ document.getElementById('done-export-btn').onclick = () => {
    anything less frequent gets scheduled forward and stays off the board until due. */
 function resetRecurringTask(t, fromDate){
   const interval = t.recurEveryDays || 1;
-  const reset = { ...t, done: false, doneMins: 0, createdAt: Date.now(), staleSince: Date.now(), escalated: false, mustDo: false, passedOver: 0, lastDoneAt: Date.now() };
+  const reset = { ...t, ...(t.autoSplit ? { splittable: false, autoSplit: false, chunkMins: undefined } : {}), done: false, doneMins: 0, createdAt: Date.now(), staleSince: Date.now(), escalated: false, mustDo: false, passedOver: 0, lastDoneAt: Date.now() };
   if(Array.isArray(t.recurDays) && t.recurDays.length){
     const base = fromDate ? new Date(fromDate + 'T12:00:00') : new Date();
     reset.scheduledDate = null; reset.scheduleArrived = false;
@@ -4374,7 +4396,7 @@ document.getElementById('edit-delete-btn').onclick = async () => {
 };
 
 /* ---------- round 2: version/updates, snapshots, alerts, theme, insights, welcome, data hub ---------- */
-const APP_VERSION = '2026-10-29-m';
+const APP_VERSION = '2026-10-29-n';
 /* confetti: a quick burst of colour for wins */
 function confetti(n){
   if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -4394,12 +4416,14 @@ function confetti(n){
 const FEATURE_TOGGLES = [
   ['morningQ', '❓ Morning questions', 'Ask a question about a task the first time you open the app each day.'],
   ['quickNote', '📝 Quick notes', 'A button on the timer to jot down a thought and sort it later.'],
+  ['bankTime', '⏳ Bank time', 'An Interrupted button on the timer that keeps the time you spent and plans the rest for later.'],
   ['timePresets', '⏱ Time shortcuts', 'One-tap time buttons when starting a Power Hour.'],
   ['planMove', '↕️ Move tasks on the plan screen', 'Drag or tap ▲ / ▼ to move tasks between Planned and Left out.'],
   ['learn', '🧠 Learn from plan changes', 'Ask why when you move a task, and adjust future plans.']
 ];
 function applyFeatures(){
   const qn = document.getElementById('quick-note-btn'); if(qn) qn.style.display = features.quickNote ? '' : 'none';
+  const bb = document.getElementById('bank-btn'); if(bb) bb.style.display = features.bankTime ? '' : 'none';
   ['add-question-input', 'edit-question-input'].forEach(id => { const el = document.getElementById(id); if(el && el.parentElement) el.parentElement.style.display = features.morningQ ? '' : 'none'; });
   const lb = document.getElementById('settings-learn-btn'); if(lb) lb.style.display = features.learn ? '' : 'none';
   buildBudgetPresets();
