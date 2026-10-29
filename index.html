@@ -1264,6 +1264,7 @@ let dayLog = JSON.parse(localStorage.getItem('powerHourDayLog') || '[]'); // per
 tasks.sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority));
 let pendingMins = 5, pendingPriority = 'p3', pendingTag = null, pendingRecurring = false, pendingTimeLimit = null;
 let editMins = 5, editPriority = 'p3', editTag = null, editRecurring = false, editTaskId = null, editTimeLimit = null;
+let sessionDeferred = [];
 let currentIndex = -1, secondsLeft = 0, timerInterval = null, sessionTaskIds = null, sessionCompleted = [], sessionSkipped = [];
 /* ---------- tasks done in bits ("splittable"): one task, worked on in chunks until its total is reached ---------- */
 let sessionPlan = {}, sessionPartial = [], lastPickPlan = new Map(), lastEligibleIds = new Set();
@@ -2159,8 +2160,18 @@ function isHeldBack(t){
   if(sessionSkipped.some(s => s.id === pre.id)) return true;
   return !sessionTaskIds || sessionTaskIds.includes(pre.id);
 }
+/* skipped tasks go to the back of this session's queue; they only come up again once everything else is done */
 function findNextIndex(from){
-  const ok = i => !tasks[i].done && !sessionPartial.includes(tasks[i].id) && !sessionSkipped.some(s => s.id === tasks[i].id) && !isScheduledForFuture(tasks[i]) && (!sessionTaskIds || sessionTaskIds.includes(tasks[i].id)) && !isHeldBack(tasks[i]);
+  const r = findNextCore(from, false);
+  if(r !== -1) return r;
+  for(const id of sessionDeferred){
+    const i = tasks.findIndex(t => t.id === id);
+    if(i !== -1 && i !== currentIndex && findNextCore(i, true) === i) return i;
+  }
+  return findNextCore(from, true);
+}
+function findNextCore(from, withDeferred){
+  const ok = i => (withDeferred || !sessionDeferred.includes(tasks[i].id)) && !tasks[i].done && !sessionPartial.includes(tasks[i].id) && !sessionSkipped.some(s => s.id === tasks[i].id) && !isScheduledForFuture(tasks[i]) && (!sessionTaskIds || sessionTaskIds.includes(tasks[i].id)) && !isHeldBack(tasks[i]);
   const free = i => i !== currentIndex && !sessionSkipped.some(s => s.id === tasks[i].id) && ok(i);
   // "do first" tasks jump the queue; "do last" tasks only come up when nothing else is left
   for(let i = 0; i < tasks.length; i++) if((tasks[i].pin === 'first' || isRoutineMember(tasks[i])) && free(i)) return i;
@@ -2193,7 +2204,7 @@ function beginRun(){
   }
   if(timerState === 'idle'){
     sessionCompleted = [];
-    sessionSkipped = [];
+    sessionSkipped = []; sessionDeferred = [];
     sessionPartial = [];
     lastMotivationTaskId = null; // fresh session — re-roll the message even if it's the same task as last time
     currentIndex = findNextIndex(0);
@@ -2320,8 +2331,15 @@ function skipCurrentTask(){
     showMustDoConfirm(tasks[currentIndex], () => finishGoalBreak(false), { messages: GOAL_NAG_MESSAGES, word: 'i am skipping' });
     return;
   }
-  sessionMinsSinceBreak += runMins(tasks[currentIndex]);
-  sessionSkipped.push({ ...tasks[currentIndex] });
+  const t = tasks[currentIndex], prevDeferred = sessionDeferred.slice();
+  sessionDeferred = sessionDeferred.filter(id => id !== t.id); sessionDeferred.push(t.id);
+  if(findNextIndex(currentIndex + 1) === -1){
+    sessionDeferred = prevDeferred;
+    showToast('“' + t.name + '” is the only task left in this session, so it stays.');
+    return;
+  }
+  sessionMinsSinceBreak += runMins(t);
+  showToast('↪ “' + t.name + '” moved to the end of this session.');
   advanceAfterCurrent();
 }
 function advanceAfterCurrent(startAt){
@@ -2357,7 +2375,7 @@ function persistSession(){
   const activeTaskId = (currentIndex !== -1 && tasks[currentIndex]) ? tasks[currentIndex].id : null;
   localStorage.setItem('powerHourSession', JSON.stringify({
     timerState, activeTaskId, taskEndTime, secondsLeft,
-    sessionTaskIds, sessionCompleted, sessionSkipped, view: currentView, sessionMoveAround, sessionMinsSinceBreak, sessionPlan, sessionPartial
+    sessionTaskIds, sessionCompleted, sessionSkipped, view: currentView, sessionMoveAround, sessionMinsSinceBreak, sessionPlan, sessionPartial, sessionDeferred
   }));
 }
 
@@ -2371,7 +2389,7 @@ function restoreSession(){
   sessionSkipped = raw.sessionSkipped || [];
   currentView = raw.view === 'minimized' ? 'minimized' : 'maximized';
   sessionMoveAround = !!raw.sessionMoveAround; sessionMinsSinceBreak = raw.sessionMinsSinceBreak || 0;
-  sessionPlan = raw.sessionPlan || {}; sessionPartial = raw.sessionPartial || [];
+  sessionPlan = raw.sessionPlan || {}; sessionPartial = raw.sessionPartial || []; sessionDeferred = raw.sessionDeferred || [];
 
   if(raw.timerState === 'done'){
     timerState = 'done'; currentIndex = -1; taskEndTime = null;
@@ -2662,7 +2680,7 @@ function showMinimized(){
 function closeTimerFully(){
   releaseWake();
   clearInterval(timerInterval);
-  timerState = 'idle'; currentIndex = -1; secondsLeft = 0; sessionTaskIds = null; taskEndTime = null; sessionPlan = {}; sessionPartial = []; window.__confettiDone = false;
+  timerState = 'idle'; currentIndex = -1; secondsLeft = 0; sessionTaskIds = null; taskEndTime = null; sessionPlan = {}; sessionPartial = []; sessionDeferred = []; window.__confettiDone = false;
   timerScreen.classList.add('hidden');
   miniBar.classList.add('hidden');
   document.getElementById('pause-btn').classList.remove('hidden');
@@ -4396,7 +4414,7 @@ document.getElementById('edit-delete-btn').onclick = async () => {
 };
 
 /* ---------- round 2: version/updates, snapshots, alerts, theme, insights, welcome, data hub ---------- */
-const APP_VERSION = '2026-10-29-n';
+const APP_VERSION = '2026-10-29-o';
 /* confetti: a quick burst of colour for wins */
 function confetti(n){
   if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
