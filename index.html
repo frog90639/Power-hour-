@@ -407,6 +407,22 @@
 <div class="task-list-container" id="task-list-container"></div>
 <button class="fab" id="open-add-btn" title="Add task" aria-label="Add task">＋</button>
 
+<!-- add more time -->
+<div class="modal hidden" id="more-time-modal">
+  <div class="modal-card">
+    <h3>＋ Add more time</h3>
+    <p style="color:var(--muted); font-size:0.85rem; margin-top:-6px;">Pick more tasks to fit extra minutes. They're added after what's already planned.</p>
+    <div style="display:flex; gap:8px; margin-bottom:10px;">
+      <button class="settings-item more-time-opt" data-m="10" style="text-align:center;">10 min</button>
+      <button class="settings-item more-time-opt" data-m="20" style="text-align:center;">20 min</button>
+      <button class="settings-item more-time-opt" data-m="30" style="text-align:center;">30 min</button>
+      <button class="settings-item more-time-opt" data-m="45" style="text-align:center;">45 min</button>
+    </div>
+    <div id="more-time-msg" style="color:var(--muted); font-size:0.85rem; min-height:1.2em; margin-bottom:8px;"></div>
+    <button id="more-time-close-btn" style="width:100%; background:none; border:1px solid var(--btn); color:var(--muted); padding:10px; border-radius:10px; cursor:pointer;">Cancel</button>
+  </div>
+</div>
+
 <!-- add task modal -->
 <div class="modal" id="add-modal">
   <div class="modal-card">
@@ -551,7 +567,8 @@
       <div id="timer-notes" style="color:var(--muted); font-size:0.88rem; max-width:320px; text-align:center; margin:-4px auto 10px; white-space:pre-wrap;"></div>
       <div class="timer-clock" id="timer-clock">00:00</div>
       <div class="up-next" id="timer-progress" style="margin-bottom:4px;"></div>
-      <div class="up-next" id="up-next" style="margin-bottom:20px;"></div>
+      <div class="up-next" id="up-next" style="margin-bottom:6px;"></div>
+      <button id="add-time-btn" class="eod-link" style="margin-bottom:14px;">＋ Add more time</button>
       <div class="timer-controls">
         <button id="done-current-btn">✓ Done</button>
         <button id="pause-btn">Pause</button>
@@ -571,6 +588,7 @@
       <div class="timer-controls" style="flex-wrap:wrap;">
         <button id="done-export-btn">⇧ Export list</button>
         <button id="done-remove-btn" style="background:var(--danger); color:#fff;">Remove completed</button>
+        <button id="done-more-btn" class="hidden" style="width:100%;">＋ Add more time</button>
         <button id="done-eod-btn" class="add-btn hidden" style="width:100%;">🌇 End of day</button>
         <button id="done-close-btn">Back to list</button>
       </div>
@@ -1130,7 +1148,7 @@ let pendingMins = 5, pendingPriority = 'p3', pendingTag = null, pendingRecurring
 let editMins = 5, editPriority = 'p3', editTag = null, editRecurring = false, editTaskId = null, editTimeLimit = null;
 let currentIndex = -1, secondsLeft = 0, timerInterval = null, sessionTaskIds = null, sessionCompleted = [], sessionSkipped = [];
 /* ---------- tasks done in bits ("splittable"): one task, worked on in chunks until its total is reached ---------- */
-let sessionPlan = {}, sessionPartial = [], lastPickPlan = new Map();
+let sessionPlan = {}, sessionPartial = [], lastPickPlan = new Map(), lastEligibleIds = new Set();
 let chunkToday = (() => { try{ return JSON.parse(localStorage.getItem('powerHourChunkToday') || '[]') || []; }catch(e){ return []; } })();
 function saveChunkToday(){ try{ localStorage.setItem('powerHourChunkToday', JSON.stringify(chunkToday)); }catch(e){} }
 function isSplit(t){ return !!(t && t.splittable && t.mins > (t.chunkMins || 5)); }
@@ -1232,6 +1250,15 @@ function getTimeConstraintDeadlineMinutes(t){
   const m = t.timeConstraint.match(/^(\d{2}):(\d{2})$/);
   return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : null;
 }
+/* a slot is "urgent" once the time left before it is no more than a margin (about 3x the task's length, at least 90 min) —
+   far-off deadlines don't push anything forward, near ones do */
+function slotWindowMins(t){ return Math.max(90, 3 * remMins(t)); }
+function isUrgentSlot(t){
+  const dl = getTimeConstraintDeadlineMinutes(t);
+  if(dl === null || t.done) return false;
+  const now = new Date();
+  return (now.getHours() * 60 + now.getMinutes()) >= dl - slotWindowMins(t);
+}
 function isPastTimeConstraint(t){
   const deadline = getTimeConstraintDeadlineMinutes(t);
   if(deadline === null) return false;
@@ -1328,21 +1355,20 @@ function escalateStaleTasks(){
         escalatedNow.push({ id: t.id, name: t.name, fromPriority, toPriority: t.priority });
       } else break;
     }
-    // a task with a time slot (AM / PM / specific time) that has now passed unfinished gets bumped up one level, once per day
-    if(t.timeConstraint && isPastTimeConstraint(t) && t.timeBumpedOn !== todayStr()){
+    // time slots: a slot that is close gets one bump; a slot that has passed unfinished gets a big bump (two levels), once per day each.
+    // Far-off slots (e.g. a 5 minute task at 8am due by 2pm) are left alone.
+    if(t.timeConstraint){
       const dl = getTimeConstraintDeadlineMinutes(t), mid = new Date(); mid.setHours(0, 0, 0, 0);
-      const wasThereInTime = (t.createdAt || 0) < mid.getTime() + dl * 60000; // added after its slot already passed doesn't count as missed
-      if(wasThereInTime){
-        t.timeBumpedOn = todayStr();
-        if(t.priority !== 'p1'){
-          const fromPriority = t.priority;
-          t.priority = PRIORITIES[PRIORITIES.indexOf(t.priority) - 1];
-          t.staleSince = now; t.escalated = true; changed = true;
-          escalatedNow.push({ id: t.id, name: t.name, fromPriority, toPriority: t.priority });
-        } else if(!t.mustDo){
-          t.mustDo = true; changed = true; mustDoNow.push({ id: t.id, name: t.name });
-        }
-      }
+      const past = isPastTimeConstraint(t), near = !past && isUrgentSlot(t), today = todayStr();
+      const existedBefore = (t.createdAt || 0) < mid.getTime() + (dl - (past ? 0 : slotWindowMins(t))) * 60000; // added after the slot/window opened doesn't count as missed
+      const bump = levels => {
+        let moved = false; const fromPriority = t.priority;
+        for(let i = 0; i < levels && t.priority !== 'p1'; i++){ t.priority = PRIORITIES[PRIORITIES.indexOf(t.priority) - 1]; moved = true; }
+        if(moved){ t.staleSince = now; t.escalated = true; changed = true; escalatedNow.push({ id: t.id, name: t.name, fromPriority, toPriority: t.priority }); }
+        else if(!t.mustDo && past){ t.mustDo = true; changed = true; mustDoNow.push({ id: t.id, name: t.name }); }
+      };
+      if(existedBefore && past && t.timeBumpedOn !== today){ t.timeBumpedOn = today; t.timeNearOn = today; bump(2); }
+      else if(existedBefore && near && t.timeNearOn !== today && t.timeBumpedOn !== today){ t.timeNearOn = today; bump(1); }
     }
     if(t.priority === 'p1' && !t.mustDo){
       const mustDoDays = escalationDays.p1 || DEFAULT_ESCALATION_DAYS.p1;
@@ -1932,6 +1958,9 @@ function findNextIndex(from){
   const free = i => i !== currentIndex && !sessionSkipped.some(s => s.id === tasks[i].id) && ok(i);
   // "do first" tasks jump the queue; "do last" tasks only come up when nothing else is left
   for(let i = 0; i < tasks.length; i++) if((tasks[i].pin === 'first' || isRoutineMember(tasks[i])) && free(i)) return i;
+  { let bi = -1, bd = 1e9; // slots running out of time come next, soonest first (never ahead of do-first routines)
+    for(let i = 0; i < tasks.length; i++){ const t = tasks[i]; if(t.pin === 'last' || !t.timeConstraint || !isUrgentSlot(t) || !free(i)) continue; const d = getTimeConstraintDeadlineMinutes(t); if(d < bd){ bd = d; bi = i; } }
+    if(bi !== -1) return bi; }
   let found = -1;
   for(let i = from; i < tasks.length && found === -1; i++) if(ok(i)) found = i;
   // a prerequisite can sit later in the list than the task waiting on it, so look back for anything now unblocked
@@ -1953,7 +1982,7 @@ function beginRun(){
   unlockAudio(); requestWake();
   if(timerState === 'idle' && sessionTaskIds){
     // anything that was available but left out of this session gets a small standing boost next time
-    tasks.forEach(t => { if(!t.done && !isScheduledForFuture(t) && !sessionTaskIds.includes(t.id)) t.passedOver = (t.passedOver || 0) + 1; });
+    tasks.forEach(t => { const pre = getPrereq(t); if(!t.done && !t.microGoal && lastEligibleIds.has(t.id) && !sessionTaskIds.includes(t.id) && !(pre && !pre.done)) t.passedOver = (t.passedOver || 0) + 1; }); // only tasks that could actually have been chosen count as 'left out'
     save();
   }
   if(timerState === 'idle'){
@@ -2310,6 +2339,7 @@ function refreshTimerDisplays(){
       </div>
     `).join('');
     document.getElementById('done-eod-btn').classList.toggle('hidden', tasks.some(t => !t.done && !t.microGoal));
+    document.getElementById('done-more-btn').classList.toggle('hidden', eligibleExtra().length === 0);
     const removeBtn = document.getElementById('done-remove-btn');
     removeBtn.textContent = 'Remove completed';
     removeBtn.disabled = tasks.every(t => !t.done);
@@ -2602,6 +2632,7 @@ function openReviewModal(budget){
   let pending = tasks.filter(t => !t.done && !isScheduledForFuture(t) && !isWrongTimeOfDay(t) && !isBeforeEarliestTime(t)); // current order reflects whichever quick sort is active
   if(budgetTagFilters.size > 0) pending = pending.filter(t => t.tag && budgetTagFilters.has(t.tag));
   const selected = pickTasksForBudget(pending, budget);
+  lastEligibleIds = new Set(pending.map(t => t.id));
   renderReviewList(pending, selected);
   { const old = document.getElementById('review-split-nudge'); if(old) old.remove();
     const cand = pending.filter(t => !t.splittable && !t.autoWalk && !selected.has(t.id) && (t.mins > budget || ((t.passedOver || 0) >= 3 && t.mins >= 20)))
@@ -2634,7 +2665,7 @@ function getWithinTierWeight(t){
   let weight = 0;
   if(t.mustDo) weight += 5;
   if(t.escalated) weight += 3;
-  if(t.timeConstraint) weight += isPastTimeConstraint(t) ? 6 : 2;
+  if(t.timeConstraint) weight += isPastTimeConstraint(t) ? 6 : (isUrgentSlot(t) ? 4 : 0);
   weight += Math.min(t.passedOver || 0, 10) * 0.3; // keeps getting left out of sessions -> climbs within its tier
   return weight;
 }
@@ -2808,18 +2839,40 @@ function renderReviewList(pending, selectedIds){
     list.innerHTML = '<div class="empty">No open tasks to pick from.</div>';
     return;
   }
-  pending.forEach(t => {
-    const row = document.createElement('div');
-    row.className = 'review-item';
-    row.innerHTML = `
-      <input type="checkbox" data-id="${t.id}" ${selectedIds.has(t.id) ? 'checked' : ''}>
-      <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
-      <span class="name review-edit-trigger" data-id="${t.id}" style="cursor:pointer;">${t.name}${isSplit(t) ? ' ✂️' : ''}</span>
-      ${t.tag ? `<span class="tag-badge">${TAG_ICONS[t.tag]}</span>` : ''}
-      <span class="mins">${planMins(t)} min</span>
-    `;
-    list.appendChild(row);
+  const budgetNow = reviewBudget || 0;
+  const reasonFor = t => {
+    const pre = getPrereq(t);
+    if(pre && !pre.done && !selectedIds.has(pre.id)) return '⏳ waiting for “' + pre.name.slice(0, 22) + '”';
+    if(planMins(t) > budgetNow) return '⏱ longer than this session';
+    return 'no room left after higher priorities';
+  };
+  const chips = t => [
+    t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff;" title="Must do">❗ must do</span>' : '',
+    isRoutineMember(t) ? '<span class="tag-badge" title="Part of a do-first routine">🔁 routine</span>' : '',
+    t.timeConstraint && isPastTimeConstraint(t) ? '<span class="tag-badge" title="Its time slot has passed">⏰ slot passed</span>' : (t.timeConstraint && isUrgentSlot(t) ? '<span class="tag-badge" title="Its time slot is close">⏰ due soon</span>' : ''),
+    t.escalated ? '<span class="tag-badge" title="Bumped up for waiting">⏫</span>' : ''
+  ].join('');
+  const picked = pending.filter(t => selectedIds.has(t.id)), left = pending.filter(t => !selectedIds.has(t.id));
+  [['', picked], ['Left out', left]].forEach(([label, group]) => {
+    if(!group.length) return;
+    if(label){ const h = document.createElement('div'); h.className = 'settings-group-label'; h.textContent = label + ' (' + group.length + ')'; h.style.marginTop = '12px'; list.appendChild(h); }
+    group.forEach(t => {
+      const row = document.createElement('div');
+      row.className = 'review-item';
+      row.innerHTML = `
+        <input type="checkbox" data-id="${t.id}" ${selectedIds.has(t.id) ? 'checked' : ''}>
+        <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
+        <span class="name review-edit-trigger" data-id="${t.id}" style="cursor:pointer;">${t.name}${isSplit(t) ? ' ✂️' : ''}
+          ${selectedIds.has(t.id) ? '' : '<div style="color:var(--muted); font-size:0.75rem; font-weight:400;">' + reasonFor(t) + '</div>'}</span>
+        ${selectedIds.has(t.id) ? chips(t) : ''}
+        ${t.tag ? `<span class="tag-badge">${TAG_ICONS[t.tag]}</span>` : ''}
+        <span class="mins">${planMins(t)} min</span>
+      `;
+      list.appendChild(row);
+    });
   });
+  { const hidden = tasks.filter(t => !t.done && !t.microGoal && !isScheduledForFuture(t) && !pending.some(x => x.id === t.id)).length;
+    if(hidden){ const n = document.createElement('div'); n.style.cssText = 'color:var(--muted); font-size:0.78rem; margin-top:12px;'; n.textContent = hidden + ' more task' + (hidden === 1 ? ' is' : 's are') + ' hidden from this plan (wrong time of day, not available yet, or outside your tag filter).'; list.appendChild(n); } }
   list.querySelectorAll('input[type=checkbox]').forEach(cb => {
     const t = pending.find(x => x.id === cb.dataset.id);
     cb.onchange = () => {
@@ -2909,6 +2962,30 @@ document.getElementById('done-remove-btn').onclick = () => {
   btn.disabled = true;
 };
 document.getElementById('done-close-btn').onclick = closeTimerFully;
+function eligibleExtra(){
+  let p = tasks.filter(t => !t.done && !t.microGoal && !isScheduledForFuture(t) && !isWrongTimeOfDay(t) && !isBeforeEarliestTime(t) && !(sessionTaskIds || []).includes(t.id) && !sessionSkipped.some(k => k.id === t.id));
+  p = p.concat(tasks.filter(t => !t.done && sessionPartial.includes(t.id)));
+  if(budgetTagFilters.size > 0) p = p.filter(t => t.tag && budgetTagFilters.has(t.tag));
+  return p;
+}
+function addMoreTime(mins){
+  const sel = [...pickTasksForBudget(eligibleExtra(), mins)];
+  if(sel.length === 0){ document.getElementById('more-time-msg').textContent = 'Nothing else fits in ' + mins + ' min right now.'; return; }
+  sel.forEach(id => { const t = tasks.find(x => x.id === id); if(isSplit(t)) sessionPlan[id] = planMins(t); sessionPartial = sessionPartial.filter(x => x !== id); });
+  sessionTaskIds = [...new Set([...(sessionTaskIds || []), ...sel])];
+  document.getElementById('more-time-modal').classList.add('hidden');
+  if(timerState === 'done'){
+    currentIndex = findNextIndex(0);
+    if(currentIndex !== -1){ taskEndTime = Date.now() + runMins(tasks[currentIndex]) * 60000; secondsLeft = runMins(tasks[currentIndex]) * 60; timerState = 'running'; lastMotivationTaskId = null; unlockAudio(); requestWake(); startInterval(); }
+  }
+  persistSession(); refreshTimerDisplays();
+  showToast('＋ Added ' + sel.length + ' task' + (sel.length === 1 ? '' : 's') + ' (' + mins + ' min)');
+}
+document.querySelectorAll('.more-time-opt').forEach(b => b.onclick = () => addMoreTime(parseInt(b.dataset.m)));
+document.getElementById('more-time-close-btn').onclick = () => document.getElementById('more-time-modal').classList.add('hidden');
+function openMoreTime(){ document.getElementById('more-time-msg').textContent = ''; document.getElementById('more-time-modal').classList.remove('hidden'); }
+document.getElementById('add-time-btn').onclick = openMoreTime;
+document.getElementById('done-more-btn').onclick = openMoreTime;
 document.getElementById('done-eod-btn').onclick = () => { closeTimerFully(); openReportChoice(); };
 
 /* ---------- pick tasks modal ---------- */
@@ -3964,7 +4041,7 @@ document.getElementById('edit-delete-btn').onclick = async () => {
 };
 
 /* ---------- round 2: version/updates, snapshots, alerts, theme, insights, welcome, data hub ---------- */
-const APP_VERSION = '2026-10-29-b';
+const APP_VERSION = '2026-10-29-c';
 /* backup status default (the cloud module overwrites it once it loads) */
 (function(){ const el = document.getElementById('sync-badge'); if(!el) return; const at = parseInt(localStorage.getItem('powerHourSyncAt') || '0');
   el.textContent = at ? 'Last: ' + new Date(at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Off — tap to set up'; })();
