@@ -524,6 +524,7 @@
         <span style="color:var(--muted); font-size:0.85rem;">🔗 Do before</span>
         <select id="add-before-select" style="margin-left:auto; max-width:60%;"></select>
       </div>
+      <div class="modal-row"><input type="text" id="add-question-input" placeholder="❓ Morning question (e.g. Bottle prep?)" style="width:100%;" maxlength="80"></div>
       <div class="modal-row"><textarea id="add-notes-input" rows="2" placeholder="📝 Notes (optional)"></textarea></div>
       <div class="modal-row budget-row" id="add-split-row" style="flex-wrap:wrap; gap:8px; align-items:center;">
       <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="add-split-checkbox"><span>✂️ Do it in bits</span></label>
@@ -737,6 +738,7 @@
       <span style="color:var(--muted); font-size:0.85rem;">⏳ Age (days)</span>
       <input type="number" id="edit-age-input" min="0" step="1" style="margin-left:auto; width:80px;">
     </div>
+    <div class="modal-row"><input type="text" id="edit-question-input" placeholder="❓ Morning question (e.g. Bottle prep?)" style="width:100%;" maxlength="80"></div>
     <div class="modal-row"><textarea id="edit-notes-input" rows="2" placeholder="📝 Notes (optional)"></textarea></div>
     <div class="modal-row budget-row" id="edit-split-row" style="flex-wrap:wrap; gap:8px; align-items:center;">
       <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="edit-split-checkbox"><span>✂️ Do it in bits</span></label>
@@ -959,6 +961,7 @@
     <ul>
       <li><b>Tap</b> a task to edit it (or delete it from there).</li>
       <li><b>Swipe</b> right or left for a quick action. Choose what each does in <b>Settings → Customise → Gestures</b>.</li>
+      <li>Add a <b>morning question</b> to a task (under More options) and it asks you the first time you open the app each day: normal, do first, urgent, or not today. Those answers last for that day only.</li>
       <li>On the plan screen, <b>drag a task</b> (or tap ▲ / ▼) between Planned and Left out, then say why. After two similar moves I adjust future plans within a priority; see <b>Settings → Customise → What I've learned</b>.</li>
       <li><b>Press and hold</b>, then drag up or down to change priority; hold near the left edge to reorder within a priority.</li>
     </ul>
@@ -1028,6 +1031,18 @@
 
 <!-- escalation timing settings -->
 <!-- gesture settings -->
+<div class="modal hidden" id="mq-modal" style="z-index:310;">
+  <div class="modal-card">
+    <h3 id="mq-title">Question</h3>
+    <p id="mq-sub" style="color:var(--muted); font-size:0.8rem; margin-top:-8px;"></p>
+    <button class="settings-item" data-a="normal">👍 Normal, as planned</button>
+    <button class="settings-item" data-a="first">🥇 Do it first today</button>
+    <button class="settings-item" data-a="urgent">⚡ Urgent today (treat as P1)</button>
+    <button class="settings-item" data-a="skip">😴 Not today (snooze to tomorrow)</button>
+    <button id="mq-later-btn" style="width:100%; margin-top:10px; background:none; border:1px solid var(--btn); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Ask me later</button>
+  </div>
+</div>
+
 <div class="modal hidden" id="note-modal">
   <div class="modal-card">
     <h3>📝 Quick note</h3>
@@ -1411,7 +1426,41 @@ function saveEscalationDays(){
    "must do" once it's been sitting there too long. The clock resets whenever the task
    is manually edited, dragged to a new priority, added, or (for recurring tasks) cycles
    back via Clear day. */
+/* one-off answers to a morning question last for the day they were given, then the task goes back to normal */
+function revertOneOffs(){
+  const today = todayStr(); let ch = false;
+  tasks.forEach(t => {
+    if(!t.oneOff || t.oneOff.day === today) return;
+    if(t.oneOff.urgent && t.priority === 'p1') t.priority = t.oneOff.prevPriority;
+    if(t.oneOff.first && t.pin === 'first') t.pin = t.oneOff.prevPin || null;
+    delete t.oneOff; ch = true;
+  });
+  return ch;
+}
+/* tasks with a morning question ask it the first time you open the app each day */
+let mqOpen = false;
+function checkMorningQuestions(){
+  if(mqOpen || timerState === 'running' || timerState === 'paused') return;
+  if([...document.querySelectorAll('.modal')].some(m => m.id === 'add-modal' ? m.classList.contains('modal-open') : !m.classList.contains('hidden'))) return;
+  const today = todayStr();
+  const t = tasks.find(x => !x.done && x.question && x.askedOn !== today && !isScheduledForFuture(x) && !isWrongTimeOfDay(x) && !isBeforeEarliestTime(x));
+  if(!t) return;
+  mqOpen = true;
+  document.getElementById('mq-title').textContent = t.question;
+  document.getElementById('mq-sub').textContent = t.name + ' · ' + PRIORITY_LABELS[t.priority] + ' · ' + t.mins + ' min';
+  const m = document.getElementById('mq-modal'); m.classList.remove('hidden');
+  const finish = () => { m.classList.add('hidden'); mqOpen = false; save(); render(); setTimeout(checkMorningQuestions, 250); };
+  m.querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
+    const a = b.dataset.a; t.askedOn = today;
+    if(a === 'urgent' && t.priority !== 'p1'){ t.oneOff = Object.assign(t.oneOff || { day: today }, { day: today, urgent: true, prevPriority: t.priority }); t.priority = 'p1'; }
+    if(a === 'first' && t.pin !== 'first'){ t.oneOff = Object.assign(t.oneOff || { day: today }, { day: today, first: true, prevPin: t.pin || null }); t.pin = 'first'; }
+    if(a === 'skip'){ const d = new Date(); d.setDate(d.getDate() + 1); t.scheduledDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); t.scheduleArrived = false; }
+    finish();
+  });
+  document.getElementById('mq-later-btn').onclick = () => { m.classList.add('hidden'); mqOpen = false; };
+}
 function escalateStaleTasks(){
+  revertOneOffs();
   const now = Date.now();
   let changed = false;
   const escalatedNow = [];
@@ -1500,7 +1549,8 @@ function render(){
 }
 
 /* also sweep for staleness on an hourly timer, in case the app/tab is left open for a long stretch */
-setInterval(() => { if(escalateStaleTasks()) render(); }, 10 * 60 * 1000);
+setInterval(() => { if(escalateStaleTasks()) render(); checkMorningQuestions(); }, 10 * 60 * 1000);
+setTimeout(checkMorningQuestions, 1500);
 
 /* ---------- steps tracker (Errand tasks; "completed" = manually confirmed steps taken) ---------- */
 const stepGoalInput = document.getElementById('step-goal-input');
@@ -1811,6 +1861,7 @@ function addTaskNow(){
   const afterRaw = document.getElementById('add-after-select').value, beforeRaw = document.getElementById('add-before-select').value;
   const newTask = { id: uid(), name, mins: pendingMins, priority: pendingPriority, tag: pendingTag, steps, recurring: recurringCb.checked, recurEveryDays, recurDays: addRecur.get(), ...addSplit.get(), doneMins: 0, done: false, createdAt: Date.now(), staleSince: Date.now(), scheduledDate, timeConstraint, notBeforeTime };
   newTask.notes = (document.getElementById('add-notes-input').value || '').trim() || null;
+  newTask.question = (document.getElementById('add-question-input').value || '').trim() || null;
   newTask.pin = beforeRaw === '__first' ? 'first' : (afterRaw === '__last' ? 'last' : null);
   if(afterRaw && afterRaw !== '__last') newTask.afterId = afterRaw;
   tasks.push(newTask);
@@ -1825,7 +1876,7 @@ function addTaskNow(){
   dateInput.value = '';
   specificTimeInput.value = '';
   notBeforeInput.value = '';
-  document.getElementById('add-notes-input').value = '';
+  document.getElementById('add-notes-input').value = ''; document.getElementById('add-question-input').value = '';
   fillAddDepSelects();
   minsDisplay.textContent = '5 min';
   refreshAddPriorityPicker();
@@ -1921,7 +1972,8 @@ function openEditModal(id){
   document.getElementById('edit-name-input').value = t.name;
   fillDepSelects(t);
   document.getElementById('edit-notes-input').value = t.notes || '';
-  { const adv = t.notes || t.splittable || t.timeConstraint || t.notBeforeTime || t.scheduledDate || t.afterId || t.pin || t.recurring || tasks.some(x => !x.done && x.afterId === t.id);
+  document.getElementById('edit-question-input').value = t.question || '';
+  { const adv = t.notes || t.question || t.splittable || t.timeConstraint || t.notBeforeTime || t.scheduledDate || t.afterId || t.pin || t.recurring || tasks.some(x => !x.done && x.afterId === t.id);
     document.getElementById('edit-more-options').classList.toggle('hidden', !adv);
     document.getElementById('edit-more-toggle').textContent = adv ? 'Fewer options ▴' : 'More options ▾'; }
   editMins = t.mins;
@@ -1991,6 +2043,7 @@ document.getElementById('edit-save-btn').onclick = () => {
     const prevPriority = t.priority, prevDate = t.scheduledDate || null, prevAge = Math.max(0, daysSince(t.createdAt || Date.now()));
     t.mins = editMins;
     t.notes = (document.getElementById('edit-notes-input').value || '').trim() || null;
+    t.question = (document.getElementById('edit-question-input').value || '').trim() || null;
     t.priority = editPriority;
     t.tag = editTag;
     t.steps = editTag === 'errands' ? (parseInt(document.getElementById('edit-steps-input').value) || 0) : 0;
@@ -2299,7 +2352,7 @@ function restoreSession(){
 
 /* resync immediately when the tab/app comes back to the foreground, rather than waiting for the next tick */
 document.addEventListener('visibilitychange', () => {
-  if(document.visibilityState === 'visible'){ if(timerState === 'running') tick(); if(escalateStaleTasks()) render(); checkDayRollover(); }
+  if(document.visibilityState === 'visible'){ if(timerState === 'running') tick(); if(escalateStaleTasks()) render(); checkDayRollover(); setTimeout(checkMorningQuestions, 800); }
 });
 window.addEventListener('pageshow', () => {
   if(timerState === 'running') tick();
@@ -4274,7 +4327,7 @@ document.getElementById('edit-delete-btn').onclick = async () => {
 };
 
 /* ---------- round 2: version/updates, snapshots, alerts, theme, insights, welcome, data hub ---------- */
-const APP_VERSION = '2026-10-29-i';
+const APP_VERSION = '2026-10-29-j';
 /* confetti: a quick burst of colour for wins */
 function confetti(n){
   if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
