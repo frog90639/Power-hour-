@@ -434,7 +434,7 @@
   <h1 style="margin:0;">⏱️ <span class="grad-text">Power Hour</span></h1>
   <button class="icon-btn" id="open-settings-btn" title="Settings" aria-label="Settings"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
 </div>
-<div class="sub" id="help-line">Tap a task to edit, swipe for quick actions, or press and hold to reprioritize.</div>
+<div class="sub" id="help-line">Choose how long you have, or open your full list.</div>
 
 <button class="mini-steps-bar" id="mini-steps-bar" title="Steps" style="width:100%; flex:none; margin-top:10px;">
   <div class="mini-steps-track">
@@ -448,12 +448,10 @@
   <button class="eod-link" id="open-report-btn" title="End of day — Completed report">🌇 End of day report</button>
 </div>
 
-<div id="list-filter-row" class="hidden" style="margin-bottom:10px;">
-  <input type="text" id="list-search" placeholder="Search tasks" aria-label="Search tasks" style="width:100%; min-width:0; padding:10px 12px;">
-  <div id="list-filter-chips" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;"></div>
+<div id="home-panel">
+  <div id="home-stats" style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px;"></div>
+  <div id="home-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px;"></div>
 </div>
-<div class="list-summary hidden" id="list-summary"></div>
-<div class="task-list-container" id="task-list-container"></div>
 <button id="inbox-pill" class="hidden" aria-label="Quick notes to sort" style="position:fixed; right:88px; bottom:calc(32px + env(safe-area-inset-bottom)); z-index:150; background:var(--card-raised); color:var(--text); border:1px solid var(--hairline); border-radius:20px; padding:8px 14px; font-weight:600; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.3);"></button>
 <button class="fab" id="open-add-btn" title="Add task" aria-label="Add task">＋</button>
 
@@ -524,6 +522,7 @@
         <span style="color:var(--muted); font-size:0.85rem;">🔗 Do before</span>
         <select id="add-before-select" style="margin-left:auto; max-width:60%;"></select>
       </div>
+      <label class="modal-row" style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="add-direct-checkbox"><span>Back-to-back <span style="color:var(--muted); font-size:0.78rem;">(do it straight after, not just sometime after)</span></span></label>
       <div class="modal-row"><input type="text" id="add-question-input" placeholder="❓ Morning question (e.g. Bottle prep?)" style="width:100%;" maxlength="80"></div>
       <div class="modal-row"><textarea id="add-notes-input" rows="2" placeholder="📝 Notes (optional)"></textarea></div>
       <div class="modal-row budget-row" id="add-split-row" style="flex-wrap:wrap; gap:8px; align-items:center;">
@@ -609,7 +608,7 @@
   <div class="timer-screen-header">
     <button class="icon-btn" id="minimize-btn" title="Minimize">⌄</button>
     <span class="title">Power Hour</span>
-    <button class="icon-btn" id="close-timer-btn" title="Stop">✕</button>
+    <span style="width:40px;"></span>
   </div>
   <div class="timer-screen-body">
     <div id="timer-active-view">
@@ -629,6 +628,7 @@
         <button id="pause-btn">Pause</button>
         <button id="skip-btn">Skip</button>
       </div>
+      <button id="close-timer-btn" class="eod-link" style="margin-top:22px; color:var(--danger);">End session</button>
     </div>
     <div id="timer-done-view" class="hidden">
       <div style="font-size:3rem; margin-bottom:6px;" id="done-emoji">🎉</div>
@@ -739,6 +739,7 @@
       <span style="color:var(--muted); font-size:0.85rem;">⏳ Age (days)</span>
       <input type="number" id="edit-age-input" min="0" step="1" style="margin-left:auto; width:80px;">
     </div>
+    <label class="modal-row" style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="edit-direct-checkbox"><span>Back-to-back <span style="color:var(--muted); font-size:0.78rem;">(do it straight after, not just sometime after)</span></span></label>
     <div class="modal-row"><input type="text" id="edit-question-input" placeholder="❓ Morning question (e.g. Bottle prep?)" style="width:100%;" maxlength="80"></div>
     <div class="modal-row"><textarea id="edit-notes-input" rows="2" placeholder="📝 Notes (optional)"></textarea></div>
     <div class="modal-row budget-row" id="edit-split-row" style="flex-wrap:wrap; gap:8px; align-items:center;">
@@ -963,9 +964,10 @@
     <ul>
       <li><b>Tap</b> a task to edit it (or delete it from there).</li>
       <li><b>Swipe</b> right or left for a quick action. Choose what each does in <b>Settings → Customise → Gestures</b>.</li>
+      <li><b>Do after</b> means “not before”; tick <b>Back-to-back</b> to make it come straight after. Editing or deleting a recurring task asks whether it's just this once or every time.</li>
       <li>Interrupted mid-task? Tap <b>⏳ Bank time</b> on the timer. The minutes you spent are kept and the rest is planned later.</li>
       <li>Switch features on or off, and edit the time shortcuts and morning-question answers, in <b>Settings → Customise → Features &amp; shortcuts</b>.</li>
-      <li>Add a <b>morning question</b> to a task (under More options) and it asks you the first time you open the app each day: normal, do first, urgent, or not today. Those answers last for that day only.</li>
+      <li>Add a <b>morning question</b> to a task (under More options) and it asks you the first time you open the app each day (before midday by default): normal, do first, urgent, or not today. Those answers last for that day only.</li>
       <li>On the plan screen, <b>drag a task</b> (or tap ▲ / ▼) between Planned and Left out, then say why. After two similar moves I adjust future plans within a priority; see <b>Settings → Customise → What I've learned</b>.</li>
       <li><b>Press and hold</b>, then drag up or down to change priority; hold near the left edge to reorder within a priority.</li>
     </ul>
@@ -1040,6 +1042,7 @@
     <h3>🧩 Features &amp; shortcuts</h3>
     <p style="color:var(--muted); font-size:0.8rem; margin-top:-8px;">Switch things on or off, and choose your own shortcuts.</p>
     <div id="features-toggles"></div>
+    <div class="modal-row budget-row"><span style="color:var(--muted); font-size:0.85rem;">Ask morning questions only before</span><input type="number" id="features-mq-until" min="6" max="23" style="margin-left:auto; width:70px;"><span style="color:var(--muted); font-size:0.85rem;">:00</span></div>
     <div class="settings-group-label" style="margin-top:14px;">Time shortcuts (minutes)</div>
     <input type="text" id="features-presets" placeholder="15, 30, 45, 60, 90" style="width:100%;">
     <div class="settings-group-label" style="margin-top:14px;">Morning question answers</div>
@@ -1050,12 +1053,29 @@
   </div>
 </div>
 
+<div class="modal hidden" id="full-list-modal" style="z-index:250;">
+  <div class="modal-card" style="height:92vh; max-height:92vh; display:flex; flex-direction:column; padding-bottom:0;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+      <h3 style="margin:0;">📋 Full list</h3>
+      <button id="full-list-close-btn" class="icon-btn" aria-label="Close" style="font-size:1.2rem;">✕</button>
+    </div>
+    <div style="overflow-y:auto; flex:1; padding-bottom:24px;">
+<div id="list-filter-row" class="hidden" style="margin-bottom:10px;">
+  <input type="text" id="list-search" placeholder="Search tasks" aria-label="Search tasks" style="width:100%; min-width:0; padding:10px 12px;">
+  <div id="list-filter-chips" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;"></div>
+</div>
+<div class="list-summary hidden" id="list-summary"></div>
+<div class="task-list-container" id="task-list-container"></div>
+    </div>
+  </div>
+</div>
+
 <div class="modal hidden" id="mq-modal" style="z-index:310;">
   <div class="modal-card">
     <h3 id="mq-title">Question</h3>
     <p id="mq-sub" style="color:var(--muted); font-size:0.8rem; margin-top:-8px;"></p>
     <div id="mq-answers"></div>
-    <button id="mq-later-btn" style="width:100%; margin-top:10px; background:none; border:1px solid var(--btn); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Ask me later</button>
+    <button id="mq-later-btn" style="width:100%; margin-top:10px; background:none; border:1px solid var(--btn); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Not now</button>
   </div>
 </div>
 
@@ -1264,7 +1284,7 @@ let dayLog = JSON.parse(localStorage.getItem('powerHourDayLog') || '[]'); // per
 tasks.sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority));
 let pendingMins = 5, pendingPriority = 'p3', pendingTag = null, pendingRecurring = false, pendingTimeLimit = null;
 let editMins = 5, editPriority = 'p3', editTag = null, editRecurring = false, editTaskId = null, editTimeLimit = null;
-let sessionDeferred = [];
+let sessionDeferred = [], lastFinishedId = null;
 let currentIndex = -1, secondsLeft = 0, timerInterval = null, sessionTaskIds = null, sessionCompleted = [], sessionSkipped = [];
 /* ---------- tasks done in bits ("splittable"): one task, worked on in chunks until its total is reached ---------- */
 let sessionPlan = {}, sessionPartial = [], lastPickPlan = new Map(), lastEligibleIds = new Set();
@@ -1299,7 +1319,7 @@ const DEFAULT_MQ_ANSWERS = [
   { label: '⚡ Urgent today (treat as P1)', action: 'urgent' },
   { label: '😴 Not today (snooze to tomorrow)', action: 'skip' }
 ];
-const DEFAULT_FEATURES = { morningQ: true, quickNote: true, bankTime: true, timePresets: true, learn: true, planMove: true, presetList: [15, 30, 45, 60, 90], mqAnswers: DEFAULT_MQ_ANSWERS };
+const DEFAULT_FEATURES = { morningQ: true, quickNote: true, bankTime: true, timePresets: true, mqUntil: 12, learn: true, planMove: true, presetList: [15, 30, 45, 60, 90], mqAnswers: DEFAULT_MQ_ANSWERS };
 let features = (() => { try{ return Object.assign({}, DEFAULT_FEATURES, JSON.parse(localStorage.getItem('powerHourFeatures') || '{}')); }catch(e){ return Object.assign({}, DEFAULT_FEATURES); } })();
 function saveFeatures(){ try{ localStorage.setItem('powerHourFeatures', JSON.stringify(features)); }catch(e){} }
 const minsDisplay = document.getElementById('mins-display');
@@ -1468,18 +1488,26 @@ function revertOneOffs(){
 }
 /* tasks with a morning question ask it the first time you open the app each day */
 let mqOpen = false;
+function mqState(){ try{ const m = JSON.parse(localStorage.getItem('powerHourMQ') || 'null'); if(m && m.day === todayStr()) return m; }catch(e){} return null; }
+function saveMQ(m){ try{ localStorage.setItem('powerHourMQ', JSON.stringify(m)); }catch(e){} }
 function checkMorningQuestions(){
   if(!features.morningQ) return;
   if(mqOpen || timerState === 'running' || timerState === 'paused') return;
   if([...document.querySelectorAll('.modal')].some(m => m.id === 'add-modal' ? m.classList.contains('modal-open') : !m.classList.contains('hidden'))) return;
   const today = todayStr();
-  const t = tasks.find(x => !x.done && x.question && x.askedOn !== today && !isScheduledForFuture(x) && !isWrongTimeOfDay(x) && !isBeforeEarliestTime(x));
+  // the questions belong to the first time the app is opened each day, and only before the cut-off hour
+  let st = mqState();
+  if(!st){
+    st = { day: today, queue: new Date().getHours() < (features.mqUntil || 12) ? tasks.filter(x => !x.done && x.question && x.askedOn !== today).map(x => x.id) : [] };
+    saveMQ(st);
+  }
+  const t = st.queue.map(id => tasks.find(x => x.id === id)).find(x => x && !x.done && x.question && x.askedOn !== today && !isScheduledForFuture(x) && !isWrongTimeOfDay(x) && !isBeforeEarliestTime(x));
   if(!t) return;
   mqOpen = true;
   document.getElementById('mq-title').textContent = t.question;
   document.getElementById('mq-sub').textContent = t.name + ' · ' + PRIORITY_LABELS[t.priority] + ' · ' + t.mins + ' min';
   const m = document.getElementById('mq-modal'); m.classList.remove('hidden');
-  const finish = () => { m.classList.add('hidden'); mqOpen = false; save(); render(); setTimeout(checkMorningQuestions, 250); };
+  const finish = () => { m.classList.add('hidden'); mqOpen = false; st.queue = st.queue.filter(id => id !== t.id); saveMQ(st); save(); render(); setTimeout(checkMorningQuestions, 250); };
   const box = document.getElementById('mq-answers'); box.innerHTML = '';
   (features.mqAnswers && features.mqAnswers.length ? features.mqAnswers : DEFAULT_MQ_ANSWERS).forEach(ans => {
     const btn = document.createElement('button'); btn.className = 'settings-item'; btn.textContent = ans.label || MQ_ACTIONS[ans.action];
@@ -1494,7 +1522,7 @@ function checkMorningQuestions(){
     };
     box.appendChild(btn);
   });
-  document.getElementById('mq-later-btn').onclick = () => { m.classList.add('hidden'); mqOpen = false; };
+  document.getElementById('mq-later-btn').onclick = () => { t.askedOn = today; m.classList.add('hidden'); mqOpen = false; st.queue = st.queue.filter(id => id !== t.id); saveMQ(st); save(); setTimeout(checkMorningQuestions, 250); };
 }
 function escalateStaleTasks(){
   revertOneOffs();
@@ -1579,9 +1607,52 @@ function revertEscalation(id, fromPriority){
   save(); render();
 }
 
+/* ---------- home dashboard ---------- */
+function updateHome(){
+  const stats = document.getElementById('home-stats'), grid = document.getElementById('home-grid');
+  if(!stats || !grid) return;
+  const pend = tasks.filter(t => !t.done && !t.microGoal && !isScheduledForFuture(t));
+  const mins = pend.reduce((a, t) => a + (isSplit(t) ? remMins(t) : t.mins || 0), 0);
+  const dur = mins >= 60 ? Math.floor(mins / 60) + 'h' + (mins % 60 ? ' ' + (mins % 60) + 'm' : '') : mins + 'm';
+  const doneToday = getAllCompleted().filter(t => !t.partial).length;
+  const urgent = pend.filter(t => t.mustDo || (t.timeConstraint && (isPastTimeConstraint(t) || isUrgentSlot(t)))).length;
+  const cell = (big, small, warn) => '<div style="background:var(--card-raised); border:1px solid var(--hairline); border-radius:14px; padding:10px 6px; text-align:center;"><div style="font-size:1.35rem; font-weight:800;' + (warn ? ' color:var(--danger);' : '') + '">' + big + '</div><div style="color:var(--muted); font-size:0.75rem;">' + small + '</div></div>';
+  stats.innerHTML = cell(pend.length, 'to do · ' + dur) + cell(doneToday, 'done today') + cell(urgent, urgent === 1 ? 'needs attention' : 'need attention', urgent > 0);
+  const btns = [
+    ['📋', 'Full list', 'full', pend.length + ' tasks'],
+    ['＋', 'Add task', 'add', ''],
+    ['🔍', 'Search', 'search', ''],
+    ['📥', 'Quick notes', 'inbox', inbox.length ? inbox.length + ' to sort' : ''],
+    ['🗓️', 'Calendar', 'settings-calendar-btn', ''],
+    ['📊', 'History', 'settings-insights-btn', '']
+  ];
+  const hb = document.getElementById('settings-habits-btn'); if(hb && hb.style.display !== 'none') btns.push(['🔥', 'Habits', 'settings-habits-btn', '']);
+  grid.innerHTML = '';
+  btns.forEach(([ic, label, act, sub]) => {
+    const b = document.createElement('button'); b.type = 'button';
+    b.style.cssText = 'background:var(--card-raised); color:var(--text); border:1px solid var(--hairline); border-radius:14px; padding:14px 10px; text-align:left; cursor:pointer; font-size:1rem; font-weight:700;';
+    b.innerHTML = '<div style="font-size:1.4rem;">' + ic + '</div><div>' + label + '</div><div style="color:var(--muted); font-size:0.75rem; font-weight:400; min-height:1em;">' + sub + '</div>';
+    b.onclick = () => {
+      if(act === 'full') openFullList(false);
+      else if(act === 'search') openFullList(true);
+      else if(act === 'add') document.getElementById('open-add-btn').click();
+      else if(act === 'inbox') openInbox();
+      else { const t = document.getElementById(act); if(t && t.onclick) t.onclick(); }
+    };
+    grid.appendChild(b);
+  });
+}
+function openFullList(focusSearch){
+  document.getElementById('full-list-modal').classList.remove('hidden');
+  renderTaskList();
+  if(focusSearch){ const si = document.getElementById('list-search'); if(si) setTimeout(() => si.focus(), 60); }
+}
+document.getElementById('full-list-close-btn').onclick = () => document.getElementById('full-list-modal').classList.add('hidden');
+
 function render(){
   escalateStaleTasks();
   renderTaskList();
+  updateHome();
   updateStepsBar();
 }
 
@@ -1900,10 +1971,11 @@ function addTaskNow(){
   newTask.notes = (document.getElementById('add-notes-input').value || '').trim() || null;
   newTask.question = (document.getElementById('add-question-input').value || '').trim() || null;
   newTask.pin = beforeRaw === '__first' ? 'first' : (afterRaw === '__last' ? 'last' : null);
-  if(afterRaw && afterRaw !== '__last') newTask.afterId = afterRaw;
+  const direct = document.getElementById('add-direct-checkbox').checked;
+  if(afterRaw && afterRaw !== '__last'){ newTask.afterId = afterRaw; if(direct) newTask.afterDirect = true; }
   tasks.push(newTask);
   if(inboxPendingId){ inbox = inbox.filter(x => x.id !== inboxPendingId); inboxPendingId = null; saveInbox(); if(inbox.length){ setTimeout(() => { document.getElementById('add-modal').classList.remove('modal-open'); openInbox(); }, 250); } }
-  if(beforeRaw && beforeRaw !== '__first'){ const o = tasks.find(x => x.id === beforeRaw); if(o && !wouldCycle(o.id, newTask.id)) o.afterId = newTask.id; }
+  if(beforeRaw && beforeRaw !== '__first'){ const o = tasks.find(x => x.id === beforeRaw); if(o && !wouldCycle(o.id, newTask.id)){ o.afterId = newTask.id; o.afterDirect = direct; } }
   taskInput.value = '';
   pendingMins = 5; pendingPriority = 'p3'; pendingTag = null; pendingTimeLimit = null;
   recurringCb.checked = false;
@@ -1913,7 +1985,7 @@ function addTaskNow(){
   dateInput.value = '';
   specificTimeInput.value = '';
   notBeforeInput.value = '';
-  document.getElementById('add-notes-input').value = ''; document.getElementById('add-question-input').value = '';
+  document.getElementById('add-notes-input').value = ''; document.getElementById('add-question-input').value = ''; document.getElementById('add-direct-checkbox').checked = false;
   fillAddDepSelects();
   minsDisplay.textContent = '5 min';
   refreshAddPriorityPicker();
@@ -1969,6 +2041,42 @@ function splitUI(p){
 }
 const addSplit = splitUI('add'), editSplit = splitUI('edit');
 function niceDate(iso){ try{ const d = new Date(iso + 'T12:00:00'); const o = { weekday: 'short', day: 'numeric', month: 'short' }; if(d.getFullYear() !== new Date().getFullYear()) o.year = 'numeric'; return d.toLocaleDateString(undefined, o); }catch(e){ return iso; } }
+/* a small choice dialog: resolves with the index of the chosen button, or -1 if dismissed */
+function askChoice(title, text, labels, dangerIdx){
+  return new Promise(resolve => {
+    const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 850;
+    const card = document.createElement('div'); card.className = 'modal-card';
+    const h = document.createElement('h3'); h.textContent = title; card.appendChild(h);
+    if(text){ const p = document.createElement('p'); p.style.cssText = 'color:var(--muted); font-size:0.85rem; margin-top:-6px;'; p.textContent = text; card.appendChild(p); }
+    const done = v => { m.remove(); resolve(v); };
+    labels.forEach((l, i) => { const b = document.createElement('button'); b.className = 'settings-item'; b.textContent = l; if(i === dangerIdx) b.style.color = 'var(--danger)'; b.onclick = () => done(i); card.appendChild(b); });
+    const c = document.createElement('button'); c.textContent = 'Cancel'; c.style.cssText = 'width:100%; margin-top:10px; background:none; border:1px solid var(--btn); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;'; c.onclick = () => done(-1); card.appendChild(c);
+    m.appendChild(card); m.addEventListener('click', e => { if(e.target === m) done(-1); });
+    document.body.appendChild(m);
+  });
+}
+/* skip just this occurrence of a recurring task: it comes back on its next scheduled day */
+function skipOccurrence(id){
+  const idx = tasks.findIndex(t => t.id === id); if(idx === -1) return;
+  const orig = tasks[idx];
+  const r = resetRecurringTask({ ...orig, done: true });
+  if(!r.scheduledDate){ const d = new Date(); d.setDate(d.getDate() + 1); r.scheduledDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  r.scheduleArrived = false; r.doneMins = 0;
+  const wasCurrent = currentIndex === idx && (timerState === 'running' || timerState === 'paused');
+  tasks[idx] = r;
+  if(wasCurrent){ sessionTaskIds = sessionTaskIds ? sessionTaskIds.filter(x => x !== id) : null; advanceAfterCurrent(idx); }
+  save(); render(); refreshTimerDisplays();
+  showToast('⏭ Skipped this time: ' + orig.name + '. Back ' + niceDate(r.scheduledDate), 'Undo', () => { const i = tasks.findIndex(t => t.id === id); if(i !== -1){ tasks[i] = orig; save(); render(); } });
+}
+async function requestDeleteTask(id){
+  const t = tasks.find(x => x.id === id); if(!t) return false;
+  if(t.recurring){
+    const c = await askChoice('Delete a recurring task', '“' + t.name + '” repeats. What should happen?', ['Just this once (it comes back next time)', 'Delete it for good'], 1);
+    if(c === -1) return false;
+    if(c === 0){ skipOccurrence(id); return true; }
+  }
+  deleteTaskById(id); return true;
+}
 function deleteTaskById(id){
   const idx = tasks.findIndex(t => t.id === id);
   if(idx === -1) return;
@@ -2005,6 +2113,7 @@ function fillDepSelects(t){
   a.value = t.pin === 'last' ? '__last' : ((t.afterId && others.some(x => x.id === t.afterId)) ? t.afterId : '');
   const dependent = tasks.find(x => !x.done && x.afterId === t.id);
   editBeforeOriginalId = dependent ? dependent.id : null;
+  document.getElementById('edit-direct-checkbox').checked = !!(t.afterDirect || (dependent && dependent.afterDirect));
   b.value = t.pin === 'first' ? '__first' : (dependent ? dependent.id : '');
 }
 function openEditModal(id){
@@ -2015,9 +2124,9 @@ function openEditModal(id){
   fillDepSelects(t);
   document.getElementById('edit-notes-input').value = t.notes || '';
   document.getElementById('edit-question-input').value = t.question || '';
-  { const adv = t.notes || t.question || t.splittable || t.timeConstraint || t.notBeforeTime || t.scheduledDate || t.afterId || t.pin || t.recurring || tasks.some(x => !x.done && x.afterId === t.id);
-    document.getElementById('edit-more-options').classList.toggle('hidden', !adv);
-    document.getElementById('edit-more-toggle').textContent = adv ? 'Fewer options ▴' : 'More options ▾'; }
+  { const n = [t.notes, t.question, t.splittable, t.timeConstraint, t.notBeforeTime, t.scheduledDate, t.afterId, t.pin, t.recurring, tasks.some(x => !x.done && x.afterId === t.id)].filter(Boolean).length;
+    document.getElementById('edit-more-options').classList.add('hidden');
+    document.getElementById('edit-more-toggle').textContent = 'More options' + (n ? ' (' + n + ' set)' : '') + ' ▾'; }
   editMins = t.mins;
   editPriority = t.priority;
   editTag = t.tag || null;
@@ -2077,8 +2186,19 @@ document.getElementById('edit-cancel-btn').onclick = () => {
     openReviewModal(reviewBudget);
   }
 };
-document.getElementById('edit-save-btn').onclick = () => {
+document.getElementById('edit-save-btn').onclick = async () => {
   const t = tasks.find(t => t.id === editTaskId);
+  let onceSnap = null;
+  if(t && t.recurring && document.getElementById('edit-recurring-checkbox').checked){
+    const nowVals = { name: document.getElementById('edit-name-input').value.trim() || t.name, mins: editMins, priority: editPriority, tag: editTag, notes: (document.getElementById('edit-notes-input').value || '').trim() || null,
+      timeConstraint: editTimeLimit === 'specific' ? (document.getElementById('edit-time-specific-input').value || null) : editTimeLimit, notBeforeTime: document.getElementById('edit-not-before-input').value || null };
+    const changed = Object.keys(nowVals).filter(k => (t[k] || null) !== (nowVals[k] || null));
+    if(changed.length){
+      const c = await askChoice('Change a recurring task', 'Apply these changes to “' + t.name + '”:', ['Just this once', 'Every time']);
+      if(c === -1) return;
+      if(c === 0){ onceSnap = Object.assign({}, t.once || {}); changed.forEach(k => { if(!(k in onceSnap)) onceSnap[k] = t[k] === undefined ? null : t[k]; }); }
+    }
+  }
   if(t){
     const newName = document.getElementById('edit-name-input').value.trim();
     if(newName) t.name = newName;
@@ -2100,16 +2220,19 @@ document.getElementById('edit-save-btn').onclick = () => {
     const afterRaw = document.getElementById('edit-after-select').value, beforeRaw = document.getElementById('edit-before-select').value;
     t.pin = beforeRaw === '__first' ? 'first' : (afterRaw === '__last' ? 'last' : null);
     const afterVal = (afterRaw && afterRaw !== '__last') ? afterRaw : null;
+    const directOn = document.getElementById('edit-direct-checkbox').checked;
     t.afterId = (afterVal && !wouldCycle(t.id, afterVal)) ? afterVal : null;
+    t.afterDirect = !!(t.afterId && directOn);
     const beforeVal = (beforeRaw && beforeRaw !== '__first') ? beforeRaw : null;
     if(editBeforeOriginalId && editBeforeOriginalId !== beforeVal){
       const old = tasks.find(x => x.id === editBeforeOriginalId);
-      if(old && old.afterId === t.id) old.afterId = null;
+      if(old && old.afterId === t.id){ old.afterId = null; old.afterDirect = false; }
     }
     if(beforeVal && !wouldCycle(beforeVal, t.id)){
       const o = tasks.find(x => x.id === beforeVal);
-      if(o) o.afterId = t.id;
+      if(o){ o.afterId = t.id; o.afterDirect = directOn; }
     }
+    if(onceSnap) t.once = onceSnap;
     t.autoWalk = false; // a manual edit means the user now owns this task, not the auto-pace system
     const ageDays = Math.max(0, parseInt(document.getElementById('edit-age-input').value) || 0);
     const now = new Date();
@@ -2173,6 +2296,7 @@ function findNextIndex(from){
 function findNextCore(from, withDeferred){
   const ok = i => (withDeferred || !sessionDeferred.includes(tasks[i].id)) && !tasks[i].done && !sessionPartial.includes(tasks[i].id) && !sessionSkipped.some(s => s.id === tasks[i].id) && !isScheduledForFuture(tasks[i]) && (!sessionTaskIds || sessionTaskIds.includes(tasks[i].id)) && !isHeldBack(tasks[i]);
   const free = i => i !== currentIndex && !sessionSkipped.some(s => s.id === tasks[i].id) && ok(i);
+  if(lastFinishedId){ const di = tasks.findIndex(t => t.afterDirect && t.afterId === lastFinishedId && free(tasks.indexOf(t))); if(di !== -1) return di; }
   // "do first" tasks jump the queue; "do last" tasks only come up when nothing else is left
   for(let i = 0; i < tasks.length; i++) if((tasks[i].pin === 'first' || isRoutineMember(tasks[i])) && free(i)) return i;
   { let bi = -1, bd = 1e9; // slots running out of time come next, soonest first (never ahead of do-first routines)
@@ -2200,11 +2324,12 @@ function beginRun(){
   if(timerState === 'idle' && sessionTaskIds){
     // anything that was available but left out of this session gets a small standing boost next time
     tasks.forEach(t => { const pre = getPrereq(t); if(!t.done && !t.microGoal && lastEligibleIds.has(t.id) && !sessionTaskIds.includes(t.id) && !(pre && !pre.done)) t.passedOver = (t.passedOver || 0) + 1; }); // only tasks that could actually have been chosen count as 'left out'
+    tasks.forEach(t => { if(t.wantSoon && sessionTaskIds.includes(t.id)) t.wantSoon = false; });
     save();
   }
   if(timerState === 'idle'){
     sessionCompleted = [];
-    sessionSkipped = []; sessionDeferred = [];
+    sessionSkipped = []; sessionDeferred = []; lastFinishedId = null;
     sessionPartial = [];
     lastMotivationTaskId = null; // fresh session — re-roll the message even if it's the same task as last time
     currentIndex = findNextIndex(0);
@@ -2257,15 +2382,17 @@ function logGoal(goalId, outcome){
   while(keys.length > 60) delete log[keys.shift()];
   localStorage.setItem('powerHourGoalLog', JSON.stringify(log));
 }
-let sessionMoveAround = false, sessionMinsSinceBreak = 0;
+let sessionMoveAround = false, sessionMinsSinceBreak = 0, sessionTagFilters = [];
+function loadBreakAcc(){ try{ const a = JSON.parse(localStorage.getItem('powerHourBreakAcc') || 'null'); return a && a.day === todayStr() ? (a.mins || 0) : 0; }catch(e){ return 0; } }
 function p1sHandled(){
   return !tasks.some(t => t.priority === 'p1' && !t.done && !t.microGoal && (!sessionTaskIds || sessionTaskIds.includes(t.id)) && !sessionSkipped.some(s => s.id === t.id));
 }
 /* returns a goal task object if a break is due, else null */
 function maybeMakeGoalBreak(){
   const cfg = loadGoals();
-  if(!cfg.enabled || cfg.goals.length === 0 || !sessionMoveAround) return null;
-  if(sessionMinsSinceBreak < (cfg.everyMins || 20) || !p1sHandled()) return null;
+  if(!cfg.enabled || cfg.goals.length === 0) return null;
+  const every = cfg.everyMins || 20;
+  if(sessionMinsSinceBreak < every || (!p1sHandled() && sessionMinsSinceBreak < every * 2)) return null;
   const today = loadGoalLog()[todayStr()] || {};
   const open = cfg.goals.map(g => ({ g, left: (g.perDay || 1) - ((today[g.id] || {}).done || 0) })).filter(x => x.left > 0);
   if(open.length === 0) return null;
@@ -2290,6 +2417,8 @@ function finishGoalBreak(done){
 /* marks the current task done, records it for the session summary, and advances — only from an explicit Done action */
 function completeCurrentTask(){
   if(currentIndex === -1 || !tasks[currentIndex]) return;
+  confetti(tasks[currentIndex].microGoal ? 10 : 18);
+  lastFinishedId = tasks[currentIndex].id;
   if(tasks[currentIndex].microGoal){ finishGoalBreak(true); return; }
   if(isSplit(tasks[currentIndex])){
     const ct = tasks[currentIndex], add = creditChunk(ct, runMins(ct));
@@ -2368,6 +2497,7 @@ function advanceAfterCurrent(startAt){
 
 /* ---------- session persistence — survives backgrounding, reload, or the tab being killed ---------- */
 function persistSession(){
+  try{ localStorage.setItem('powerHourBreakAcc', JSON.stringify({ day: todayStr(), mins: sessionMinsSinceBreak })); }catch(e){}
   if(timerState === 'idle'){
     localStorage.removeItem('powerHourSession');
     return;
@@ -2375,7 +2505,7 @@ function persistSession(){
   const activeTaskId = (currentIndex !== -1 && tasks[currentIndex]) ? tasks[currentIndex].id : null;
   localStorage.setItem('powerHourSession', JSON.stringify({
     timerState, activeTaskId, taskEndTime, secondsLeft,
-    sessionTaskIds, sessionCompleted, sessionSkipped, view: currentView, sessionMoveAround, sessionMinsSinceBreak, sessionPlan, sessionPartial, sessionDeferred
+    sessionTaskIds, sessionCompleted, sessionSkipped, view: currentView, sessionMoveAround, sessionMinsSinceBreak, sessionPlan, sessionPartial, sessionDeferred, sessionTagFilters
   }));
 }
 
@@ -2389,7 +2519,7 @@ function restoreSession(){
   sessionSkipped = raw.sessionSkipped || [];
   currentView = raw.view === 'minimized' ? 'minimized' : 'maximized';
   sessionMoveAround = !!raw.sessionMoveAround; sessionMinsSinceBreak = raw.sessionMinsSinceBreak || 0;
-  sessionPlan = raw.sessionPlan || {}; sessionPartial = raw.sessionPartial || []; sessionDeferred = raw.sessionDeferred || [];
+  sessionPlan = raw.sessionPlan || {}; sessionPartial = raw.sessionPartial || []; sessionDeferred = raw.sessionDeferred || []; sessionTagFilters = raw.sessionTagFilters || [];
 
   if(raw.timerState === 'done'){
     timerState = 'done'; currentIndex = -1; taskEndTime = null;
@@ -2995,9 +3125,19 @@ function pickTasksForBudget(pendingOrig, budget){
     if((pre && !pre.done && !claimed.has(pre.id)) || sz(t) > rleft || PRIORITIES.indexOf(t.priority) > PRIORITIES.indexOf(root.priority)){ blocked.add(root.id); continue; }
     claimed.add(t.id); rleft -= sz(t);
   }
+  // tasks you've moved up on the plan screen get their place first, whatever their priority
+  pendingOrig.filter(t => t.wantSoon && !claimed.has(t.id)).sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority)).forEach(t => {
+    const pre = getPrereq(t);
+    if((pre && !pre.done && !claimed.has(pre.id)) || sz(t) > rleft) return;
+    claimed.add(t.id); rleft -= sz(t);
+  });
   const rest = pendingOrig.filter(t => !claimed.has(t.id)).map(t => isSplit(t) ? { ...t, mins: Math.min(t.chunkMins || 5, remMins(t)) } : t);
   const selected = pickCore(rest, rleft, claimed);
   claimed.forEach(id => selected.add(id));
+  { let u = 0; pendingOrig.forEach(t => { if(selected.has(t.id)) u += sz(t); });
+    for(let g = 0; g < 10; g++){ let add = false;
+      pendingOrig.forEach(t => { if(!selected.has(t.id) && t.afterDirect && t.afterId && selected.has(t.afterId) && u + sz(t) <= budget){ selected.add(t.id); u += sz(t); add = true; } });
+      if(!add) break; } }
   // spare time goes to tasks done in bits, in chunk-sized steps, highest priority first
   const plan = new Map();
   let used = 0;
@@ -3177,7 +3317,8 @@ let reviewPending = [];
 function moveInReview(id, up){
   const t = reviewPending.find(x => x.id === id); if(!t) return;
   const sel = new Set([...document.querySelectorAll('#review-list input:checked')].map(cb => cb.dataset.id));
-  if(up) sel.add(id); else sel.delete(id);
+  if(up){ sel.add(id); t.wantSoon = true; } else { sel.delete(id); t.wantSoon = false; }
+  save();
   renderReviewList(reviewPending, sel); updateReviewTotal();
   if(features.learn) askWhy(t, up);
 }
@@ -3217,6 +3358,7 @@ function renderReviewList(pending, selectedIds){
   const chips = t => [
     t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff;" title="Must do">must do</span>' : '',
     isRoutineMember(t) ? '<span class="tag-badge" title="Part of a do-first routine">🔁 routine</span>' : '',
+    t.wantSoon ? '<span class="tag-badge" title="You moved this up, so it gets a place in the next plan">⭐ moved up</span>' : '',
     t.timeConstraint && isPastTimeConstraint(t) ? '<span class="tag-badge" title="Its time slot has passed">⏰ slot passed</span>' : (t.timeConstraint && isUrgentSlot(t) ? '<span class="tag-badge" title="Its time slot is close">⏰ due soon</span>' : ''),
     t.escalated ? '<span class="tag-badge" title="Bumped up for waiting">⏫</span>' : ''
   ].join('');
@@ -3282,7 +3424,7 @@ document.getElementById('review-start-btn').onclick = () => {
   if(checked.length === 0) return;
   sessionTaskIds = checked;
   sessionPlan = {}; checked.forEach(id => { const t = tasks.find(x => x.id === id); if(isSplit(t)) sessionPlan[id] = planMins(t); });
-  sessionMoveAround = budgetTagFilters.has('movearound'); sessionMinsSinceBreak = 0;
+  sessionMoveAround = budgetTagFilters.has('movearound'); sessionTagFilters = [...budgetTagFilters]; sessionMinsSinceBreak = loadBreakAcc();
   document.getElementById('review-modal').classList.add('hidden');
   beginRun();
 };
@@ -3297,7 +3439,7 @@ document.getElementById('done-export-btn').onclick = () => {
    anything less frequent gets scheduled forward and stays off the board until due. */
 function resetRecurringTask(t, fromDate){
   const interval = t.recurEveryDays || 1;
-  const reset = { ...t, ...(t.autoSplit ? { splittable: false, autoSplit: false, chunkMins: undefined } : {}), done: false, doneMins: 0, createdAt: Date.now(), staleSince: Date.now(), escalated: false, mustDo: false, passedOver: 0, lastDoneAt: Date.now() };
+  const reset = { ...t, ...(t.once || {}), once: undefined, ...(t.autoSplit ? { splittable: false, autoSplit: false, chunkMins: undefined } : {}), done: false, doneMins: 0, createdAt: Date.now(), staleSince: Date.now(), escalated: false, mustDo: false, passedOver: 0, lastDoneAt: Date.now() };
   if(Array.isArray(t.recurDays) && t.recurDays.length){
     const base = fromDate ? new Date(fromDate + 'T12:00:00') : new Date();
     reset.scheduledDate = null; reset.scheduleArrived = false;
@@ -3337,7 +3479,7 @@ document.getElementById('done-close-btn').onclick = closeTimerFully;
 function eligibleExtra(){
   let p = tasks.filter(t => !t.done && !t.microGoal && !isScheduledForFuture(t) && !isWrongTimeOfDay(t) && !isBeforeEarliestTime(t) && !(sessionTaskIds || []).includes(t.id) && !sessionSkipped.some(k => k.id === t.id));
   p = p.concat(tasks.filter(t => !t.done && sessionPartial.includes(t.id)));
-  if(budgetTagFilters.size > 0) p = p.filter(t => t.tag && budgetTagFilters.has(t.tag));
+  if(sessionTagFilters.length > 0) p = p.filter(t => t.tag && sessionTagFilters.includes(t.tag));
   return p;
 }
 function addMoreTime(mins){
@@ -3840,9 +3982,11 @@ function renderTaskList(){
   const container = document.getElementById('task-list-container');
   container.innerHTML = '';
   const allVisible = tasks.filter(t => !t.done && !t.microGoal && !isScheduledForFuture(t));
-  const showFilters = allVisible.length >= 6 || listSearch || listTagFilter;
-  document.getElementById('list-filter-row').classList.toggle('hidden', !showFilters);
-  const visible = allVisible.filter(t => (!listSearch || t.name.toLowerCase().includes(listSearch.toLowerCase())) && (!listTagFilter || t.tag === listTagFilter));
+  document.getElementById('list-filter-row').classList.remove('hidden');
+  const q = listSearch.toLowerCase();
+  // searching looks at every open task, including ones scheduled for later, in names and notes
+  const pool = q ? tasks.filter(t => !t.done && !t.microGoal) : allVisible;
+  const visible = pool.filter(t => (!q || (t.name + ' ' + (t.notes || '') + ' ' + (t.tag ? TAG_LABELS[t.tag] : '')).toLowerCase().includes(q)) && (!listTagFilter || t.tag === listTagFilter));
   const filtering = !!(listSearch || listTagFilter);
   { const el = document.getElementById('list-summary'); const m = visible.reduce((a, t) => a + (t.mins || 0), 0);
     const dur = m >= 60 ? Math.floor(m / 60) + 'h' + (m % 60 ? ' ' + (m % 60) + 'm' : '') : m + 'm';
@@ -3870,7 +4014,14 @@ function renderTaskList(){
     }
     container.appendChild(buildTaskRow(t));
   });
-  if(!filtering) renderDoneToday(container);
+  if(!filtering){
+    const later = tasks.filter(t => !t.done && !t.microGoal && isScheduledForFuture(t)).sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
+    if(later.length){
+      const h = document.createElement('div'); h.className = 'priority-divider'; h.innerHTML = '<span>📆 Scheduled for later (' + later.length + ')</span>'; container.appendChild(h);
+      later.forEach(t => container.appendChild(buildTaskRow(t)));
+    }
+    renderDoneToday(container);
+  }
 }
 
 function buildTaskRow(t){
@@ -3919,6 +4070,7 @@ function boardMarkDone(id){
   const isCur = sessionActive && currentIndex !== -1 && tasks[currentIndex] && tasks[currentIndex].id === id;
   if(isSplit(t) && !isCur){
     const add = creditChunk(t, Math.min(t.chunkMins || 5, remMins(t)));
+    confetti(10);
     save(); render(); if(sessionActive) refreshTimerDisplays();
     showToast(t.done ? `✓ All done: ${name}` : `✂️ +${add} min: ${name} (${t.doneMins}/${t.mins})`, 'Undo', () => { uncreditChunk(t, add); save(); render(); });
     return;
@@ -3929,8 +4081,8 @@ function boardMarkDone(id){
     t.done = true;
     if(sessionActive) sessionCompleted.push({ ...t });
     save();
+    confetti(14);
   }
-  confetti(14);
   showToast(`✓ Marked done: ${name}`, 'Undo', () => undoCompletedTask(id));
   render();
   if(sessionActive) refreshTimerDisplays();
@@ -3997,7 +4149,7 @@ function shiftScheduleDate(id, dir){ // dir: -1 = earlier/up, +1 = later/down
 
 const GESTURE_ACTIONS = {
   complete: { label: '✓ Complete', run: (id) => boardMarkDone(id) },
-  delete: { label: '🗑 Delete', run: (id) => deleteTaskById(id) },
+  delete: { label: '🗑 Delete', run: (id) => { requestDeleteTask(id); } },
   snooze: { label: '📆 Snooze', run: (id) => snoozeTask(id) },
   priorityUp: { label: '⬆ Priority up', run: (id) => bumpPriority(id, -1) },
 };
@@ -4402,19 +4554,20 @@ document.getElementById('edit-more-toggle').onclick = () => {
   const panel = document.getElementById('edit-more-options');
   const nowHidden = panel.classList.toggle('hidden');
   document.getElementById('edit-more-toggle').textContent = nowHidden ? 'More options ▾' : 'Fewer options ▴';
+  if(nowHidden){ const t = tasks.find(x => x.id === editTaskId); if(t) document.getElementById('edit-more-toggle').textContent = 'More options ▾'; }
 };
 document.getElementById('edit-delete-btn').onclick = async () => {
   const t = tasks.find(x => x.id === editTaskId);
   if(!t) return;
-  if(!(await appConfirm({ title: 'Delete this task?', text: '"' + t.name + '" will be removed.', okLabel: 'Delete', danger: true }))) return;
+  if(!t.recurring && !(await appConfirm({ title: 'Delete this task?', text: '"' + t.name + '" will be removed.', okLabel: 'Delete', danger: true }))) return;
   const id = editTaskId;
+  if(!(await requestDeleteTask(id))) return;
   editModal.classList.add('hidden'); editTaskId = null;
-  deleteTaskById(id);
   if(editOpenedFromReview){ editOpenedFromReview = false; keepPickSeed = true; openReviewModal(reviewBudget); }
 };
 
 /* ---------- round 2: version/updates, snapshots, alerts, theme, insights, welcome, data hub ---------- */
-const APP_VERSION = '2026-10-29-o';
+const APP_VERSION = '2026-11-02-a';
 /* confetti: a quick burst of colour for wins */
 function confetti(n){
   if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -4457,6 +4610,7 @@ function renderFeaturesUI(){
     row.append(cb, tx); tg.appendChild(row);
   });
   document.getElementById('features-presets').value = (features.presetList || []).join(', ');
+  document.getElementById('features-mq-until').value = features.mqUntil || 12;
   const box = document.getElementById('features-answers'); box.innerHTML = '';
   const answers = features.mqAnswers = (features.mqAnswers && features.mqAnswers.length ? features.mqAnswers : DEFAULT_MQ_ANSWERS.map(a => ({ ...a })));
   answers.forEach((ans, i) => {
@@ -4471,6 +4625,7 @@ function renderFeaturesUI(){
     row.append(inp, sel, del); box.appendChild(row);
   });
 }
+document.getElementById('features-mq-until').onchange = e => { features.mqUntil = Math.min(23, Math.max(6, parseInt(e.target.value) || 12)); saveFeatures(); };
 document.getElementById('features-presets').onchange = e => {
   features.presetList = e.target.value.split(/[,\s]+/).map(x => parseInt(x)).filter(x => x > 0 && x <= 600).slice(0, 6);
   saveFeatures(); applyFeatures(); renderFeaturesUI();
@@ -4528,7 +4683,7 @@ applyFeatures();
     const b = top.querySelector('[id$="close-btn"],[id$="cancel-btn"]'); if(b) b.click();
   });
 })();
-const SKIP_KEYS = ['powerHourSession','powerHourSyncAt','powerHourBackupBeforeSync','powerHourBackupBeforeRestore','powerHourSnapshots','powerHourLastOpen','powerHourHelpSeen','powerHourWelcomeSeen','powerHourOpenDay','powerHourRolloverLater'];
+const SKIP_KEYS = ['powerHourSession','powerHourSyncAt','powerHourBackupBeforeSync','powerHourBackupBeforeRestore','powerHourSnapshots','powerHourLastOpen','powerHourHelpSeen','powerHourWelcomeSeen','powerHourOpenDay','powerHourRolloverLater','powerHourBreakAcc','powerHourMQ'];
 document.querySelectorAll('.app-version-label').forEach(e => e.textContent = APP_VERSION);
 
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
