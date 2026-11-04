@@ -2394,7 +2394,10 @@ function maybeMakeGoalBreak(){
   const every = cfg.everyMins || 20;
   if(sessionMinsSinceBreak < every || (!p1sHandled() && sessionMinsSinceBreak < every * 2)) return null;
   const today = loadGoalLog()[todayStr()] || {};
-  const open = cfg.goals.map(g => ({ g, left: (g.perDay || 1) - ((today[g.id] || {}).done || 0) })).filter(x => x.left > 0);
+  // movement prompts (walks, stretches) stay out of sessions where you've filtered to something else, e.g. No hands
+  const isMove = g => /walk|stretch|move|steps|stand|exercis|jog|run|🚶|🧘|🏃|🤸/i.test((g.name || '') + ' ' + (g.emoji || ''));
+  const noMove = sessionTagFilters.length > 0 && !sessionTagFilters.includes('movearound');
+  const open = cfg.goals.filter(g => !(noMove && isMove(g))).map(g => ({ g, left: (g.perDay || 1) - ((today[g.id] || {}).done || 0) })).filter(x => x.left > 0);
   if(open.length === 0) return null;
   const maxLeft = Math.max(...open.map(x => x.left));
   const pool = open.filter(x => x.left === maxLeft);
@@ -3056,6 +3059,7 @@ function getWithinTierWeight(t){
   if(t.timeConstraint) weight += isPastTimeConstraint(t) ? 6 : (isUrgentSlot(t) ? 4 : 0);
   weight += Math.min(t.passedOver || 0, 10) * 0.3; // keeps getting left out of sessions -> climbs within its tier
   weight += learnedWeight(t);
+  weight += t._bonus || 0;
   return weight;
 }
 
@@ -3169,11 +3173,32 @@ function pickCore(pending, budget, claimed){
     // pick within the tier; if an ordering rule drops a task, hand its time to the tier's other tasks before lower tiers can have it
     const banned = new Set(), pulled = new Set(); let usedMins = 0, tries = 0;
     while(tries++ < 20){
-      const pool = tierTasks.filter(t => !banned.has(t.id));
+      // a task and the not-yet-done tasks it must come after are planned as one block: the whole chain counts
+      // against the time, because each will be ticked off during the session before the next one starts
+      const chains = new Map();
+      const pool = [];
+      tierTasks.forEach(t => {
+        if(banned.has(t.id)) return;
+        const chain = []; let cur = t, bad = false, g = 0;
+        while(g++ < 25){
+          const pre = getPrereq(cur);
+          if(!pre || pre.done || selected.has(pre.id) || claimed.has(pre.id)) break;
+          if(!pending.some(x => x.id === pre.id)){ bad = true; break; }
+          chain.push(pre); cur = pre;
+        }
+        if(bad) return;
+        const direct = getPrereq(t) && t.afterDirect ? 2 : 0;
+        const linked = getPrereq(t) && !chain.length ? 2 : 0; // its prerequisite is already in the plan: it follows on
+        chains.set(t.id, chain);
+        pool.push(Object.assign({}, t, { mins: t.mins + chain.reduce((a, x) => a + x.mins, 0), _bonus: direct + linked }));
+      });
       const tierSelected = pool.length ? knapsackWithinTier(pool, remaining) : new Set();
       tierTasks.forEach(t => selected.delete(t.id)); pulled.forEach(id => selected.delete(id)); pulled.clear();
       usedMins = 0;
-      pool.forEach(t => { if(tierSelected.has(t.id)){ selected.add(t.id); usedMins += t.mins; } });
+      const counted = new Set();
+      tierTasks.forEach(t => { if(tierSelected.has(t.id)){
+        [t].concat(chains.get(t.id) || []).forEach(x => { if(!counted.has(x.id)){ counted.add(x.id); selected.add(x.id); usedMins += x.mins; if(x.id !== t.id) pulled.add(x.id); } });
+      } });
       let dropped = false;
       tierTasks.forEach(t => {
         if(!selected.has(t.id)) return;
@@ -3182,7 +3207,15 @@ function pickCore(pending, budget, claimed){
         if(pending.some(x => x.id === pre.id) && usedMins + pre.mins <= remaining){ selected.add(pre.id); pulled.add(pre.id); usedMins += pre.mins; }
         else { selected.delete(t.id); usedMins -= t.mins; banned.add(t.id); dropped = true; }
       });
-      if(!dropped) break;
+      if(!dropped){
+        // chains can overlap, so top the tier up with anything else that still fits
+        let leftover = remaining - usedMins;
+        tierTasks.filter(t => !selected.has(t.id) && !banned.has(t.id) && chains.has(t.id)).sort((a, b) => getWithinTierWeight(b) - getWithinTierWeight(a)).forEach(t => {
+          const need = [t].concat(chains.get(t.id)).filter(x => !selected.has(x.id)), cost = need.reduce((a, x) => a + x.mins, 0);
+          if(cost <= leftover){ need.forEach(x => { selected.add(x.id); if(x.id !== t.id) pulled.add(x.id); }); leftover -= cost; usedMins += cost; }
+        });
+        break;
+      }
     }
     remaining -= usedMins;
   }
