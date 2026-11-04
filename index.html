@@ -522,6 +522,7 @@
         <span style="color:var(--muted); font-size:0.85rem;">🔗 Do before</span>
         <select id="add-before-select" style="margin-left:auto; max-width:60%;"></select>
       </div>
+      <label class="modal-row" style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="add-morning-checkbox"><span>🌅 Morning routine <span style="color:var(--muted); font-size:0.78rem;">(first thing, before anything else)</span></span></label>
       <label class="modal-row" style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="add-direct-checkbox"><span>Back-to-back <span style="color:var(--muted); font-size:0.78rem;">(do it straight after, not just sometime after)</span></span></label>
       <div class="modal-row"><input type="text" id="add-question-input" placeholder="❓ Morning question (e.g. Bottle prep?)" style="width:100%;" maxlength="80"></div>
       <div class="modal-row"><textarea id="add-notes-input" rows="2" placeholder="📝 Notes (optional)"></textarea></div>
@@ -739,6 +740,7 @@
       <span style="color:var(--muted); font-size:0.85rem;">⏳ Age (days)</span>
       <input type="number" id="edit-age-input" min="0" step="1" style="margin-left:auto; width:80px;">
     </div>
+    <label class="modal-row" style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="edit-morning-checkbox"><span>🌅 Morning routine <span style="color:var(--muted); font-size:0.78rem;">(first thing, before anything else)</span></span></label>
     <label class="modal-row" style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="edit-direct-checkbox"><span>Back-to-back <span style="color:var(--muted); font-size:0.78rem;">(do it straight after, not just sometime after)</span></span></label>
     <div class="modal-row"><input type="text" id="edit-question-input" placeholder="❓ Morning question (e.g. Bottle prep?)" style="width:100%;" maxlength="80"></div>
     <div class="modal-row"><textarea id="edit-notes-input" rows="2" placeholder="📝 Notes (optional)"></textarea></div>
@@ -964,6 +966,7 @@
     <ul>
       <li><b>Tap</b> a task to edit it (or delete it from there).</li>
       <li><b>Swipe</b> right or left for a quick action. Choose what each does in <b>Settings → Customise → Gestures</b>.</li>
+      <li>Tick <b>🌅 Morning routine</b> on a task and it's planned and done before everything else until midday (change this in Features &amp; shortcuts). Untick it on the plan screen, or Skip it, if you want something else first.</li>
       <li><b>Do after</b> means “not before”; tick <b>Back-to-back</b> to make it come straight after. Editing or deleting a recurring task asks whether it's just this once or every time.</li>
       <li>Interrupted mid-task? Tap <b>⏳ Bank time</b> on the timer. The minutes you spent are kept and the rest is planned later.</li>
       <li>Switch features on or off, and edit the time shortcuts and morning-question answers, in <b>Settings → Customise → Features &amp; shortcuts</b>.</li>
@@ -1043,6 +1046,7 @@
     <p style="color:var(--muted); font-size:0.8rem; margin-top:-8px;">Switch things on or off, and choose your own shortcuts.</p>
     <div id="features-toggles"></div>
     <div class="modal-row budget-row"><span style="color:var(--muted); font-size:0.85rem;">Ask morning questions only before</span><input type="number" id="features-mq-until" min="6" max="23" style="margin-left:auto; width:70px;"><span style="color:var(--muted); font-size:0.85rem;">:00</span></div>
+    <div class="modal-row budget-row"><span style="color:var(--muted); font-size:0.85rem;">Morning routine counts until</span><input type="number" id="features-routine-until" min="6" max="23" style="margin-left:auto; width:70px;"><span style="color:var(--muted); font-size:0.85rem;">:00</span></div>
     <div class="settings-group-label" style="margin-top:14px;">Time shortcuts (minutes)</div>
     <input type="text" id="features-presets" placeholder="15, 30, 45, 60, 90" style="width:100%;">
     <div class="settings-group-label" style="margin-top:14px;">Morning question answers</div>
@@ -1319,7 +1323,7 @@ const DEFAULT_MQ_ANSWERS = [
   { label: '⚡ Urgent today (treat as P1)', action: 'urgent' },
   { label: '😴 Not today (snooze to tomorrow)', action: 'skip' }
 ];
-const DEFAULT_FEATURES = { morningQ: true, quickNote: true, bankTime: true, timePresets: true, mqUntil: 12, learn: true, planMove: true, presetList: [15, 30, 45, 60, 90], mqAnswers: DEFAULT_MQ_ANSWERS };
+const DEFAULT_FEATURES = { morningQ: true, quickNote: true, bankTime: true, morningRoutine: true, routineUntil: 12, timePresets: true, mqUntil: 12, learn: true, planMove: true, presetList: [15, 30, 45, 60, 90], mqAnswers: DEFAULT_MQ_ANSWERS };
 let features = (() => { try{ return Object.assign({}, DEFAULT_FEATURES, JSON.parse(localStorage.getItem('powerHourFeatures') || '{}')); }catch(e){ return Object.assign({}, DEFAULT_FEATURES); } })();
 function saveFeatures(){ try{ localStorage.setItem('powerHourFeatures', JSON.stringify(features)); }catch(e){} }
 const minsDisplay = document.getElementById('mins-display');
@@ -1971,6 +1975,7 @@ function addTaskNow(){
   newTask.notes = (document.getElementById('add-notes-input').value || '').trim() || null;
   newTask.question = (document.getElementById('add-question-input').value || '').trim() || null;
   newTask.pin = beforeRaw === '__first' ? 'first' : (afterRaw === '__last' ? 'last' : null);
+  newTask.morning = document.getElementById('add-morning-checkbox').checked || undefined;
   const direct = document.getElementById('add-direct-checkbox').checked;
   if(afterRaw && afterRaw !== '__last'){ newTask.afterId = afterRaw; if(direct) newTask.afterDirect = true; }
   tasks.push(newTask);
@@ -1985,7 +1990,7 @@ function addTaskNow(){
   dateInput.value = '';
   specificTimeInput.value = '';
   notBeforeInput.value = '';
-  document.getElementById('add-notes-input').value = ''; document.getElementById('add-question-input').value = ''; document.getElementById('add-direct-checkbox').checked = false;
+  document.getElementById('add-notes-input').value = ''; document.getElementById('add-question-input').value = ''; document.getElementById('add-direct-checkbox').checked = false; document.getElementById('add-morning-checkbox').checked = false;
   fillAddDepSelects();
   minsDisplay.textContent = '5 min';
   refreshAddPriorityPicker();
@@ -2113,6 +2118,7 @@ function fillDepSelects(t){
   a.value = t.pin === 'last' ? '__last' : ((t.afterId && others.some(x => x.id === t.afterId)) ? t.afterId : '');
   const dependent = tasks.find(x => !x.done && x.afterId === t.id);
   editBeforeOriginalId = dependent ? dependent.id : null;
+  document.getElementById('edit-morning-checkbox').checked = !!t.morning;
   document.getElementById('edit-direct-checkbox').checked = !!(t.afterDirect || (dependent && dependent.afterDirect));
   b.value = t.pin === 'first' ? '__first' : (dependent ? dependent.id : '');
 }
@@ -2124,7 +2130,7 @@ function openEditModal(id){
   fillDepSelects(t);
   document.getElementById('edit-notes-input').value = t.notes || '';
   document.getElementById('edit-question-input').value = t.question || '';
-  { const n = [t.notes, t.question, t.splittable, t.timeConstraint, t.notBeforeTime, t.scheduledDate, t.afterId, t.pin, t.recurring, tasks.some(x => !x.done && x.afterId === t.id)].filter(Boolean).length;
+  { const n = [t.morning, t.notes, t.question, t.splittable, t.timeConstraint, t.notBeforeTime, t.scheduledDate, t.afterId, t.pin, t.recurring, tasks.some(x => !x.done && x.afterId === t.id)].filter(Boolean).length;
     document.getElementById('edit-more-options').classList.add('hidden');
     document.getElementById('edit-more-toggle').textContent = 'More options' + (n ? ' (' + n + ' set)' : '') + ' ▾'; }
   editMins = t.mins;
@@ -2232,6 +2238,7 @@ document.getElementById('edit-save-btn').onclick = async () => {
       const o = tasks.find(x => x.id === beforeVal);
       if(o){ o.afterId = t.id; o.afterDirect = directOn; }
     }
+    t.morning = document.getElementById('edit-morning-checkbox').checked || undefined;
     if(onceSnap) t.once = onceSnap;
     t.autoWalk = false; // a manual edit means the user now owns this task, not the auto-pace system
     const ageDays = Math.max(0, parseInt(document.getElementById('edit-age-input').value) || 0);
@@ -2293,11 +2300,13 @@ function findNextIndex(from){
   }
   return findNextCore(from, true);
 }
+function isMorningNow(t){ return !!(t && t.morning && features.morningRoutine && !t.microGoal && new Date().getHours() < (features.routineUntil || 12)); }
 function findNextCore(from, withDeferred){
   const ok = i => (withDeferred || !sessionDeferred.includes(tasks[i].id)) && !tasks[i].done && !sessionPartial.includes(tasks[i].id) && !sessionSkipped.some(s => s.id === tasks[i].id) && !isScheduledForFuture(tasks[i]) && (!sessionTaskIds || sessionTaskIds.includes(tasks[i].id)) && !isHeldBack(tasks[i]);
   const free = i => i !== currentIndex && !sessionSkipped.some(s => s.id === tasks[i].id) && ok(i);
   if(lastFinishedId){ const di = tasks.findIndex(t => t.afterDirect && t.afterId === lastFinishedId && free(tasks.indexOf(t))); if(di !== -1) return di; }
   // "do first" tasks jump the queue; "do last" tasks only come up when nothing else is left
+  for(let i = 0; i < tasks.length; i++) if(isMorningNow(tasks[i]) && free(i)) return i; // the morning routine goes before everything else
   for(let i = 0; i < tasks.length; i++) if((tasks[i].pin === 'first' || isRoutineMember(tasks[i])) && free(i)) return i;
   { let bi = -1, bd = 1e9; // slots running out of time come next, soonest first (never ahead of do-first routines)
     for(let i = 0; i < tasks.length; i++){ const t = tasks[i]; if(t.pin === 'last' || !t.timeConstraint || !isUrgentSlot(t) || !free(i)) continue; const d = getTimeConstraintDeadlineMinutes(t); if(d < bd){ bd = d; bi = i; } }
@@ -3119,6 +3128,12 @@ function isRoutineMember(t){ return !t.microGoal && !!routineRoot(t); }
 function pickTasksForBudget(pendingOrig, budget){
   const sz = t => isSplit(t) ? Math.min(t.chunkMins || 5, remMins(t)) : t.mins;
   const claimed = new Set(); let rleft = budget;
+  // the morning routine is planned before anything else, in list order, as far as the time allows
+  for(const t of pendingOrig.filter(isMorningNow).sort((a, b) => tasks.indexOf(a) - tasks.indexOf(b))){
+    const pre = getPrereq(t);
+    if((pre && !pre.done && !claimed.has(pre.id)) || sz(t) > rleft) break;
+    claimed.add(t.id); rleft -= sz(t);
+  }
   const routine = pendingOrig.filter(isRoutineMember).map(t => ({ t, root: routineRoot(t), depth: routineDepth(t) }))
     .sort((a, b) => (tasks.indexOf(a.root) - tasks.indexOf(b.root)) || (a.depth - b.depth) || (tasks.indexOf(a.t) - tasks.indexOf(b.t)));
   const blocked = new Set();
@@ -3391,6 +3406,7 @@ function renderReviewList(pending, selectedIds){
   const chips = t => [
     t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff;" title="Must do">must do</span>' : '',
     isRoutineMember(t) ? '<span class="tag-badge" title="Part of a do-first routine">🔁 routine</span>' : '',
+    isMorningNow(t) ? '<span class="tag-badge" title="Morning routine: done first">🌅 morning</span>' : '',
     t.wantSoon ? '<span class="tag-badge" title="You moved this up, so it gets a place in the next plan">⭐ moved up</span>' : '',
     t.timeConstraint && isPastTimeConstraint(t) ? '<span class="tag-badge" title="Its time slot has passed">⏰ slot passed</span>' : (t.timeConstraint && isUrgentSlot(t) ? '<span class="tag-badge" title="Its time slot is close">⏰ due soon</span>' : ''),
     t.escalated ? '<span class="tag-badge" title="Bumped up for waiting">⏫</span>' : ''
@@ -4600,7 +4616,7 @@ document.getElementById('edit-delete-btn').onclick = async () => {
 };
 
 /* ---------- round 2: version/updates, snapshots, alerts, theme, insights, welcome, data hub ---------- */
-const APP_VERSION = '2026-11-02-a';
+const APP_VERSION = '2026-11-04-a';
 /* confetti: a quick burst of colour for wins */
 function confetti(n){
   if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -4619,6 +4635,7 @@ function confetti(n){
 /* ---------- Settings: features on/off + shortcuts ---------- */
 const FEATURE_TOGGLES = [
   ['morningQ', '❓ Morning questions', 'Ask a question about a task the first time you open the app each day.'],
+  ['morningRoutine', '🌅 Morning routine first', 'Tasks marked as morning routine are planned and done before everything else, until the cut-off hour below.'],
   ['quickNote', '📝 Quick notes', 'A button on the timer to jot down a thought and sort it later.'],
   ['bankTime', '⏳ Bank time', 'An Interrupted button on the timer that keeps the time you spent and plans the rest for later.'],
   ['timePresets', '⏱ Time shortcuts', 'One-tap time buttons when starting a Power Hour.'],
@@ -4644,6 +4661,7 @@ function renderFeaturesUI(){
   });
   document.getElementById('features-presets').value = (features.presetList || []).join(', ');
   document.getElementById('features-mq-until').value = features.mqUntil || 12;
+  document.getElementById('features-routine-until').value = features.routineUntil || 12;
   const box = document.getElementById('features-answers'); box.innerHTML = '';
   const answers = features.mqAnswers = (features.mqAnswers && features.mqAnswers.length ? features.mqAnswers : DEFAULT_MQ_ANSWERS.map(a => ({ ...a })));
   answers.forEach((ans, i) => {
@@ -4659,6 +4677,7 @@ function renderFeaturesUI(){
   });
 }
 document.getElementById('features-mq-until').onchange = e => { features.mqUntil = Math.min(23, Math.max(6, parseInt(e.target.value) || 12)); saveFeatures(); };
+document.getElementById('features-routine-until').onchange = e => { features.routineUntil = Math.min(23, Math.max(6, parseInt(e.target.value) || 12)); saveFeatures(); };
 document.getElementById('features-presets').onchange = e => {
   features.presetList = e.target.value.split(/[,\s]+/).map(x => parseInt(x)).filter(x => x > 0 && x <= 600).slice(0, 6);
   saveFeatures(); applyFeatures(); renderFeaturesUI();
