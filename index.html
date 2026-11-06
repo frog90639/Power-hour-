@@ -144,20 +144,22 @@
   .timer-screen{
     position:fixed; inset:0; background:var(--bg-grad); background-color:var(--bg); z-index:200;
     display:flex; flex-direction:column;
-    padding:calc(20px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
+    padding:calc(14px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
   }
-  .timer-screen-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+  .timer-screen-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;}
+  @media (max-height:760px){ .timer-screen-header .icon-btn{width:36px; height:36px;} .timer-screen .eod-link{padding:3px 0; margin-bottom:2px;} .timer-current{margin-bottom:2px;} #session-panel{margin-top:6px;} }
   .timer-screen-header .title{font-weight:700;}
   .icon-btn{width:42px; height:42px; border-radius:50%; border:1px solid var(--btn); background:var(--card); color:var(--text); font-size:1.1rem; cursor:pointer;}
   .icon-btn:disabled{opacity:0.3; cursor:default;}
-  .timer-screen-body{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;}
-  .timer-priority-badge{font-size:0.8rem; font-weight:700; padding:4px 10px; border-radius:20px; margin-bottom:10px; color:#0f1115;}
+  .timer-screen-body{flex:1; display:flex; flex-direction:column; align-items:center; text-align:center; overflow-y:auto; min-height:0; overscroll-behavior:contain;}
+  .timer-screen-body > #timer-active-view, .timer-screen-body > #timer-done-view{margin:auto 0; width:100%;}
+  .timer-priority-badge{font-size:0.8rem; font-weight:700; padding:3px 10px; border-radius:20px; margin-bottom:clamp(4px, 1.2vh, 10px); color:#0f1115;}
   .timer-current{font-size:1rem; color:var(--muted); margin-bottom:6px;}
-  .timer-task{font-size:1.8rem; font-weight:700; margin-bottom:18px; padding:0 10px;}
-  .timer-motivation{font-size:0.9rem; color:var(--accent2); font-weight:600; margin:-10px 0 18px; padding:0 16px; min-height:1.2em;}
-  .timer-clock{font-size:4rem; font-variant-numeric:tabular-nums; font-weight:700; margin-bottom:24px;}
-  .timer-controls{display:flex; gap:10px; justify-content:center; margin-bottom:20px; flex-wrap:wrap;}
-  .timer-controls button{padding:14px 22px; border-radius:12px; border:none; font-size:1rem; font-weight:600; cursor:pointer;}
+  .timer-task{font-size:clamp(1.3rem, 4.2vh, 1.8rem); font-weight:700; margin-bottom:clamp(6px, 2vh, 18px); padding:0 10px; line-height:1.2;}
+  .timer-motivation{font-size:0.9rem; color:var(--accent2); font-weight:600; margin:-4px 0 clamp(4px, 1.5vh, 14px); padding:0 16px; min-height:1.2em;}
+  .timer-clock{font-size:clamp(2.8rem, 9vh, 4rem); font-variant-numeric:tabular-nums; font-weight:700; margin-bottom:clamp(6px, 2vh, 20px); line-height:1.1;}
+  .timer-controls{display:flex; gap:10px; justify-content:center; margin-bottom:clamp(6px, 1.5vh, 16px); flex-wrap:wrap;}
+  .timer-controls button{padding:clamp(10px, 1.8vh, 14px) 22px; border-radius:12px; border:none; font-size:1rem; font-weight:600; cursor:pointer;}
   #done-current-btn{background:var(--accent); color:#0f1115;}
   #pause-btn{background:var(--accent2); color:#0f1115;}
   #skip-btn{background:var(--btn); color:var(--text);}
@@ -169,12 +171,12 @@
   #report-clear-btn{background:var(--danger); color:#fff;}
   #report-clear-btn:disabled{opacity:0.4; cursor:default;}
   .up-next{color:var(--muted); font-size:0.85rem;}
-  #session-panel{margin:26px auto 4px; text-align:center; width:100%; max-width:340px; padding:14px 10px; border-radius:18px; background:var(--card-raised); border:1px solid var(--hairline);}
+  #session-panel{margin:clamp(6px, 1.5vh, 14px) auto 2px; text-align:center; width:100%; max-width:340px; padding:clamp(8px, 1.4vh, 14px) 10px; border-radius:18px; background:var(--card-raised); border:1px solid var(--hairline);}
   .sp-label,.sp-next-label{font-size:0.68rem; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--muted);}
-  .sp-time{font-size:2.9rem; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.1; margin:2px 0 10px;}
+  .sp-time{font-size:clamp(2.1rem, 6vh, 2.9rem); font-weight:800; font-variant-numeric:tabular-nums; line-height:1.1; margin:2px 0 10px;}
   .sp-next{border-top:1px solid var(--hairline); padding-top:10px;}
-  .sp-next-name{font-size:1.05rem; font-weight:600; margin:2px 0;}
-  .sp-next-time{font-size:1.9rem; font-weight:700; font-variant-numeric:tabular-nums; color:var(--muted); line-height:1.1;}
+  .sp-next-name{font-size:1rem; font-weight:600; margin:2px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 6px;}
+  .sp-next-time{font-size:clamp(1.4rem, 4vh, 1.9rem); font-weight:700; font-variant-numeric:tabular-nums; color:var(--muted); line-height:1.1;}
 
   /* top action row */
   .top-action-row{display:flex; align-items:center; gap:10px; margin:14px 0 18px;}
@@ -474,7 +476,7 @@
 <div class="modal hidden" id="reduce-time-modal">
   <div class="modal-card">
     <h3>－ Reduce time</h3>
-    <p style="color:var(--muted); font-size:0.85rem; margin-top:-6px;">How many minutes do you need to free up?</p>
+    <p style="color:var(--muted); font-size:0.85rem; margin:0 0 10px;">How many minutes do you need to free up?</p>
     <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
       <button class="settings-item reduce-time-opt" data-m="5" style="text-align:center; flex:1;">5</button>
       <button class="settings-item reduce-time-opt" data-m="10" style="text-align:center; flex:1;">10</button>
@@ -482,6 +484,9 @@
       <button class="settings-item reduce-time-opt" data-m="20" style="text-align:center; flex:1;">20</button>
       <button class="settings-item reduce-time-opt" data-m="30" style="text-align:center; flex:1;">30</button>
     </div>
+    <div class="opt-head">🏁 Or wrap up by</div>
+    <div id="wrap-by-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;"></div>
+    <div id="wrap-by-note" style="color:var(--muted); font-size:0.78rem;"></div>
     <div class="modal-actions"><button id="reduce-time-cancel-btn">Cancel</button></div>
   </div>
 </div>
@@ -667,12 +672,14 @@
       <div id="timer-notes" style="color:var(--muted); font-size:0.88rem; max-width:320px; text-align:center; margin:-4px auto 10px; white-space:pre-wrap;"></div>
       <div class="timer-clock" id="timer-clock">00:00</div>
       <div id="timer-progress" style="display:none;"></div>
-      <div style="display:flex; justify-content:center; gap:22px; margin-bottom:6px;">
+      <div style="display:flex; justify-content:center; gap:22px; margin-bottom:2px;">
         <button id="add-time-btn" class="eod-link">＋ Add time</button>
         <button id="reduce-time-btn" class="eod-link">－ Reduce time</button>
       </div>
-      <button id="quick-note-btn" class="eod-link" style="margin-bottom:6px;">📝 Quick note</button>
-      <button id="bank-btn" class="eod-link" style="margin-bottom:14px;">⏳ Interrupted? Bank time</button>
+      <div style="display:flex; justify-content:center; gap:22px; margin-bottom:clamp(6px, 1.5vh, 14px);">
+        <button id="quick-note-btn" class="eod-link">📝 Note</button>
+        <button id="bank-btn" class="eod-link">⏳ Bank time</button>
+      </div>
       <div class="timer-controls">
         <button id="done-current-btn">✓ Done</button>
         <button id="pause-btn">Pause</button>
@@ -2537,7 +2544,7 @@ function completeCurrentTask(){
 }
 /* moves on WITHOUT marking the current task done — it stays pending, and gets asked about at session end */
 /* ---------- reduce time: cut tasks down or drop them from this session ---------- */
-let reduceNeed = 0, reducePicks = {};
+let reduceNeed = 0, reducePicks = {}, reduceLabel = '';
 function sessionPendingTasks(){
   const ids = sessionTaskIds || tasks.map(x => x.id);
   return tasks.filter(x => ids.includes(x.id) && !x.done && !x.microGoal && !sessionPartial.includes(x.id) && !sessionSkipped.some(k => k.id === x.id));
@@ -2574,7 +2581,7 @@ function renderReduceOptions(){
   if(!rems.length) remBox.innerHTML = '<div class="empty">No other tasks in this session.</div>';
   rems.forEach(t => remBox.appendChild(row(t, 'remove', runMins(t) + ' min', runMins(t))));
   const freed = reduceFreed();
-  document.getElementById('reduce-title').textContent = 'Free up ' + reduceNeed + ' min';
+  document.getElementById('reduce-title').textContent = reduceLabel ? reduceLabel + ': free up ' + reduceNeed + ' min' : 'Free up ' + reduceNeed + ' min';
   document.getElementById('reduce-tally').textContent = 'Chosen so far: ' + freed + ' of ' + reduceNeed + ' min';
   const ap = document.getElementById('reduce-apply-btn'); ap.disabled = freed <= 0; ap.textContent = freed >= reduceNeed ? 'Apply' : (freed > 0 ? 'Apply (' + freed + ' min)' : 'Apply');
 }
@@ -2602,10 +2609,31 @@ function applyReduce(){
   });
   reducePicks = {};
 }
-document.getElementById('reduce-time-btn').onclick = () => document.getElementById('reduce-time-modal').classList.remove('hidden');
+function fmtClock(d){ return d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0'); }
+function buildWrapBy(){
+  const grid = document.getElementById('wrap-by-grid'); grid.innerHTML = '';
+  const now = new Date(), endMs = Date.now() + sessionRemainingSecs() * 1000;
+  document.getElementById('wrap-by-note').textContent = 'At this pace you finish at ' + fmtClock(new Date(endMs)) + '.';
+  // the next four quarter-hour marks
+  const first = new Date(now); first.setSeconds(0, 0); first.setMinutes(Math.floor(first.getMinutes() / 15) * 15 + 15);
+  for(let i = 0; i < 4; i++){
+    const mark = new Date(first.getTime() + i * 15 * 60000);
+    const need = Math.ceil((endMs - mark.getTime()) / 60000);
+    const b = document.createElement('button'); b.className = 'settings-item'; b.style.cssText = 'text-align:center; margin:0;';
+    b.innerHTML = '<b style="font-size:1.15rem;">' + fmtClock(mark) + '</b><div style="font-size:0.72rem; color:var(--muted);">' + (need > 0 ? 'free ' + need + ' min' : 'already fits') + '</div>';
+    if(need <= 0){ b.disabled = true; b.style.opacity = '0.5'; }
+    b.onclick = () => {
+      reduceNeed = need; reducePicks = {}; reduceLabel = 'Wrap up by ' + fmtClock(mark);
+      document.getElementById('reduce-time-modal').classList.add('hidden');
+      renderReduceOptions(); document.getElementById('reduce-options-modal').classList.remove('hidden');
+    };
+    grid.appendChild(b);
+  }
+}
+document.getElementById('reduce-time-btn').onclick = () => { buildWrapBy(); document.getElementById('reduce-time-modal').classList.remove('hidden'); };
 document.getElementById('reduce-time-cancel-btn').onclick = () => document.getElementById('reduce-time-modal').classList.add('hidden');
 document.querySelectorAll('.reduce-time-opt').forEach(b => b.onclick = () => {
-  reduceNeed = parseInt(b.dataset.m); reducePicks = {};
+  reduceNeed = parseInt(b.dataset.m); reducePicks = {}; reduceLabel = '';
   document.getElementById('reduce-time-modal').classList.add('hidden');
   renderReduceOptions(); document.getElementById('reduce-options-modal').classList.remove('hidden');
 });
@@ -4831,7 +4859,7 @@ document.getElementById('edit-delete-btn').onclick = async () => {
 };
 
 /* ---------- round 2: version/updates, snapshots, alerts, theme, insights, welcome, data hub ---------- */
-const APP_VERSION = '2026-11-06-c';
+const APP_VERSION = '2026-11-06-d';
 /* confetti: a quick burst of colour for wins */
 function confetti(n){
   if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
