@@ -257,6 +257,13 @@
   #add-modal:not(.modal-open){opacity:0; pointer-events:none;}
   .modal-card{background:var(--card); border-radius:16px 16px 0 0; padding:20px; width:100%; max-width:480px; border:1px solid var(--btn);}
   .modal-card h3{margin:0 0 14px;}
+  /* every sheet fits the screen and scrolls inside itself; the title and the action buttons stay put */
+  .modal{overscroll-behavior:contain;}
+  .modal-card{max-height:92vh; max-height:92dvh; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding-top:0; padding-bottom:0;}
+  .modal-card > h3:first-child{position:sticky; top:0; z-index:3; background:var(--card); margin:0; padding:18px 0 12px;}
+  .modal-card > .modal-actions:last-child, #add-modal .modal-card > .modal-actions, #edit-modal .modal-card > .modal-actions{position:sticky; bottom:0; z-index:3; background:var(--card); margin:0; padding:12px 0 calc(14px + env(safe-area-inset-bottom)); border-top:1px solid var(--hairline);}
+  .modal-card > :not(h3):not(.modal-actions):last-child{margin-bottom:18px;}
+  .opt-head{font-size:0.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:16px 0 8px; padding-top:10px; border-top:1px solid var(--hairline);}
   .modal-row{margin-bottom:12px;}
   .modal-actions{display:flex; gap:10px; margin-top:8px;}
   .modal-actions button{flex:1; padding:12px; border-radius:10px; border:none; font-size:1rem; font-weight:600; cursor:pointer;}
@@ -450,6 +457,8 @@
 
 <div id="home-panel">
   <div id="home-stats" style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px;"></div>
+  <input type="text" id="home-search" placeholder="🔍 Search every task, including completed" aria-label="Search every task" style="width:100%; min-width:0; padding:12px 14px; margin-bottom:12px;">
+  <div id="home-results" class="hidden" style="margin-bottom:18px;"></div>
   <div id="home-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px;"></div>
 </div>
 <button id="inbox-pill" class="hidden" aria-label="Quick notes to sort" style="position:fixed; right:88px; bottom:calc(32px + env(safe-area-inset-bottom)); z-index:150; background:var(--card-raised); color:var(--text); border:1px solid var(--hairline); border-radius:20px; padding:8px 14px; font-weight:600; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.3);"></button>
@@ -496,6 +505,7 @@
         <span style="color:var(--muted); font-size:0.85rem;">👣 Est. steps</span>
         <input type="number" id="add-steps-input" min="0" step="100" placeholder="e.g. 800" style="margin-left:auto; width:100px;">
       </div>
+      <div class="opt-head">⏰ When</div>
       <div class="modal-row budget-row">
         <span style="color:var(--muted); font-size:0.85rem;">⏰ Must be done by</span>
         <div class="time-limit-picker" id="add-time-limit-picker"></div>
@@ -514,6 +524,7 @@
         <input type="date" id="add-date-input" style="margin-left:auto;">
         <button type="button" id="add-date-clear-btn" class="board-chip-btn" title="Clear — do it today/whenever">✕</button>
       </div>
+      <div class="opt-head">🔗 Order</div>
       <div class="modal-row budget-row">
         <span style="color:var(--muted); font-size:0.85rem;">🔗 Do after</span>
         <select id="add-after-select" style="margin-left:auto; max-width:60%;"></select>
@@ -522,6 +533,7 @@
         <span style="color:var(--muted); font-size:0.85rem;">🔗 Do before</span>
         <select id="add-before-select" style="margin-left:auto; max-width:60%;"></select>
       </div>
+      <div class="opt-head">🌅 Routine &amp; prompts</div>
       <label class="modal-row" style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="add-morning-checkbox"><span>🌅 Morning routine <span style="color:var(--muted); font-size:0.78rem;">(first thing, before anything else)</span></span></label>
       <label class="modal-row" style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="add-direct-checkbox"><span>Back-to-back <span style="color:var(--muted); font-size:0.78rem;">(do it straight after, not just sometime after)</span></span></label>
       <div class="modal-row"><input type="text" id="add-question-input" placeholder="❓ Morning question (e.g. Bottle prep?)" style="width:100%;" maxlength="80"></div>
@@ -530,6 +542,7 @@
       <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="add-split-checkbox"><span>✂️ Do it in bits</span></label>
       <span id="add-split-opts" class="hidden" style="color:var(--muted); font-size:0.85rem;">in <select id="add-split-chunk"><option>5</option><option>10</option><option>15</option><option>20</option><option>30</option></select> min bits until done</span>
     </div>
+    <div class="opt-head">🔁 Repeat</div>
     <label class="modal-row recurring-toggle" id="add-recurring-toggle">
         <input type="checkbox" id="add-recurring-checkbox">
         <span>🔁 Recurring — comes back after I reset the day</span>
@@ -710,7 +723,8 @@
     </div>
     <button type="button" id="edit-more-toggle" class="more-options-toggle">More options ▾</button>
     <div id="edit-more-options" class="hidden">
-    <div class="modal-row budget-row">
+    <div class="opt-head">⏰ When</div>
+      <div class="modal-row budget-row">
       <span style="color:var(--muted); font-size:0.85rem;">⏰ Must be done by</span>
       <div class="time-limit-picker" id="edit-time-limit-picker"></div>
     </div>
@@ -728,7 +742,8 @@
       <input type="date" id="edit-date-input" style="margin-left:auto;">
       <button type="button" id="edit-date-clear-btn" class="board-chip-btn" title="Clear — do it today/whenever">✕</button>
     </div>
-    <div class="modal-row budget-row">
+    <div class="opt-head">🔗 Order</div>
+      <div class="modal-row budget-row">
       <span style="color:var(--muted); font-size:0.85rem;">🔗 Do after</span>
       <select id="edit-after-select" style="margin-left:auto; max-width:60%;"></select>
     </div>
@@ -740,7 +755,8 @@
       <span style="color:var(--muted); font-size:0.85rem;">⏳ Age (days)</span>
       <input type="number" id="edit-age-input" min="0" step="1" style="margin-left:auto; width:80px;">
     </div>
-    <label class="modal-row" style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="edit-morning-checkbox"><span>🌅 Morning routine <span style="color:var(--muted); font-size:0.78rem;">(first thing, before anything else)</span></span></label>
+    <div class="opt-head">🌅 Routine &amp; prompts</div>
+      <label class="modal-row" style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="edit-morning-checkbox"><span>🌅 Morning routine <span style="color:var(--muted); font-size:0.78rem;">(first thing, before anything else)</span></span></label>
     <label class="modal-row" style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="edit-direct-checkbox"><span>Back-to-back <span style="color:var(--muted); font-size:0.78rem;">(do it straight after, not just sometime after)</span></span></label>
     <div class="modal-row"><input type="text" id="edit-question-input" placeholder="❓ Morning question (e.g. Bottle prep?)" style="width:100%;" maxlength="80"></div>
     <div class="modal-row"><textarea id="edit-notes-input" rows="2" placeholder="📝 Notes (optional)"></textarea></div>
@@ -748,6 +764,7 @@
       <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="edit-split-checkbox"><span>✂️ Do it in bits</span></label>
       <span id="edit-split-opts" class="hidden" style="color:var(--muted); font-size:0.85rem;">in <select id="edit-split-chunk"><option>5</option><option>10</option><option>15</option><option>20</option><option>30</option></select> min bits until done</span>
     </div>
+    <div class="opt-head">🔁 Repeat</div>
     <label class="modal-row recurring-toggle" id="edit-recurring-toggle">
       <input type="checkbox" id="edit-recurring-checkbox">
       <span>🔁 Recurring — comes back after I reset the day</span>
@@ -758,11 +775,11 @@
         <span id="edit-recur-d" class="recur-days hidden"><button type="button" data-d="1">M</button><button type="button" data-d="2">T</button><button type="button" data-d="3">W</button><button type="button" data-d="4">T</button><button type="button" data-d="5">F</button><button type="button" data-d="6">S</button><button type="button" data-d="0">S</button></span>
       </div>
     </div>
+    <button id="edit-delete-btn" style="width:100%; margin:14px 0 18px; background:none; border:1px solid var(--danger); color:var(--danger); padding:10px; border-radius:10px; cursor:pointer; font-weight:600;">Delete task</button>
     <div class="modal-actions">
       <button id="edit-cancel-btn">Cancel</button>
       <button id="edit-save-btn" class="add-btn">Save</button>
     </div>
-    <button id="edit-delete-btn" style="width:100%; margin-top:12px; background:none; border:1px solid var(--danger); color:var(--danger); padding:10px; border-radius:10px; cursor:pointer; font-weight:600;">Delete task</button>
   </div>
 </div>
 
@@ -1623,14 +1640,14 @@ function updateHome(){
   const cell = (big, small, warn) => '<div style="background:var(--card-raised); border:1px solid var(--hairline); border-radius:14px; padding:10px 6px; text-align:center;"><div style="font-size:1.35rem; font-weight:800;' + (warn ? ' color:var(--danger);' : '') + '">' + big + '</div><div style="color:var(--muted); font-size:0.75rem;">' + small + '</div></div>';
   stats.innerHTML = cell(pend.length, 'to do · ' + dur) + cell(doneToday, 'done today') + cell(urgent, urgent === 1 ? 'needs attention' : 'need attention', urgent > 0);
   const btns = [
-    ['📋', 'Full list', 'full', pend.length + ' tasks'],
-    ['＋', 'Add task', 'add', ''],
-    ['🔍', 'Search', 'search', ''],
+    ['📋', 'Full list', 'full', pend.length + ' to do'],
+    ['✅', 'Completed', 'completed', doneToday + ' today'],
     ['📥', 'Quick notes', 'inbox', inbox.length ? inbox.length + ' to sort' : ''],
     ['🗓️', 'Calendar', 'settings-calendar-btn', ''],
     ['📊', 'History', 'settings-insights-btn', '']
   ];
   const hb = document.getElementById('settings-habits-btn'); if(hb && hb.style.display !== 'none') btns.push(['🔥', 'Habits', 'settings-habits-btn', '']);
+  homeSearch();
   grid.innerHTML = '';
   btns.forEach(([ic, label, act, sub]) => {
     const b = document.createElement('button'); b.type = 'button';
@@ -1638,17 +1655,41 @@ function updateHome(){
     b.innerHTML = '<div style="font-size:1.4rem;">' + ic + '</div><div>' + label + '</div><div style="color:var(--muted); font-size:0.75rem; font-weight:400; min-height:1em;">' + sub + '</div>';
     b.onclick = () => {
       if(act === 'full') openFullList(false);
-      else if(act === 'search') openFullList(true);
-      else if(act === 'add') document.getElementById('open-add-btn').click();
+      else if(act === 'completed') openFullList(false, true);
       else if(act === 'inbox') openInbox();
       else { const t = document.getElementById(act); if(t && t.onclick) t.onclick(); }
     };
     grid.appendChild(b);
   });
 }
-function openFullList(focusSearch){
+function homeSearch(){
+  const q = document.getElementById('home-search').value.trim().toLowerCase();
+  const box = document.getElementById('home-results'), grid = document.getElementById('home-grid');
+  box.classList.toggle('hidden', !q); grid.style.display = q ? 'none' : 'grid';
+  if(!q) return;
+  box.innerHTML = '';
+  const hit = txt => txt.toLowerCase().includes(q);
+  const open = tasks.filter(t => !t.done && !t.microGoal && hit(t.name + ' ' + (t.notes || '') + ' ' + (t.tag ? TAG_LABELS[t.tag] : '')));
+  const done = allCompletedItems().filter(c => hit(c.name + ' ' + (c.notes || '')));
+  const chip = (txt, color) => '<span style="font-size:0.72rem; padding:2px 8px; border-radius:10px; background:var(--chip-bg); color:' + (color || 'var(--chip-fg)') + '; white-space:nowrap;">' + txt + '</span>';
+  open.slice(0, 60).forEach(t => {
+    const r = document.createElement('div'); r.className = 'review-item'; r.style.cursor = 'pointer';
+    const status = isScheduledForFuture(t) ? chip('📆 ' + niceDate(t.scheduledDate)) : chip('To do');
+    r.innerHTML = '<span class="priority-badge" style="color:var(--' + t.priority + ')">' + PRIORITY_LABELS[t.priority] + '</span><span class="name"></span>' + status + '<span class="mins">' + t.mins + ' min</span>';
+    r.querySelector('.name').textContent = t.name; r.onclick = () => openEditModal(t.id); box.appendChild(r);
+  });
+  done.slice(0, 100).forEach(c => {
+    const r = document.createElement('div'); r.className = 'review-item';
+    r.innerHTML = '<span style="color:var(--accent); font-weight:800;">✓</span><span class="name" style="text-decoration:line-through; opacity:0.75;"></span>' + chip('Completed · ' + (c.today ? 'today' : niceDate(c.date)), 'var(--accent)') + '<span class="mins">' + c.mins + ' min</span>';
+    r.querySelector('.name').textContent = c.name; box.appendChild(r);
+  });
+  if(!open.length && !done.length) box.innerHTML = '<div class="empty">Nothing matches “' + q.replace(/</g, '&lt;') + '”.</div>';
+}
+document.getElementById('home-search').addEventListener('input', homeSearch);
+function openFullList(focusSearch, toCompleted){
   document.getElementById('full-list-modal').classList.remove('hidden');
   renderTaskList();
+  if(toCompleted){ const a = document.getElementById('completed-anchor'); if(a) setTimeout(() => a.scrollIntoView({ block: 'start' }), 50); }
   if(focusSearch){ const si = document.getElementById('list-search'); if(si) setTimeout(() => si.focus(), 60); }
 }
 document.getElementById('full-list-close-btn').onclick = () => document.getElementById('full-list-modal').classList.add('hidden');
@@ -4044,6 +4085,7 @@ function renderTaskList(){
   if(visible.length === 0 && filtering){
     container.innerHTML = '<div class="empty">No tasks match. <button class="empty-add" id="empty-clear-btn" style="background:var(--btn); color:var(--text);">Clear search</button></div>';
     { const cb = document.getElementById('empty-clear-btn'); if(cb) cb.onclick = () => { listSearch=''; listTagFilter=null; buildListFilters(); const si=document.getElementById('list-search'); if(si) si.value=''; renderTaskList(); }; }
+    renderCompleted(container);
     return;
   }
   if(visible.length === 0){
@@ -4069,8 +4111,8 @@ function renderTaskList(){
       const h = document.createElement('div'); h.className = 'priority-divider'; h.innerHTML = '<span>📆 Scheduled for later (' + later.length + ')</span>'; container.appendChild(h);
       later.forEach(t => container.appendChild(buildTaskRow(t)));
     }
-    renderDoneToday(container);
-  }
+    renderCompleted(container);
+  } else renderCompleted(container);
 }
 
 function buildTaskRow(t){
@@ -4522,6 +4564,33 @@ function appConfirm({ title, text, okLabel, danger }){
 }
 
 let doneTodayOpen = false;
+/* every completed task: today's (still listed or already cleared) and every earlier day in the log */
+function allCompletedItems(){
+  const seen = new Set(), out = [];
+  [...tasks.filter(t => t.done && !t.microGoal), ...deletedCompleted].forEach(t => { if(seen.has(t.id)) return; seen.add(t.id); out.push({ id: t.id, name: t.name, mins: t.mins, priority: t.priority, tag: t.tag, notes: t.notes, date: todayStr(), today: true }); });
+  for(let i = dayLog.length - 1; i >= 0; i--) (dayLog[i].tasks || []).forEach(t => out.push({ id: null, name: t.name, mins: t.mins, priority: t.priority, tag: t.tag, notes: t.notes, date: dayLog[i].date, today: false }));
+  return out;
+}
+function completedRow(c){
+  const row = document.createElement('div'); row.className = 'done-today-row'; row.style.cssText = 'display:flex; align-items:center; gap:8px; padding:8px 4px;';
+  const ck = document.createElement('span'); ck.textContent = '✓'; ck.style.cssText = 'color:var(--accent); font-weight:800;';
+  const nm = document.createElement('span'); nm.style.cssText = 'flex:1; text-decoration:line-through; opacity:0.75;'; nm.textContent = c.name;
+  const when = document.createElement('span'); when.style.cssText = 'color:var(--muted); font-size:0.75rem; white-space:nowrap;'; when.textContent = c.today ? 'Today' : niceDate(c.date);
+  row.append(ck, nm, when);
+  if(c.today && c.id){ const b = document.createElement('button'); b.textContent = '↩ Undo'; b.onclick = () => undoCompletedTask(c.id); row.appendChild(b); }
+  return row;
+}
+function renderCompleted(container){
+  const q = listSearch.toLowerCase();
+  const all = allCompletedItems().filter(c => !q || (c.name + ' ' + (c.notes || '')).toLowerCase().includes(q)).filter(c => !listTagFilter || c.tag === listTagFilter);
+  const wrap = document.createElement('div'); wrap.className = 'done-today'; wrap.id = 'completed-anchor';
+  const todayN = all.filter(c => c.today).length;
+  wrap.innerHTML = '<div class="done-today-head"><span>✓ COMPLETED (' + (q || listTagFilter ? all.length : 'today ' + todayN) + ')</span></div>';
+  if(!all.length){ if(q || listTagFilter) return; const e = document.createElement('div'); e.className = 'empty'; e.textContent = 'Nothing completed yet today.'; wrap.appendChild(e); container.appendChild(wrap); return; }
+  const list = q || listTagFilter ? all : all.filter(c => c.today);
+  list.slice(0, 200).forEach(c => wrap.appendChild(completedRow(c)));
+  container.appendChild(wrap);
+}
 function renderDoneToday(container){
   const done = tasks.filter(t => t.done && !t.microGoal);
   if(done.length === 0) return;
@@ -4616,7 +4685,7 @@ document.getElementById('edit-delete-btn').onclick = async () => {
 };
 
 /* ---------- round 2: version/updates, snapshots, alerts, theme, insights, welcome, data hub ---------- */
-const APP_VERSION = '2026-11-04-a';
+const APP_VERSION = '2026-11-06-a';
 /* confetti: a quick burst of colour for wins */
 function confetti(n){
   if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
