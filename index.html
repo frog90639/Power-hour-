@@ -169,6 +169,12 @@
   #report-clear-btn{background:var(--danger); color:#fff;}
   #report-clear-btn:disabled{opacity:0.4; cursor:default;}
   .up-next{color:var(--muted); font-size:0.85rem;}
+  #session-panel{margin:26px auto 4px; text-align:center; width:100%; max-width:340px; padding:14px 10px; border-radius:18px; background:var(--card-raised); border:1px solid var(--hairline);}
+  .sp-label,.sp-next-label{font-size:0.68rem; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--muted);}
+  .sp-time{font-size:2.9rem; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.1; margin:2px 0 10px;}
+  .sp-next{border-top:1px solid var(--hairline); padding-top:10px;}
+  .sp-next-name{font-size:1.05rem; font-weight:600; margin:2px 0;}
+  .sp-next-time{font-size:1.9rem; font-weight:700; font-variant-numeric:tabular-nums; color:var(--muted); line-height:1.1;}
 
   /* top action row */
   .top-action-row{display:flex; align-items:center; gap:10px; margin:14px 0 18px;}
@@ -464,6 +470,34 @@
 <button id="inbox-pill" class="hidden" aria-label="Quick notes to sort" style="position:fixed; right:88px; bottom:calc(32px + env(safe-area-inset-bottom)); z-index:150; background:var(--card-raised); color:var(--text); border:1px solid var(--hairline); border-radius:20px; padding:8px 14px; font-weight:600; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.3);"></button>
 <button class="fab" id="open-add-btn" title="Add task" aria-label="Add task">＋</button>
 
+<!-- reduce time -->
+<div class="modal hidden" id="reduce-time-modal">
+  <div class="modal-card">
+    <h3>－ Reduce time</h3>
+    <p style="color:var(--muted); font-size:0.85rem; margin-top:-6px;">How many minutes do you need to free up?</p>
+    <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+      <button class="settings-item reduce-time-opt" data-m="5" style="text-align:center; flex:1;">5</button>
+      <button class="settings-item reduce-time-opt" data-m="10" style="text-align:center; flex:1;">10</button>
+      <button class="settings-item reduce-time-opt" data-m="15" style="text-align:center; flex:1;">15</button>
+      <button class="settings-item reduce-time-opt" data-m="20" style="text-align:center; flex:1;">20</button>
+      <button class="settings-item reduce-time-opt" data-m="30" style="text-align:center; flex:1;">30</button>
+    </div>
+    <div class="modal-actions"><button id="reduce-time-cancel-btn">Cancel</button></div>
+  </div>
+</div>
+<div class="modal hidden" id="reduce-options-modal">
+  <div class="modal-card">
+    <h3 id="reduce-title">Free up time</h3>
+    <div id="reduce-tally" style="color:var(--muted); font-size:0.85rem; margin:-4px 0 10px;"></div>
+    <div class="opt-head" style="margin-top:6px;">✂️ Cut a task down <span style="text-transform:none; letter-spacing:0; font-weight:400;">(only do some of it now)</span></div>
+    <div id="reduce-cut-list"></div>
+    <div class="opt-head">🗑 Remove from this session</div>
+    <div id="reduce-remove-list"></div>
+    <div style="color:var(--muted); font-size:0.78rem; margin-top:10px;">Changes apply to this session only. Anything left over stays on your list, and a recurring task still repeats as normal.</div>
+    <div class="modal-actions"><button id="reduce-cancel-btn">Cancel</button><button id="reduce-apply-btn" class="add-btn">Apply</button></div>
+  </div>
+</div>
+
 <!-- add more time -->
 <div class="modal hidden" id="more-time-modal">
   <div class="modal-card">
@@ -632,9 +666,11 @@
       <div class="timer-motivation" id="timer-motivation"></div>
       <div id="timer-notes" style="color:var(--muted); font-size:0.88rem; max-width:320px; text-align:center; margin:-4px auto 10px; white-space:pre-wrap;"></div>
       <div class="timer-clock" id="timer-clock">00:00</div>
-      <div class="up-next" id="timer-progress" style="margin-bottom:4px;"></div>
-      <div class="up-next" id="up-next" style="margin-bottom:6px;"></div>
-      <button id="add-time-btn" class="eod-link" style="margin-bottom:6px;">＋ Add more time</button>
+      <div id="timer-progress" style="display:none;"></div>
+      <div style="display:flex; justify-content:center; gap:22px; margin-bottom:6px;">
+        <button id="add-time-btn" class="eod-link">＋ Add time</button>
+        <button id="reduce-time-btn" class="eod-link">－ Reduce time</button>
+      </div>
       <button id="quick-note-btn" class="eod-link" style="margin-bottom:6px;">📝 Quick note</button>
       <button id="bank-btn" class="eod-link" style="margin-bottom:14px;">⏳ Interrupted? Bank time</button>
       <div class="timer-controls">
@@ -642,7 +678,12 @@
         <button id="pause-btn">Pause</button>
         <button id="skip-btn">Skip</button>
       </div>
-      <button id="close-timer-btn" class="eod-link" style="margin-top:22px; color:var(--danger);">End session</button>
+      <div id="session-panel">
+        <div class="sp-label">Session time left</div>
+        <div class="sp-time" id="session-remaining">00:00</div>
+        <div class="sp-next" id="up-next"></div>
+      </div>
+      <button id="close-timer-btn" class="eod-link" style="margin-top:6px; color:var(--danger);">End session</button>
     </div>
     <div id="timer-done-view" class="hidden">
       <div style="font-size:3rem; margin-bottom:6px;" id="done-emoji">🎉</div>
@@ -985,6 +1026,7 @@
       <li><b>Swipe</b> right or left for a quick action. Choose what each does in <b>Settings → Customise → Gestures</b>.</li>
       <li>Tick <b>🌅 Morning routine</b> on a task and it's planned and done before everything else until midday (change this in Features &amp; shortcuts). Untick it on the plan screen, or Skip it, if you want something else first.</li>
       <li><b>Do after</b> means “not before”; tick <b>Back-to-back</b> to make it come straight after. Editing or deleting a recurring task asks whether it's just this once or every time.</li>
+      <li>Short on time? Tap <b>－ Reduce time</b> on the timer, say how many minutes, then cut tasks down to part of their time or drop them from this session. The session time left and the next task show at the bottom of the timer.</li>
       <li>Interrupted mid-task? Tap <b>⏳ Bank time</b> on the timer. The minutes you spent are kept and the rest is planned later.</li>
       <li>Switch features on or off, and edit the time shortcuts and morning-question answers, in <b>Settings → Customise → Features &amp; shortcuts</b>.</li>
       <li>Add a <b>morning question</b> to a task (under More options) and it asks you the first time you open the app each day (before midday by default): normal, do first, urgent, or not today. Those answers last for that day only.</li>
@@ -2317,6 +2359,7 @@ function unlockBodyScroll(){
   window.scrollTo(0, savedScrollY);
 }
 
+function fmtLong(s){ s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : String(m).padStart(2, '0')) + ':' + String(sec).padStart(2, '0'); }
 function formatTime(s){
   s = Math.max(0, s);
   const m = Math.floor(s/60).toString().padStart(2,'0');
@@ -2481,8 +2524,10 @@ function completeCurrentTask(){
     const ct = tasks[currentIndex], spent = spentMins(ct), add = creditChunk(ct, runMins(ct));
     sessionMinsSinceBreak += spent;
     sessionCompleted.push({ ...ct, mins: add, name: ct.done ? ct.name : ct.name + ' (' + add + ' min bit)' });
-    if(!ct.done){ sessionPartial.push(ct.id); showToast('✂️ ' + ct.name + ': ' + ct.doneMins + ' of ' + ct.mins + ' min done'); }
-    save(); advanceAfterCurrent(); return;
+    if(!ct.done){ sessionPartial.push(ct.id); if(ct.autoSplit) ct.chunkMins = Math.max(1, remMins(ct)); showToast('✂️ ' + ct.name + ': ' + ct.doneMins + ' of ' + ct.mins + ' min done'); }
+    save(); advanceAfterCurrent();
+    if(!ct.done && ct.recurring) askRestOfRecurring(ct.id);
+    return;
   }
   sessionMinsSinceBreak += spentMins(tasks[currentIndex]);
   tasks[currentIndex].done = true;
@@ -2491,6 +2536,101 @@ function completeCurrentTask(){
   advanceAfterCurrent();
 }
 /* moves on WITHOUT marking the current task done — it stays pending, and gets asked about at session end */
+/* ---------- reduce time: cut tasks down or drop them from this session ---------- */
+let reduceNeed = 0, reducePicks = {};
+function sessionPendingTasks(){
+  const ids = sessionTaskIds || tasks.map(x => x.id);
+  return tasks.filter(x => ids.includes(x.id) && !x.done && !x.microGoal && !sessionPartial.includes(x.id) && !sessionSkipped.some(k => k.id === x.id));
+}
+function sessionRemainingSecs(){ const t = tasks[currentIndex]; if(!t) return 0; return (secondsLeft || 0) + sessionPendingTasks().filter(x => x.id !== t.id).reduce((m, x) => m + runMins(x) * 60, 0); }
+function cutAvail(t){ const cur = tasks[currentIndex] && tasks[currentIndex].id === t.id; return (cur ? Math.floor((secondsLeft || 0) / 60) : runMins(t)) - 1; }
+function reduceFreed(){ return Object.values(reducePicks).reduce((a, p) => a + p.mins, 0); }
+function renderReduceOptions(){
+  const cutBox = document.getElementById('reduce-cut-list'), remBox = document.getElementById('reduce-remove-list');
+  cutBox.innerHTML = ''; remBox.innerHTML = '';
+  const cur = tasks[currentIndex];
+  const pend = sessionPendingTasks();
+  const row = (t, kind, label, mins) => {
+    const pick = reducePicks[t.id], on = pick && pick.kind === kind;
+    const r = document.createElement('div'); r.className = 'review-item'; r.style.cssText = 'cursor:pointer;' + (on ? ' outline:2px solid var(--accent); border-radius:10px;' : '');
+    r.innerHTML = '<span class="priority-badge" style="color:var(--' + t.priority + ')">' + PRIORITY_LABELS[t.priority] + '</span><span class="name"></span><span class="mins"></span>';
+    r.querySelector('.name').textContent = (cur && cur.id === t.id ? '▶ ' : '') + t.name;
+    r.querySelector('.mins').textContent = on ? '−' + pick.mins + ' min' : label;
+    r.onclick = () => {
+      if(on){ delete reducePicks[t.id]; }
+      else {
+        delete reducePicks[t.id];
+        const need = reduceNeed - reduceFreed();
+        if(need <= 0){ showToast('That already frees ' + reduceNeed + ' min. Untick something first.'); return; }
+        reducePicks[t.id] = { kind, mins: kind === 'cut' ? Math.min(need, cutAvail(t)) : mins };
+      }
+      renderReduceOptions();
+    };
+    return r;
+  };
+  const cuts = pend.filter(t => cutAvail(t) >= 1), rems = pend.filter(t => !(cur && cur.id === t.id));
+  if(!cuts.length) cutBox.innerHTML = '<div class="empty">Nothing is long enough to cut.</div>';
+  cuts.forEach(t => cutBox.appendChild(row(t, 'cut', runMins(t) + ' min', 0)));
+  if(!rems.length) remBox.innerHTML = '<div class="empty">No other tasks in this session.</div>';
+  rems.forEach(t => remBox.appendChild(row(t, 'remove', runMins(t) + ' min', runMins(t))));
+  const freed = reduceFreed();
+  document.getElementById('reduce-title').textContent = 'Free up ' + reduceNeed + ' min';
+  document.getElementById('reduce-tally').textContent = 'Chosen so far: ' + freed + ' of ' + reduceNeed + ' min';
+  const ap = document.getElementById('reduce-apply-btn'); ap.disabled = freed <= 0; ap.textContent = freed >= reduceNeed ? 'Apply' : (freed > 0 ? 'Apply (' + freed + ' min)' : 'Apply');
+}
+function applyReduce(){
+  const picks = Object.entries(reducePicks); if(!picks.length) return;
+  const snap = { ids: sessionTaskIds ? sessionTaskIds.slice() : null, plan: { ...sessionPlan }, end: taskEndTime, left: secondsLeft, tasks: {} };
+  const cur = tasks[currentIndex];
+  picks.forEach(([id, pk]) => {
+    const t = tasks.find(x => x.id === id); if(!t) return;
+    snap.tasks[id] = JSON.parse(JSON.stringify(t));
+    if(pk.kind === 'remove'){ if(sessionTaskIds) sessionTaskIds = sessionTaskIds.filter(x => x !== id); delete sessionPlan[id]; }
+    else {
+      const run = runMins(t), nr = Math.max(1, run - pk.mins);
+      if(!isSplit(t)){ t.splittable = true; t.autoSplit = true; t.chunkMins = nr; }
+      sessionPlan[id] = nr;
+      if(cur && cur.id === id){ taskEndTime -= pk.mins * 60000; secondsLeft = Math.max(1, secondsLeft - pk.mins * 60); }
+    }
+  });
+  document.getElementById('reduce-options-modal').classList.add('hidden');
+  save(); persistSession(); refreshTimerDisplays();
+  showToast('－ Freed ' + reduceFreed() + ' min', 'Undo', () => {
+    sessionTaskIds = snap.ids; sessionPlan = snap.plan; taskEndTime = snap.end; secondsLeft = snap.left;
+    Object.keys(snap.tasks).forEach(id => { const i = tasks.findIndex(x => x.id === id); if(i !== -1) tasks[i] = snap.tasks[id]; });
+    save(); persistSession(); refreshTimerDisplays();
+  });
+  reducePicks = {};
+}
+document.getElementById('reduce-time-btn').onclick = () => document.getElementById('reduce-time-modal').classList.remove('hidden');
+document.getElementById('reduce-time-cancel-btn').onclick = () => document.getElementById('reduce-time-modal').classList.add('hidden');
+document.querySelectorAll('.reduce-time-opt').forEach(b => b.onclick = () => {
+  reduceNeed = parseInt(b.dataset.m); reducePicks = {};
+  document.getElementById('reduce-time-modal').classList.add('hidden');
+  renderReduceOptions(); document.getElementById('reduce-options-modal').classList.remove('hidden');
+});
+document.getElementById('reduce-cancel-btn').onclick = () => { reducePicks = {}; document.getElementById('reduce-options-modal').classList.add('hidden'); };
+document.getElementById('reduce-apply-btn').onclick = applyReduce;
+
+/* after doing part of a recurring task that was broken up, decide what happens to the rest (this time only) */
+async function askRestOfRecurring(id){
+  const t = tasks.find(x => x.id === id);
+  if(!t || t.done || !t.recurring || !t.autoSplit) return;
+  const left = remMins(t), lower = PRIORITIES.slice(PRIORITIES.indexOf(t.priority) + 1);
+  const labels = ['Keep the rest as planned'].concat(lower.map(p => 'Lower it to ' + PRIORITY_LABELS[p])).concat(['Cancel the rest (that was enough)']);
+  const c = await askChoice(left + ' min of “' + t.name + '” still to do', 'This is for this time only. It repeats as normal next time.', labels, labels.length - 1);
+  if(c <= 0) return;
+  if(c === labels.length - 1){
+    t.done = true; t.doneMins = t.mins; sessionPartial = sessionPartial.filter(x => x !== id);
+    save(); persistSession(); render(); refreshTimerDisplays();
+    showToast('✓ Rest of “' + t.name + '” cancelled for this time');
+  } else {
+    const np = lower[c - 1]; t.once = Object.assign({}, t.once || {}); if(!('priority' in t.once)) t.once.priority = t.priority;
+    t.priority = np; save(); render();
+    showToast('“' + t.name + '” lowered to ' + PRIORITY_LABELS[np] + ' for this time');
+  }
+}
+
 /* interrupted: keep the minutes already spent, and the rest goes back in the pool to be planned later */
 function bankCurrentTask(){
   const t = tasks[currentIndex];
@@ -2509,6 +2649,7 @@ function bankCurrentTask(){
   save();
   showToast('⏳ Banked ' + add + ' min on ' + t.name + '. ' + left + ' min left for later.', 'Tomorrow', () => snoozeTask(id));
   advanceAfterCurrent();
+  if(t.recurring) askRestOfRecurring(id);
 }
 document.getElementById('bank-btn').onclick = bankCurrentTask;
 function skipCurrentTask(){
@@ -2839,9 +2980,10 @@ function refreshTimerDisplays(){
   const nextIdx = findNextIndex(currentIndex + 1);
   { const sessIds = sessionTaskIds || tasks.map(x => x.id);
     const restMins = tasks.filter(x => sessIds.includes(x.id) && !x.done && !x.microGoal && x.id !== t.id && !sessionPartial.includes(x.id) && !sessionSkipped.some(k => k.id === x.id)).reduce((m, x) => m + runMins(x), 0);
-    const left = Math.ceil((secondsLeft || 0) / 60) + restMins;
-    document.getElementById('timer-progress').textContent = sessionCompleted.length + ' done \u00b7 ' + left + ' min left'; }
-  document.getElementById('up-next').textContent = nextIdx === -1 ? 'Last task 🎯' : `Up next: ${tasks[nextIdx].name}`;
+    document.getElementById('session-remaining').textContent = fmtLong((secondsLeft || 0) + restMins * 60); }
+  { const un = document.getElementById('up-next');
+    if(nextIdx === -1){ un.innerHTML = '<div class="sp-next-label">Last task 🎯</div>'; }
+    else { un.innerHTML = '<div class="sp-next-label">Up next</div><div class="sp-next-name"></div><div class="sp-next-time">' + formatTime(runMins(tasks[nextIdx]) * 60) + '</div>'; un.querySelector('.sp-next-name').textContent = tasks[nextIdx].name; } }
 
   document.getElementById('mini-task').textContent = t.name;
   document.getElementById('mini-clock').textContent = formatTime(secondsLeft);
@@ -3080,7 +3222,7 @@ function openReviewModal(budget){
   lastEligibleIds = new Set(pending.map(t => t.id));
   renderReviewList(pending, selected);
   { const old = document.getElementById('review-split-nudge'); if(old) old.remove();
-    const cand = pending.filter(t => !t.splittable && !t.autoWalk && !selected.has(t.id) && (t.mins > budget || ((t.passedOver || 0) >= 3 && t.mins >= 20)))
+    const cand = pending.filter(t => !t.splittable && !t.autoWalk && !selected.has(t.id) && (t.mins > budget || ((t.passedOver || 0) >= 3 && t.mins >= 20 && Date.now() - (t.createdAt || 0) >= 2 * 86400000)))
       .sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority))[0];
     if(cand){
       const chunk = cand.mins >= 40 ? 10 : 5;
@@ -4689,7 +4831,7 @@ document.getElementById('edit-delete-btn').onclick = async () => {
 };
 
 /* ---------- round 2: version/updates, snapshots, alerts, theme, insights, welcome, data hub ---------- */
-const APP_VERSION = '2026-11-06-b';
+const APP_VERSION = '2026-11-06-c';
 /* confetti: a quick burst of colour for wins */
 function confetti(n){
   if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
