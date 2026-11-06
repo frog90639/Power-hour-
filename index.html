@@ -440,6 +440,17 @@
   .welcome-emoji{font-size:3rem; margin-bottom:8px;}
   .filter-chip{padding:7px 12px; border-radius:999px; border:1px solid var(--hairline); background:var(--card); color:var(--text); font-size:0.82rem; cursor:pointer;}
   .filter-chip.on{background:var(--accent); color:#0f1115; border-color:var(--accent);}
+  /* compact fit */
+  .timer-task{display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; font-size:clamp(1.2rem, 3.6vh, 1.6rem); margin-bottom:6px;}
+  #timer-notes{display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; margin:0 auto 6px !important; font-size:0.82rem !important;}
+  .timer-clock{font-size:clamp(2.6rem, 7.5vh, 3.6rem); margin-bottom:6px;}
+  .timer-motivation:empty{display:none;}
+  #session-panel{display:grid; grid-template-columns:1fr 1fr; max-width:360px; padding:8px 6px; align-items:center;}
+  #session-panel .sp-label:first-child{grid-column:1;}
+  #session-panel .sp-next{border-top:0; border-left:1px solid var(--hairline); padding:0 6px; min-width:0; grid-column:2; grid-row:1 / span 2;}
+  #session-panel .sp-time{font-size:clamp(1.8rem,5vh,2.4rem); margin:2px 0 0; grid-column:1;}
+  .sp-next-name{font-size:0.85rem; white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; margin:2px 0; line-height:1.2; padding:0;}
+  .sp-next-time{font-size:clamp(1.1rem,3vh,1.4rem);}
 </style>
 </head>
 <body>
@@ -2562,14 +2573,20 @@ function renderReduceOptions(){
     const r = document.createElement('div'); r.className = 'review-item'; r.style.cssText = 'cursor:pointer;' + (on ? ' outline:2px solid var(--accent); border-radius:10px;' : '');
     r.innerHTML = '<span class="priority-badge" style="color:var(--' + t.priority + ')">' + PRIORITY_LABELS[t.priority] + '</span><span class="name"></span><span class="mins"></span>';
     r.querySelector('.name').textContent = (cur && cur.id === t.id ? '▶ ' : '') + t.name;
-    r.querySelector('.mins').textContent = on ? '−' + pick.mins + ' min' : label;
+    r.querySelector('.mins').textContent = on ? '−' + pick.mins + ' min' + (kind === 'cut' ? ' (tap for more)' : '') : (kind === 'cut' ? 'tap to cut' : label);
     r.onclick = () => {
+      if(kind === 'cut'){
+        const base = cutAvail(t) + 1, step = on ? (pick.step || 1) + 1 : 1;
+        if(step > 3){ delete reducePicks[t.id]; }
+        else reducePicks[t.id] = { kind, step, mins: Math.max(1, Math.min(cutAvail(t), Math.round(base * step / 3))) };
+        renderReduceOptions(); return;
+      }
       if(on){ delete reducePicks[t.id]; }
       else {
         delete reducePicks[t.id];
         const need = reduceNeed - reduceFreed();
         if(need <= 0){ showToast('That already frees ' + reduceNeed + ' min. Untick something first.'); return; }
-        reducePicks[t.id] = { kind, mins: kind === 'cut' ? Math.min(need, cutAvail(t)) : mins };
+        reducePicks[t.id] = { kind, mins };
       }
       renderReduceOptions();
     };
