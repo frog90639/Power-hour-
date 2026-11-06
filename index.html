@@ -2438,11 +2438,15 @@ function p1sHandled(){
   return !tasks.some(t => t.priority === 'p1' && !t.done && !t.microGoal && (!sessionTaskIds || sessionTaskIds.includes(t.id)) && !sessionSkipped.some(s => s.id === t.id));
 }
 /* returns a goal task object if a break is due, else null */
+/* minutes actually spent on the current task, from the timer: skipping or tapping Done straight away adds next to nothing */
+function spentMins(t){ const full = runMins(t); return Math.max(0, Math.min(full, (full * 60 - secondsLeft) / 60)); }
+let breakDueAt = 0; // the exact moment a break lands is jittered so it stays a surprise
 function maybeMakeGoalBreak(){
   const cfg = loadGoals();
   if(!cfg.enabled || cfg.goals.length === 0) return null;
   const every = cfg.everyMins || 20;
-  if(sessionMinsSinceBreak < every || (!p1sHandled() && sessionMinsSinceBreak < every * 2)) return null;
+  if(!breakDueAt) breakDueAt = every * (0.8 + Math.random() * 0.5);
+  if(sessionMinsSinceBreak < breakDueAt || (!p1sHandled() && sessionMinsSinceBreak < every * 2)) return null;
   const today = loadGoalLog()[todayStr()] || {};
   // movement prompts (walks, stretches) stay out of sessions where you've filtered to something else, e.g. No hands
   const isMove = g => /walk|stretch|move|steps|stand|exercis|jog|run|🚶|🧘|🏃|🤸/i.test((g.name || '') + ' ' + (g.emoji || ''));
@@ -2462,7 +2466,7 @@ function finishGoalBreak(done){
   tasks.splice(currentIndex, 1);
   if(sessionTaskIds) sessionTaskIds = sessionTaskIds.filter(id => id !== t.id);
   currentIndex = -1;
-  sessionMinsSinceBreak = 0;
+  sessionMinsSinceBreak = 0; breakDueAt = 0;
   save();
   advanceAfterCurrent(from);
 }
@@ -2474,13 +2478,13 @@ function completeCurrentTask(){
   lastFinishedId = tasks[currentIndex].id;
   if(tasks[currentIndex].microGoal){ finishGoalBreak(true); return; }
   if(isSplit(tasks[currentIndex])){
-    const ct = tasks[currentIndex], add = creditChunk(ct, runMins(ct));
-    sessionMinsSinceBreak += add;
+    const ct = tasks[currentIndex], spent = spentMins(ct), add = creditChunk(ct, runMins(ct));
+    sessionMinsSinceBreak += spent;
     sessionCompleted.push({ ...ct, mins: add, name: ct.done ? ct.name : ct.name + ' (' + add + ' min bit)' });
     if(!ct.done){ sessionPartial.push(ct.id); showToast('✂️ ' + ct.name + ': ' + ct.doneMins + ' of ' + ct.mins + ' min done'); }
     save(); advanceAfterCurrent(); return;
   }
-  sessionMinsSinceBreak += tasks[currentIndex].mins;
+  sessionMinsSinceBreak += spentMins(tasks[currentIndex]);
   tasks[currentIndex].done = true;
   sessionCompleted.push({ ...tasks[currentIndex] });
   save();
@@ -2520,7 +2524,7 @@ function skipCurrentTask(){
     showToast('“' + t.name + '” is the only task left in this session, so it stays.');
     return;
   }
-  sessionMinsSinceBreak += runMins(t);
+  sessionMinsSinceBreak += spentMins(t); // only the time really spent counts; skipping straight past a task adds nothing
   showToast('↪ “' + t.name + '” moved to the end of this session.');
   advanceAfterCurrent();
 }
@@ -2531,7 +2535,7 @@ function advanceAfterCurrent(startAt){
     if(gb){
       tasks.push(gb);
       if(sessionTaskIds) sessionTaskIds.push(gb.id);
-      sessionMinsSinceBreak = 0;
+      sessionMinsSinceBreak = 0; breakDueAt = 0;
       save();
       next = tasks.findIndex(t => t.id === gb.id);
     }
@@ -4685,7 +4689,7 @@ document.getElementById('edit-delete-btn').onclick = async () => {
 };
 
 /* ---------- round 2: version/updates, snapshots, alerts, theme, insights, welcome, data hub ---------- */
-const APP_VERSION = '2026-11-06-a';
+const APP_VERSION = '2026-11-06-b';
 /* confetti: a quick burst of colour for wins */
 function confetti(n){
   if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
