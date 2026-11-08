@@ -2393,7 +2393,15 @@ function isHeldBack(t){
   return !sessionTaskIds || sessionTaskIds.includes(pre.id);
 }
 /* skipped tasks go to the back of this session's queue; they only come up again once everything else is done */
+let sessionTimedIds = [], holdTimed = true;
+function timedWaiting(t){ return sessionTimedIds.includes(t.id) && isBeforeEarliestTime(t); }
 function findNextIndex(from){
+  holdTimed = true;
+  let r = findNextIndexInner(from);
+  if(r === -1){ holdTimed = false; r = findNextIndexInner(from); holdTimed = true; } // nothing else left: don't sit idle waiting for the clock
+  return r;
+}
+function findNextIndexInner(from){
   const r = findNextCore(from, false);
   if(r !== -1) return r;
   for(const id of sessionDeferred){
@@ -2404,11 +2412,12 @@ function findNextIndex(from){
 }
 function isMorningNow(t){ return !!(t && t.morning && features.morningRoutine && !t.microGoal && new Date().getHours() < (features.routineUntil || 12)); }
 function findNextCore(from, withDeferred){
-  const ok = i => (withDeferred || !sessionDeferred.includes(tasks[i].id)) && !tasks[i].done && !sessionPartial.includes(tasks[i].id) && !sessionSkipped.some(s => s.id === tasks[i].id) && !isScheduledForFuture(tasks[i]) && (!sessionTaskIds || sessionTaskIds.includes(tasks[i].id)) && !isHeldBack(tasks[i]);
+  const ok = i => (withDeferred || !sessionDeferred.includes(tasks[i].id)) && !tasks[i].done && !sessionPartial.includes(tasks[i].id) && !sessionSkipped.some(s => s.id === tasks[i].id) && !isScheduledForFuture(tasks[i]) && (!sessionTaskIds || sessionTaskIds.includes(tasks[i].id)) && !isHeldBack(tasks[i]) && !(holdTimed && timedWaiting(tasks[i]));
   const free = i => i !== currentIndex && !sessionSkipped.some(s => s.id === tasks[i].id) && ok(i);
   if(lastFinishedId){ const di = tasks.findIndex(t => t.afterDirect && t.afterId === lastFinishedId && free(tasks.indexOf(t))); if(di !== -1) return di; }
   // "do first" tasks jump the queue; "do last" tasks only come up when nothing else is left
   for(let i = 0; i < tasks.length; i++) if(isMorningNow(tasks[i]) && free(i)) return i; // the morning routine goes before everything else
+  for(let i = 0; i < tasks.length; i++) if(sessionTimedIds.includes(tasks[i].id) && !isBeforeEarliestTime(tasks[i]) && free(i)) return i; // a task whose start time has now arrived comes up next (list order = priority order)
   for(let i = 0; i < tasks.length; i++) if((tasks[i].pin === 'first' || isRoutineMember(tasks[i])) && free(i)) return i;
   { let bi = -1, bd = 1e9; // slots running out of time come next, soonest first (never ahead of do-first routines)
     for(let i = 0; i < tasks.length; i++){ const t = tasks[i]; if(t.pin === 'last' || !t.timeConstraint || !isUrgentSlot(t) || !free(i)) continue; const d = getTimeConstraintDeadlineMinutes(t); if(d < bd){ bd = d; bi = i; } }
@@ -3240,6 +3249,12 @@ function isWrongTimeOfDay(t){
   if(t.timeConstraint === 'pm') return new Date().getHours() < 12;
   return false;
 }
+function startsWithin(t, budget){ // not available yet, but its earliest time lands inside this session with room to do it
+  if(!isBeforeEarliestTime(t)) return false;
+  const m = t.notBeforeTime.match(/^(\d{2}):(\d{2})$/); const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes(), early = parseInt(m[1]) * 60 + parseInt(m[2]);
+  return early + Math.min(isSplit(t) ? (t.chunkMins || 5) : t.mins, 15) <= nowMin + budget;
+}
 function isBeforeEarliestTime(t){
   if(!t.notBeforeTime) return false;
   const m = t.notBeforeTime.match(/^(\d{2}):(\d{2})$/);
@@ -3261,7 +3276,7 @@ function openReviewModal(budget){
   reviewBudget = budget;
   if(!keepPickSeed) pickSeed = String(Math.random()); // a fresh shuffle for every new plan; edits made inside the plan keep it steady
   keepPickSeed = false;
-  let pending = tasks.filter(t => !t.done && !isScheduledForFuture(t) && !isWrongTimeOfDay(t) && !isBeforeEarliestTime(t)); // current order reflects whichever quick sort is active
+  let pending = tasks.filter(t => !t.done && !isScheduledForFuture(t) && !isWrongTimeOfDay(t) && (!isBeforeEarliestTime(t) || startsWithin(t, budget))); // current order reflects whichever quick sort is active
   if(budgetTagFilters.size > 0) pending = pending.filter(t => t.tag && budgetTagFilters.has(t.tag));
   const selected = pickTasksForBudget(pending, budget);
   lastEligibleIds = new Set(pending.map(t => t.id));
@@ -3639,6 +3654,7 @@ function renderReviewList(pending, selectedIds){
     t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff;" title="Must do">must do</span>' : '',
     isRoutineMember(t) ? '<span class="tag-badge" title="Part of a do-first routine">🔁 routine</span>' : '',
     isMorningNow(t) ? '<span class="tag-badge" title="Morning routine: done first">🌅 morning</span>' : '',
+    isBeforeEarliestTime(t) ? '<span class="tag-badge" title="Comes up once its start time arrives during the session">🌤 from ' + formatNotBeforeTime(t) + '</span>' : '',
     t.wantSoon ? '<span class="tag-badge" title="You moved this up, so it gets a place in the next plan">⭐ moved up</span>' : '',
     t.timeConstraint && isPastTimeConstraint(t) ? '<span class="tag-badge" title="Its time slot has passed">⏰ slot passed</span>' : (t.timeConstraint && isUrgentSlot(t) ? '<span class="tag-badge" title="Its time slot is close">⏰ due soon</span>' : ''),
     t.escalated ? '<span class="tag-badge" title="Bumped up for waiting">⏫</span>' : ''
@@ -3703,7 +3719,7 @@ document.getElementById('review-cancel-btn').onclick = () => document.getElement
 document.getElementById('review-start-btn').onclick = () => {
   const checked = [...document.querySelectorAll('#review-list input:checked')].map(cb => cb.dataset.id);
   if(checked.length === 0) return;
-  sessionTaskIds = checked;
+  sessionTaskIds = checked; sessionTimedIds = checked.filter(id => { const t = tasks.find(x => x.id === id); return t && isBeforeEarliestTime(t); });
   sessionPlan = {}; checked.forEach(id => { const t = tasks.find(x => x.id === id); if(isSplit(t)) sessionPlan[id] = planMins(t); });
   sessionMoveAround = budgetTagFilters.has('movearound'); sessionTagFilters = [...budgetTagFilters]; sessionMinsSinceBreak = loadBreakAcc();
   document.getElementById('review-modal').classList.add('hidden');
