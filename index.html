@@ -3643,7 +3643,7 @@ function renderReviewList(pending, selectedIds){
     t.timeConstraint && isPastTimeConstraint(t) ? '<span class="tag-badge" title="Its time slot has passed">⏰ slot passed</span>' : (t.timeConstraint && isUrgentSlot(t) ? '<span class="tag-badge" title="Its time slot is close">⏰ due soon</span>' : ''),
     t.escalated ? '<span class="tag-badge" title="Bumped up for waiting">⏫</span>' : ''
   ].join('');
-  const picked = pending.filter(t => selectedIds.has(t.id)), left = pending.filter(t => !selectedIds.has(t.id));
+  const picked = pending.filter(t => selectedIds.has(t.id)).sort((a, b) => (isMorningNow(b) - isMorningNow(a)) || (isMorningNow(a) && isMorningNow(b) ? tasks.indexOf(a) - tasks.indexOf(b) : 0)), left = pending.filter(t => !selectedIds.has(t.id));
   [['', picked], ['Left out', left]].forEach(([label, group]) => {
     if(!group.length) return;
     if(label){ const h = document.createElement('div'); h.className = 'settings-group-label'; h.textContent = label + ' (' + group.length + ')'; h.style.marginTop = '12px'; h.id = 'review-left-header'; list.appendChild(h); }
