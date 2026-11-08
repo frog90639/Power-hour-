@@ -687,9 +687,10 @@
         <button id="add-time-btn" class="eod-link">＋ Add time</button>
         <button id="reduce-time-btn" class="eod-link">－ Reduce time</button>
       </div>
-      <div style="display:flex; justify-content:center; gap:22px; margin-bottom:clamp(6px, 1.5vh, 14px);">
+      <div style="display:flex; justify-content:center; gap:14px; margin-bottom:clamp(6px, 1.5vh, 14px);">
         <button id="quick-note-btn" class="eod-link">📝 Note</button>
         <button id="bank-btn" class="eod-link">⏳ Bank time</button>
+        <button id="needs-longer-btn" class="eod-link">⏱ Needs longer</button>
       </div>
       <div class="timer-controls">
         <button id="done-current-btn">✓ Done</button>
@@ -2706,6 +2707,30 @@ function bankCurrentTask(){
   if(t.recurring) askRestOfRecurring(id);
 }
 document.getElementById('bank-btn').onclick = bankCurrentTask;
+/* this task needs longer than estimated: grow its total, then either keep going now or do the extra later */
+async function needsLongerCurrent(){
+  const t = tasks[currentIndex];
+  if(currentIndex === -1 || !t || t.microGoal || timerState === 'done') return;
+  const amts = [5, 10, 15, 30];
+  const ai = await askChoice('“' + t.name + '” needs longer', 'How much more time does it need in total?', amts.map(m => '＋' + m + ' min'), -1);
+  if(ai < 0) return;
+  const add = amts[ai];
+  const wi = await askChoice('When do you want the extra ' + add + ' min?', 'Either way the task is now ' + (t.mins + add) + ' min long.', ['Keep going now (extend the timer)', 'Later: bank what I\'ve done, plan the rest another time'], -1);
+  if(wi < 0) return;
+  if(wi === 0){
+    t.mins += add;
+    if(isSplit(t)) sessionPlan[t.id] = (sessionPlan[t.id] || runMins(t)) + add;
+    taskEndTime += add * 60000; secondsLeft += add * 60;
+    save(); persistSession(); refreshTimerDisplays();
+    showToast('＋' + add + ' min added to ' + t.name);
+  } else {
+    const spent = Math.round((runMins(t) * 60 - secondsLeft) / 60);
+    if(spent < 1){ showToast('Spend a minute on it first, then I can bank it and plan the rest.'); return; }
+    t.mins += add; if(!isSplit(t)) secondsLeft += add * 60; // keeps 'time spent' unchanged for the banking maths
+    bankCurrentTask();
+  }
+}
+document.getElementById('needs-longer-btn').onclick = needsLongerCurrent;
 function skipCurrentTask(){
   if(currentIndex === -1 || !tasks[currentIndex]) return;
   if(tasks[currentIndex].microGoal){
@@ -4920,7 +4945,7 @@ const FEATURE_TOGGLES = [
 ];
 function applyFeatures(){
   const qn = document.getElementById('quick-note-btn'); if(qn) qn.style.display = features.quickNote ? '' : 'none';
-  const bb = document.getElementById('bank-btn'); if(bb) bb.style.display = features.bankTime ? '' : 'none';
+  const bb = document.getElementById('bank-btn'); if(bb) bb.style.display = features.bankTime ? '' : 'none'; const nl = document.getElementById('needs-longer-btn'); if(nl) nl.style.display = features.bankTime ? '' : 'none';
   ['add-question-input', 'edit-question-input'].forEach(id => { const el = document.getElementById(id); if(el && el.parentElement) el.parentElement.style.display = features.morningQ ? '' : 'none'; });
   const lb = document.getElementById('settings-learn-btn'); if(lb) lb.style.display = features.learn ? '' : 'none';
   buildBudgetPresets();
