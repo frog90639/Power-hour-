@@ -1152,6 +1152,36 @@
   </div>
 </div>
 
+<div class="modal hidden" id="star-set-modal" style="z-index:305;">
+  <div class="modal-card" style="max-height:88vh; overflow-y:auto;">
+    <h3 id="star-set-title">⭐ Star task</h3>
+    <p id="star-set-sub" style="color:var(--muted); font-size:0.82rem; margin-top:-8px;">What is the one thing you will be really proud of doing?</p>
+    <div id="star-set-list" style="max-height:34vh; overflow-y:auto; margin-bottom:10px;"></div>
+    <div style="color:var(--muted); font-size:0.78rem; margin:6px 0;">…or add a new task for it</div>
+    <input type="text" id="star-new-name" placeholder="New task name" maxlength="120" style="width:100%;">
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <select id="star-new-pri" style="flex:1;"></select>
+      <select id="star-new-mins" style="flex:1;"></select>
+    </div>
+    <div style="display:flex; gap:8px; margin-top:14px;">
+      <button id="star-set-skip-btn" style="flex:1; background:var(--btn); color:var(--text); border:none; padding:12px; border-radius:10px; cursor:pointer;">Skip</button>
+      <button id="star-set-save-btn" class="add-btn" style="flex:1;">⭐ Save</button>
+    </div>
+    <button id="star-set-clear-btn" style="width:100%; margin-top:8px; background:none; border:none; color:var(--muted); cursor:pointer; display:none;">Remove current star task</button>
+  </div>
+</div>
+
+<div class="modal hidden" id="star-card-modal" style="z-index:312;">
+  <div class="modal-card" style="text-align:center;">
+    <div style="font-size:3.4rem; line-height:1;">⭐</div>
+    <div style="color:var(--muted); font-size:0.8rem; letter-spacing:.08em; text-transform:uppercase; margin-top:6px;">Today's star task</div>
+    <h3 id="star-card-name" style="font-size:1.4rem; margin:8px 0 4px;"></h3>
+    <p id="star-card-meta" style="color:var(--muted); font-size:0.85rem; margin:0 0 6px;"></p>
+    <p style="font-size:0.9rem; margin:8px 0 16px;">This is what you said you'd be really proud of doing.</p>
+    <button id="star-card-ok-btn" class="add-btn" style="width:100%;">Let's do it</button>
+  </div>
+</div>
+
 <div class="modal hidden" id="mq-modal" style="z-index:310;">
   <div class="modal-card">
     <h3 id="mq-title">Question</h3>
@@ -1401,7 +1431,7 @@ const DEFAULT_MQ_ANSWERS = [
   { label: '⚡ Urgent today (treat as P1)', action: 'urgent' },
   { label: '😴 Not today (snooze to tomorrow)', action: 'skip' }
 ];
-const DEFAULT_FEATURES = { morningQ: true, quickNote: true, bankTime: true, morningRoutine: true, routineUntil: 12, timePresets: true, mqUntil: 12, learn: true, planMove: true, presetList: [15, 30, 45, 60, 90], mqAnswers: DEFAULT_MQ_ANSWERS };
+const DEFAULT_FEATURES = { intentions: true, morningQ: true, quickNote: true, bankTime: true, morningRoutine: true, routineUntil: 12, timePresets: true, mqUntil: 12, learn: true, planMove: true, presetList: [15, 30, 45, 60, 90], mqAnswers: DEFAULT_MQ_ANSWERS };
 let features = (() => { try{ return Object.assign({}, DEFAULT_FEATURES, JSON.parse(localStorage.getItem('powerHourFeatures') || '{}')); }catch(e){ return Object.assign({}, DEFAULT_FEATURES); } })();
 function saveFeatures(){ try{ localStorage.setItem('powerHourFeatures', JSON.stringify(features)); }catch(e){} }
 const minsDisplay = document.getElementById('mins-display');
@@ -1410,6 +1440,79 @@ function uid(){ return Date.now().toString(36) + Math.random().toString(36).slic
 function todayStr(){
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+/* ---------- star task (intentions) ---------- */
+let star = (() => { try{ const o = JSON.parse(localStorage.getItem('powerHourStar') || 'null'); return o && o.id ? o : null; }catch(e){ return null; } })();
+function saveStar(){ try{ if(star) localStorage.setItem('powerHourStar', JSON.stringify(star)); else localStorage.removeItem('powerHourStar'); }catch(e){} }
+function isStarToday(t){ return !!(features.intentions && star && star.day === todayStr() && t && star.id === t.id); }
+function starDoneOn(day){ return !!(star && star.day === day && getAllCompleted().some(t => t.id === star.id && !t.partial)); }
+function anyModalOpen(){ return [...document.querySelectorAll('.modal')].some(m => m.id === 'add-modal' ? m.classList.contains('modal-open') : !m.classList.contains('hidden')); }
+function megaConfetti(){ confetti(160); setTimeout(() => confetti(120), 500); setTimeout(() => confetti(120), 1100); try{ navigator.vibrate && navigator.vibrate([60, 40, 60, 40, 120]); }catch(e){} }
+function starCelebrate(){ // the moment the star task is completed
+  if(!features.intentions || !star || star.day !== todayStr() || star.celebrated) return;
+  if(!starDoneOn(star.day)) return;
+  star.celebrated = true; saveStar(); megaConfetti(); showToast('⭐ YOU DID YOUR STAR TASK! ' + star.name);
+}
+function starBanner(day){ // shown at the top of the end-of-day highlights and list
+  if(!features.intentions || !star || star.day !== day) return '';
+  const nm = star.name.replace(/</g, '&lt;');
+  return starDoneOn(day)
+    ? '<div style="text-align:center; padding:16px 12px; margin-bottom:14px; border-radius:16px; background:linear-gradient(135deg,#FFD166,#FF9F43 55%,#FF5C7A); color:#2a1500;"><div style="font-size:2.6rem; line-height:1;">🌟⭐🌟</div><div style="font-weight:800; font-size:1.25rem; margin-top:6px;">STAR TASK ACHIEVED!</div><div style="font-weight:700; margin-top:2px;">' + nm + '</div><div style="font-size:0.85rem; margin-top:4px;">This is the one you wanted to be proud of. You did it.</div></div>'
+    : '<div style="text-align:center; padding:10px 12px; margin-bottom:14px; border-radius:14px; border:1px dashed var(--hairline); color:var(--muted);"><div>⭐ Star task: <b style="color:var(--text);">' + nm + '</b></div><div style="font-size:0.8rem; margin-top:2px;">Not done today. It stays on your list.</div></div>';
+}
+function openStarSet(forDay, onClose){
+  const modal = document.getElementById('star-set-modal'), list = document.getElementById('star-set-list');
+  const isToday = forDay === todayStr();
+  document.getElementById('star-set-title').textContent = '⭐ ' + (isToday ? "Today's" : "Tomorrow's") + ' star task';
+  let chosen = star && star.day === forDay ? star.id : null;
+  const draw = () => {
+    list.innerHTML = '';
+    const pend = tasks.filter(t => !t.done && !t.microGoal && !t.autoWalk).sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority));
+    if(!pend.length) list.innerHTML = '<div class="empty">No tasks yet. Add one below.</div>';
+    pend.forEach(t => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'settings-item';
+      b.style.cssText = 'display:flex; gap:8px; align-items:center; text-align:left; width:100%;' + (chosen === t.id ? ' outline:2px solid #FFD166;' : '');
+      b.innerHTML = '<span>' + (chosen === t.id ? '⭐' : '☆') + '</span><span class="priority-badge" style="color:var(--' + t.priority + ')">' + PRIORITY_LABELS[t.priority] + '</span><span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span><span style="color:var(--muted); font-size:0.78rem;">' + t.mins + ' min</span>';
+      b.children[2].textContent = t.name;
+      b.onclick = () => { chosen = chosen === t.id ? null : t.id; document.getElementById('star-new-name').value = ''; draw(); };
+      list.appendChild(b);
+    });
+  };
+  const pri = document.getElementById('star-new-pri'), mn = document.getElementById('star-new-mins');
+  pri.innerHTML = PRIORITIES.map(p => '<option value="' + p + '"' + (p === 'p2' ? ' selected' : '') + '>' + PRIORITY_LABELS[p] + '</option>').join('');
+  mn.innerHTML = [5, 10, 15, 20, 30, 45, 60, 90, 120].map(m => '<option value="' + m + '"' + (m === 30 ? ' selected' : '') + '>' + m + ' min</option>').join('');
+  document.getElementById('star-new-name').value = '';
+  document.getElementById('star-new-name').oninput = e => { if(e.target.value.trim()){ chosen = null; draw(); } };
+  document.getElementById('star-set-clear-btn').style.display = chosen ? '' : 'none';
+  draw(); modal.classList.remove('hidden');
+  const close = () => { modal.classList.add('hidden'); if(onClose) onClose(); };
+  document.getElementById('star-set-skip-btn').onclick = close;
+  document.getElementById('star-set-clear-btn').onclick = () => { if(star && star.day === forDay){ star = null; saveStar(); render(); } close(); };
+  document.getElementById('star-set-save-btn').onclick = () => {
+    const name = document.getElementById('star-new-name').value.trim();
+    let t = null;
+    if(name){
+      const now = Date.now();
+      t = { id: uid(), name, mins: parseInt(mn.value) || 30, priority: pri.value, tag: null, steps: 0, recurring: false, done: false, createdAt: now, staleSince: now };
+      tasks.push(t); save();
+    } else if(chosen) t = tasks.find(x => x.id === chosen);
+    if(!t){ showToast('Pick a task or type a new one, or tap Skip.'); return; }
+    star = { day: forDay, id: t.id, name: t.name }; saveStar(); render();
+    showToast('⭐ ' + (isToday ? 'Today' : 'Tomorrow') + "'s star task: " + t.name);
+    close();
+  };
+}
+function checkStarMorning(){ // the first time the app is opened on the day, remind what the goal is
+  if(!features.intentions || !star || star.day !== todayStr() || star.shown) return false;
+  if(timerState === 'running' || timerState === 'paused' || anyModalOpen()) return false;
+  const t = tasks.find(x => x.id === star.id);
+  if(!t || t.done){ star.shown = true; saveStar(); return false; }
+  star.shown = true; saveStar();
+  document.getElementById('star-card-name').textContent = t.name;
+  document.getElementById('star-card-meta').textContent = PRIORITY_LABELS[t.priority] + ' · ' + t.mins + ' min';
+  document.getElementById('star-card-modal').classList.remove('hidden');
+  document.getElementById('star-card-ok-btn').onclick = () => { document.getElementById('star-card-modal').classList.add('hidden'); setTimeout(checkMorningQuestions, 250); };
+  return true;
 }
 function isScheduledForFuture(t){ return !!(t.scheduledDate && t.scheduledDate > todayStr()); }
 /* Calendar-day difference (midnight to midnight), not raw elapsed hours — so a task
@@ -1424,7 +1527,7 @@ function daysSince(ms){
 function save(){
   let activeId = null;
   if(currentIndex !== -1 && tasks[currentIndex]) activeId = tasks[currentIndex].id;
-  tasks.sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority));
+  tasks.sort((a, b) => (PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority)) || (isStarToday(b) - isStarToday(a)));
   if(activeId !== null){
     const newIdx = tasks.findIndex(t => t.id === activeId);
     if(newIdx !== -1) currentIndex = newIdx;
@@ -1573,6 +1676,7 @@ let mqOpen = false;
 function mqState(){ try{ const m = JSON.parse(localStorage.getItem('powerHourMQ') || 'null'); if(m && m.day === todayStr()) return m; }catch(e){} return null; }
 function saveMQ(m){ try{ localStorage.setItem('powerHourMQ', JSON.stringify(m)); }catch(e){} }
 function checkMorningQuestions(){
+  if(checkStarMorning()) return;
   if(!features.morningQ) return;
   if(mqOpen || timerState === 'running' || timerState === 'paused') return;
   if([...document.querySelectorAll('.modal')].some(m => m.id === 'add-modal' ? m.classList.contains('modal-open') : !m.classList.contains('hidden'))) return;
@@ -1704,6 +1808,7 @@ function updateHome(){
     ['📋', 'Full list', 'full', pend.length + ' to do'],
     ['✅', 'Completed', 'completed', doneToday + ' today'],
     ['📥', 'Quick notes', 'inbox', inbox.length ? inbox.length + ' to sort' : ''],
+    ...(features.intentions ? [['⭐', 'Star task', 'star', star && star.day === todayStr() ? star.name.slice(0, 22) : (star ? 'Set for tomorrow ✓' : 'Set one')]] : []),
     ['🗓️', 'Calendar', 'settings-calendar-btn', ''],
     ['📊', 'History', 'settings-insights-btn', '']
   ];
@@ -1718,6 +1823,7 @@ function updateHome(){
       if(act === 'full') openFullList(false);
       else if(act === 'completed') openFullList(false, true);
       else if(act === 'inbox') openInbox();
+      else if(act === 'star') openStarSet(star && star.day > todayStr() ? star.day : todayStr());
       else { const t = document.getElementById(act); if(t && t.onclick) t.onclick(); }
     };
     grid.appendChild(b);
@@ -1756,6 +1862,7 @@ function openFullList(focusSearch, toCompleted){
 document.getElementById('full-list-close-btn').onclick = () => document.getElementById('full-list-modal').classList.add('hidden');
 
 function render(){
+  starCelebrate();
   escalateStaleTasks();
   renderTaskList();
   updateHome();
@@ -3341,6 +3448,7 @@ function getWithinTierWeight(t){
   weight += Math.min(t.passedOver || 0, 10) * 0.3; // keeps getting left out of sessions -> climbs within its tier
   weight += learnedWeight(t);
   weight += t._bonus || 0;
+  if(isStarToday(t)) weight += 20; // the star task beats others of its own priority, never a higher priority
   return weight;
 }
 
@@ -3844,7 +3952,7 @@ function openReportModal(){
   document.getElementById('report-headline').textContent = completed.length === 0 ? '📋 Completed report' : `${celebration.emoji} ${celebration.headline}`;
   document.getElementById('report-summary').textContent = completed.length === 0 ? 'Nothing completed yet — get started!' : celebration.detail;
   const list = document.getElementById('report-list');
-  list.innerHTML = completed.map(t => `
+  list.innerHTML = starBanner(openDay < todayStr() ? openDay : todayStr()) + completed.map(t => `
     <div class="review-item">
       <span style="color:var(--accent); flex-shrink:0;">✓</span>
       <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
@@ -3860,6 +3968,7 @@ function openReportModal(){
   document.getElementById('report-clear-btn').disabled = completed.length === 0;
   document.getElementById('settings-modal').classList.add('hidden');
   document.getElementById('report-modal').classList.remove('hidden');
+  if(features.intentions && starDoneOn(openDay < todayStr() ? openDay : todayStr())) megaConfetti();
 }
 function openReportChoice(){
   document.getElementById('settings-modal').classList.add('hidden');
@@ -3898,7 +4007,7 @@ function openHighlights(){
     const longest = completed.reduce((max, t) => t.mins > max.mins ? t : max, completed[0]);
     const totalSteps = completed.filter(t => t.tag === 'errands' && t.steps > 0).reduce((s, t) => s + t.steps, 0);
 
-    let html = `
+    let html = starBanner(openDay < todayStr() ? openDay : todayStr()) + `
       <div class="highlight-hero">
         <div class="highlight-hero-emoji">${celebration.emoji}</div>
         <div class="highlight-hero-headline">${celebration.headline}</div>
@@ -3957,6 +4066,7 @@ function openHighlights(){
     document.getElementById('highlights-clear-btn').disabled = false;
   }
   document.getElementById('highlights-modal').classList.remove('hidden');
+  if(features.intentions && starDoneOn(openDay < todayStr() ? openDay : todayStr())) megaConfetti();
 }
 document.getElementById('highlights-close-btn').onclick = () => document.getElementById('highlights-modal').classList.add('hidden');
 document.getElementById('highlights-list-instead-btn').onclick = () => {
@@ -4206,6 +4316,7 @@ function renderDayLog(){
 
   list.innerHTML = `
     <div style="color:var(--muted); font-size:0.85rem; margin-bottom:4px;">${entry.completedCount} task${entry.completedCount !== 1 ? 's' : ''} • ${entry.totalMins} min</div>
+    ${entry.star ? `<div style="margin-bottom:10px; padding:8px 10px; border-radius:10px; ${entry.star.done ? 'background:linear-gradient(135deg,#FFD166,#FF9F43); color:#2a1500; font-weight:700;' : 'border:1px dashed var(--hairline); color:var(--muted);'}">${entry.star.done ? '🌟 Star task achieved: ' : '⭐ Star task (not done): '}${String(entry.star.name).replace(/</g, '&lt;')}</div>` : ''}
     <div style="color:var(--muted); font-size:0.8rem; margin-bottom:12px;">👣 ${entry.actualSteps.toLocaleString()} / ${entry.stepGoal.toLocaleString()} steps</div>
     ${(entry.tasks || []).length === 0 ? '<div class="empty">Nothing completed this day.</div>' : (entry.tasks || []).map(t => `
       <div class="review-item">
@@ -4260,8 +4371,10 @@ async function clearDay(skipConfirm){
   if(skipConfirm !== true && !(await appConfirm({ title: isPast ? 'Close out ' + niceDate(logDate) + '?' : 'Clear the day?', text: isPast ? 'Completed tasks are logged under that date, and recurring ones come back fresh.' : 'Completed tasks are logged and cleared. Recurring ones come back fresh instead of being removed.', okLabel: 'Clear day' }))) return false;
 
   const completedToday = getAllCompleted();
+  const starLog = (features.intentions && star && star.day <= logDate) ? { name: star.name, done: star.day === logDate && starDoneOn(logDate) } : null;
   dayLog.push({
     date: logDate,
+    star: starLog,
     completedCount: completedToday.filter(t => !t.partial).length,
     totalMins: completedToday.reduce((s, t) => s + t.mins, 0),
     actualSteps,
@@ -4281,7 +4394,9 @@ async function clearDay(skipConfirm){
   localStorage.setItem('powerHourActualSteps', '0');
   actualStepsInput.value = 0;
   setOpenDay(todayStr());
+  if(starLog){ star = null; saveStar(); }
   save(); render();
+  if(features.intentions) setTimeout(() => openStarSet(isPast ? todayStr() : (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })()), 400);
   return true;
 }
 document.getElementById('report-clear-btn').onclick = async () => {
@@ -4917,7 +5032,7 @@ document.getElementById('edit-delete-btn').onclick = async () => {
 };
 
 /* ---------- round 2: version/updates, snapshots, alerts, theme, insights, welcome, data hub ---------- */
-const APP_VERSION = '2026-11-06-d';
+const APP_VERSION = '2026-11-08-a';
 /* confetti: a quick burst of colour for wins */
 function confetti(n){
   if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -4935,6 +5050,7 @@ function confetti(n){
   el.textContent = at ? 'Last: ' + new Date(at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Off — tap to set up'; })();
 /* ---------- Settings: features on/off + shortcuts ---------- */
 const FEATURE_TOGGLES = [
+  ['intentions', '⭐ Star task (intentions)', 'At the end of the day, pick the one thing you will be proudest of doing tomorrow. It pops up each morning, is favoured over other tasks of the same priority, and gets a big celebration in your end-of-day report.'],
   ['morningQ', '❓ Morning questions', 'Ask a question about a task the first time you open the app each day.'],
   ['morningRoutine', '🌅 Morning routine first', 'Tasks marked as morning routine are planned and done before everything else, until the cut-off hour below.'],
   ['quickNote', '📝 Quick notes', 'A button on the timer to jot down a thought and sort it later.'],
@@ -5149,6 +5265,7 @@ function renderInsights(){
   const dow = d => ['Su','Mo','Tu','We','Th','Fr','Sa'][new Date(d + 'T12:00:00').getDay()];
   let html = '<div class="ins-bars">' + stats.map(x => `<div class="ins-bar"><span>${x.count}</span><div class="ins-bar-fill" style="height:${Math.round(x.count / max * 80)}%"></div><span>${dow(x.d)}</span></div>`).join('') + '</div>';
   html += `<div class="ins-stat"><span>Tasks completed</span><b>${total}</b></div><div class="ins-stat"><span>Focused minutes</span><b>${mins}</b></div><div class="ins-stat"><span>Steps logged</span><b>${steps.toLocaleString()}</b></div>`;
+  { const logs = days.map(d => dayLog.filter(e => e.date === d && e.star).map(e => e.star)).flat(); if(star && days.includes(star.day) && star.day === todayStr()) logs.push({ done: starDoneOn(star.day) }); if(logs.length) html += `<div class="ins-stat"><span>⭐ Star tasks achieved</span><b>${logs.filter(x => x.done).length} of ${logs.length}</b></div>`; }
   if(best.count > 0) html += `<div class="ins-stat"><span>Best day</span><b>${dow(best.d)} · ${best.count} tasks</b></div>`;
   const names = [...new Set(tasks.filter(t => t.recurring).map(t => t.name))];
   const streaks = names.map(n => { const h = getHabitHistory(n, 14); let st = 0; for(let i = h.length - 1; i >= 0; i--){ if(h[i].done) st++; else if(i === h.length - 1) continue; else break; } return { n, st }; }).filter(x => x.st > 0).sort((a, b) => b.st - a.st).slice(0, 3);
