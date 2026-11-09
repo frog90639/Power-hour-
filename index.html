@@ -3768,6 +3768,48 @@ function attachReviewDrag(handle, row, id, fromPlanned){
   };
 }
 
+/* swipe a plan row right to snooze that task to tomorrow */
+function attachReviewSwipe(row, id){
+  row.style.touchAction = 'pan-y'; row.style.position = 'relative';
+  const hint = document.createElement('span');
+  hint.textContent = '📆 Tomorrow'; hint.style.cssText = 'position:absolute; left:-118px; top:50%; transform:translateY(-50%); width:110px; text-align:center; color:var(--accent); font-weight:700; font-size:0.85rem; pointer-events:none;';
+  row.appendChild(hint);
+  row.addEventListener('pointerdown', e => {
+    if(e.target.closest('.drag-handle, .mv-btn, input, button')) return;
+    const x0 = e.clientX, y0 = e.clientY; let active = false, dead = false, dx = 0;
+    const mv = ev => {
+      if(dead) return;
+      dx = ev.clientX - x0; const dy = ev.clientY - y0;
+      if(!active){
+        if(Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)){ dead = true; return; }
+        if(dx > 12 && dx > Math.abs(dy) * 1.5){ active = true; try{ row.setPointerCapture(ev.pointerId); }catch(e){} }
+        else return;
+      }
+      dx = Math.max(0, Math.min(150, dx)); row.style.transition = 'none'; row.style.transform = 'translateX(' + dx + 'px)'; row.style.opacity = String(1 - dx / 400);
+    };
+    const end = ev => {
+      row.removeEventListener('pointermove', mv); row.removeEventListener('pointerup', end); row.removeEventListener('pointercancel', end);
+      if(active){
+        const suppress = e2 => { e2.stopPropagation(); e2.preventDefault(); }; row.addEventListener('click', suppress, { capture: true, once: true }); setTimeout(() => row.removeEventListener('click', suppress, true), 50);
+        if(ev.type === 'pointerup' && dx >= 90){ snoozeFromReview(id); return; }
+        row.style.transition = 'transform .15s, opacity .15s'; row.style.transform = ''; row.style.opacity = '';
+      }
+    };
+    row.addEventListener('pointermove', mv); row.addEventListener('pointerup', end); row.addEventListener('pointercancel', end);
+  });
+}
+function snoozeFromReview(id){
+  const t = tasks.find(x => x.id === id); if(!t) return;
+  const d = new Date(); d.setDate(d.getDate() + 1);
+  const prev = { scheduledDate: t.scheduledDate || null, scheduleArrived: t.scheduleArrived };
+  t.scheduledDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); t.scheduleArrived = false;
+  save(); render();
+  const redraw = () => { const sel = new Set([...document.querySelectorAll('#review-list input:checked')].map(cb => cb.dataset.id)); sel.delete(id);
+    reviewPending = reviewPending.filter(x => x.id !== id); renderReviewList(reviewPending, sel); updateReviewTotal(); };
+  redraw();
+  showToast('📆 Snoozed to tomorrow: ' + t.name, 'Undo', () => { t.scheduledDate = prev.scheduledDate; t.scheduleArrived = prev.scheduleArrived; save(); render();
+    if(!document.getElementById('review-modal').classList.contains('hidden')){ reviewPending.push(t); reviewPending.sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority)); const sel = new Set([...document.querySelectorAll('#review-list input:checked')].map(cb => cb.dataset.id)); renderReviewList(reviewPending, sel); updateReviewTotal(); } });
+}
 function renderReviewList(pending, selectedIds){
   reviewPending = pending;
   const list = document.getElementById('review-list');
@@ -3811,6 +3853,7 @@ function renderReviewList(pending, selectedIds){
         <span class="drag-handle" ${features.planMove ? '' : 'hidden'} aria-hidden="true" style="cursor:grab; color:var(--muted); padding:0 4px; user-select:none;">⠿</span>
       `;
       row.querySelector('.mv-btn').onclick = () => moveInReview(t.id, !selectedIds.has(t.id));
+      attachReviewSwipe(row, t.id);
       if(features.planMove) attachReviewDrag(row.querySelector('.drag-handle'), row, t.id, selectedIds.has(t.id));
       list.appendChild(row);
     });
