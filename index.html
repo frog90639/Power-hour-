@@ -1884,20 +1884,21 @@ actualStepsInput.value = actualSteps;
 
 /* Compares elapsed time in a "waking day" (7am-10pm) against step progress so far,
    to flag when a walk should be added to stay on pace for the goal. */
+const STEP_DEADLINE_HOUR = 16; // steps must be done by 4pm
 function getElapsedDayFraction(){
   const now = new Date();
   const dayStart = new Date(now); dayStart.setHours(7, 0, 0, 0);
-  const dayEnd = new Date(now); dayEnd.setHours(21, 0, 0, 0); // 9pm — the deadline for the day's step goal
+  const dayEnd = new Date(now); dayEnd.setHours(STEP_DEADLINE_HOUR, 0, 0, 0); // the deadline for the day's step goal (4pm)
   return Math.max(0, Math.min(1, (now - dayStart) / (dayEnd - dayStart)));
 }
 
-/* The less of the day left before 9pm, the more urgent the catch-up walk should be. */
+/* The less of the day left before 4pm, the more urgent the catch-up walk should be. */
 function getAutoWalkPriority(){
   const remainingFraction = 1 - getElapsedDayFraction();
-  if(remainingFraction <= 0.15) return 'p1'; // barely any time left — must do now
-  if(remainingFraction <= 0.35) return 'p2';
-  if(remainingFraction <= 0.6) return 'p3';
-  return 'p4'; // plenty of the day still ahead
+  if(remainingFraction <= 0.4) return 'p1'; // from about 12:30pm it's a must-do
+  if(remainingFraction <= 0.65) return 'p2';
+  if(remainingFraction <= 0.85) return 'p3';
+  return 'p4'; // first hour or so of the day
 }
 
 /* Decides whether a walk needs adding — based on progress EXCLUDING any existing
@@ -1910,7 +1911,7 @@ function getStepPace(){
   const remainingGoal = Math.max(0, stepGoal - otherProgress);
   const nothingPlanned = otherPlannedSteps === 0; // no other task is contributing toward the goal at all — don't wait around, add one now
   // otherwise, only start flagging once a reasonable chunk of the day has passed, so it doesn't nag first thing in the morning
-  const behindOnPace = elapsedFraction >= 0.4 && otherProgress < stepGoal * elapsedFraction;
+  const behindOnPace = elapsedFraction >= 0.2 && otherProgress < stepGoal * elapsedFraction;
   const behind = stepGoal > 0 && remainingGoal > 0 && (nothingPlanned || behindOnPace);
   return { behind, suggestedSteps: Math.round(remainingGoal / 100) * 100 };
 }
@@ -1945,7 +1946,7 @@ function syncAutoWalk(pace){
     if(existing.length === numChunks){
       // same count as last time — update the tasks already in place so their aging/escalation history isn't disturbed
       existing.forEach((t, i) => {
-        const desiredPriority = PRIORITIES[Math.min(PRIORITIES.length - 1, basePriorityIdx + i)];
+        const desiredPriority = PRIORITIES[Math.min(PRIORITIES.length - 1, basePriorityIdx + (basePriorityIdx === 0 ? 0 : i >> 1))];
         if(t.steps !== chunkSteps[i]){
           t.steps = chunkSteps[i];
           t.mins = Math.max(5, Math.round((chunkSteps[i] / 100) / 5) * 5);
@@ -1958,7 +1959,7 @@ function syncAutoWalk(pace){
       const _aid = currentTaskId();
       tasks = tasks.filter(t => !(t.autoWalk && !t.done));
       chunkSteps.forEach((steps, i) => {
-        const priority = PRIORITIES[Math.min(PRIORITIES.length - 1, basePriorityIdx + i)];
+        const priority = PRIORITIES[Math.min(PRIORITIES.length - 1, basePriorityIdx + (basePriorityIdx === 0 ? 0 : i >> 1))];
         tasks.push({
           id: uid(), name: numChunks > 1 ? `Walk (${i + 1}/${numChunks})` : 'Walk',
           mins: Math.max(5, Math.round((steps / 100) / 5) * 5),
@@ -1994,7 +1995,7 @@ function updateStepsBar(){
 
   const elapsedFraction = getElapsedDayFraction();
   const fullProgress = actualSteps + plannedSteps;
-  const stillBehind = stepGoal > 0 && elapsedFraction >= 0.4 && fullProgress < stepGoal * elapsedFraction;
+  const stillBehind = stepGoal > 0 && elapsedFraction >= 0.2 && fullProgress < stepGoal * elapsedFraction;
   document.getElementById('mini-steps-label').textContent = `${stillBehind ? '⚠️ ' : ''}👣 ${actualSteps.toLocaleString()} / ${stepGoal.toLocaleString()}${plannedSteps > 0 ? ' · ' + plannedSteps.toLocaleString() + ' planned' : ''}`;
 
   const autoWalkTask = tasks.find(t => t.autoWalk && !t.done);
