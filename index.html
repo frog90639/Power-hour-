@@ -2551,7 +2551,8 @@ function beginRun(){
   unlockAudio(); requestWake();
   if(timerState === 'idle' && sessionTaskIds){
     // anything that was available but left out of this session gets a small standing boost next time
-    tasks.forEach(t => { const pre = getPrereq(t); if(!t.done && !t.microGoal && lastEligibleIds.has(t.id) && !sessionTaskIds.includes(t.id) && !(pre && !pre.done)) t.passedOver = (t.passedOver || 0) + 1; }); // only tasks that could actually have been chosen count as 'left out'
+    tasks.forEach(t => { const pre = getPrereq(t); if(pre && !pre.done){ t.passedOver = 0; t.passedSince = null; return; } // blocked: the 'left out' clock only starts once it's unblocked
+      if(!t.done && !t.microGoal && lastEligibleIds.has(t.id) && !sessionTaskIds.includes(t.id)){ if(!t.passedOver) t.passedSince = Date.now(); t.passedOver = (t.passedOver || 0) + 1; } }); // only tasks that could actually have been chosen count as 'left out'
     tasks.forEach(t => { if(t.wantSoon && sessionTaskIds.includes(t.id)) t.wantSoon = false; });
     save();
   }
@@ -3414,7 +3415,7 @@ function openReviewModal(budget){
   lastEligibleIds = new Set(pending.map(t => t.id));
   renderReviewList(pending, selected);
   { const old = document.getElementById('review-split-nudge'); if(old) old.remove();
-    const cand = pending.filter(t => !t.splittable && !t.autoWalk && !selected.has(t.id) && (t.mins > budget || ((t.passedOver || 0) >= 3 && t.mins >= 20 && Date.now() - (t.createdAt || 0) >= 2 * 86400000)))
+    const cand = pending.filter(t => !t.splittable && !t.autoWalk && !selected.has(t.id) && !(getPrereq(t) && !getPrereq(t).done) && (t.mins > budget || ((t.passedOver || 0) >= 3 && t.mins >= 20 && Date.now() - (t.passedSince || t.createdAt || 0) >= 2 * 86400000)))
       .sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority))[0];
     if(cand){
       const chunk = cand.mins >= 40 ? 10 : 5;
