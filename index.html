@@ -1514,7 +1514,10 @@ function checkStarMorning(){ // the first time the app is opened on the day, rem
   document.getElementById('star-card-ok-btn').onclick = () => { document.getElementById('star-card-modal').classList.add('hidden'); setTimeout(checkMorningQuestions, 250); };
   return true;
 }
-function isScheduledForFuture(t){ return !!(t.scheduledDate && t.scheduledDate > todayStr()); }
+function isScheduledForFuture(t){ return !!((t.scheduledDate && t.scheduledDate > todayStr()) || (t.snoozeUntil && t.snoozeUntil > Date.now())); }
+function schedKey(t){ return t.scheduledDate && t.scheduledDate > todayStr() ? t.scheduledDate : todayStr(); }
+function clockLabel(ms){ const d = new Date(ms); let h = d.getHours(), m = d.getMinutes(); const ap = h >= 12 ? 'pm' : 'am'; h = h % 12 || 12; return h + (m ? ':' + String(m).padStart(2, '0') : '') + ap; }
+function snoozeLabel(t){ return t.snoozeUntil && t.snoozeUntil > Date.now() && !(t.scheduledDate && t.scheduledDate > todayStr()) ? 'Snoozed until ' + clockLabel(t.snoozeUntil) + (new Date(t.snoozeUntil).toDateString() !== new Date().toDateString() ? ' tomorrow' : '') : (t.scheduledDate ? niceDate(t.scheduledDate) : ''); }
 /* Calendar-day difference (midnight to midnight), not raw elapsed hours — so a task
    added yesterday evening correctly reads "1 day old" first thing this morning. */
 function daysSince(ms){
@@ -1841,7 +1844,7 @@ function homeSearch(){
   const chip = (txt, color) => '<span style="font-size:0.72rem; padding:2px 8px; border-radius:10px; background:var(--chip-bg); color:' + (color || 'var(--chip-fg)') + '; white-space:nowrap;">' + txt + '</span>';
   open.slice(0, 60).forEach(t => {
     const r = document.createElement('div'); r.className = 'review-item'; r.style.cursor = 'pointer';
-    const status = isScheduledForFuture(t) ? chip('📆 ' + niceDate(t.scheduledDate)) : chip('To do');
+    const status = isScheduledForFuture(t) ? chip('📆 ' + snoozeLabel(t)) : chip('To do');
     r.innerHTML = '<span class="priority-badge" style="color:var(--' + t.priority + ')">' + PRIORITY_LABELS[t.priority] + '</span><span class="name"></span>' + status + '<span class="mins">' + t.mins + ' min</span>';
     r.querySelector('.name').textContent = t.name; r.onclick = () => openEditModal(t.id); box.appendChild(r);
   });
@@ -3792,23 +3795,27 @@ function attachReviewSwipe(row, id){
       row.removeEventListener('pointermove', mv); row.removeEventListener('pointerup', end); row.removeEventListener('pointercancel', end);
       if(active){
         const suppress = e2 => { e2.stopPropagation(); e2.preventDefault(); }; row.addEventListener('click', suppress, { capture: true, once: true }); setTimeout(() => row.removeEventListener('click', suppress, true), 50);
-        if(ev.type === 'pointerup' && dx >= 90){ snoozeFromReview(id); return; }
+        if(ev.type === 'pointerup' && dx >= 90){ row.style.transition = 'transform .15s, opacity .15s'; row.style.transform = ''; row.style.opacity = ''; snoozeFromReview(id); return; }
         row.style.transition = 'transform .15s, opacity .15s'; row.style.transform = ''; row.style.opacity = '';
       }
     };
     row.addEventListener('pointermove', mv); row.addEventListener('pointerup', end); row.addEventListener('pointercancel', end);
   });
 }
-function snoozeFromReview(id){
+async function snoozeFromReview(id){
   const t = tasks.find(x => x.id === id); if(!t) return;
-  const d = new Date(); d.setDate(d.getDate() + 1);
-  const prev = { scheduledDate: t.scheduledDate || null, scheduleArrived: t.scheduleArrived };
-  t.scheduledDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); t.scheduleArrived = false;
+  const now = Date.now(), h1 = now + 3600000, h5 = now + 5 * 3600000;
+  const lab = ms => clockLabel(ms) + (new Date(ms).toDateString() !== new Date().toDateString() ? ' tomorrow' : '');
+  const i = await askChoice('Snooze “' + t.name + '”', 'It will come back after:', ['1 hour (' + lab(h1) + ')', '5 hours (' + lab(h5) + ')', 'Tomorrow'], -1);
+  if(i < 0) return;
+  const prev = { scheduledDate: t.scheduledDate || null, scheduleArrived: t.scheduleArrived, snoozeUntil: t.snoozeUntil || null };
+  if(i === 2){ const d = new Date(); d.setDate(d.getDate() + 1); t.scheduledDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); t.scheduleArrived = false; t.snoozeUntil = null; }
+  else t.snoozeUntil = i === 0 ? h1 : h5;
   save(); render();
   const redraw = () => { const sel = new Set([...document.querySelectorAll('#review-list input:checked')].map(cb => cb.dataset.id)); sel.delete(id);
     reviewPending = reviewPending.filter(x => x.id !== id); renderReviewList(reviewPending, sel); updateReviewTotal(); };
   redraw();
-  showToast('📆 Snoozed to tomorrow: ' + t.name, 'Undo', () => { t.scheduledDate = prev.scheduledDate; t.scheduleArrived = prev.scheduleArrived; save(); render();
+  showToast('📆 Snoozed ' + ['until ' + lab(h1), 'until ' + lab(h5), 'to tomorrow'][i] + ': ' + t.name, 'Undo', () => { Object.assign(t, prev); save(); render();
     if(!document.getElementById('review-modal').classList.contains('hidden')){ reviewPending.push(t); reviewPending.sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority)); const sel = new Set([...document.querySelectorAll('#review-list input:checked')].map(cb => cb.dataset.id)); renderReviewList(reviewPending, sel); updateReviewTotal(); } });
 }
 function renderReviewList(pending, selectedIds){
@@ -4247,7 +4254,7 @@ function renderCalendar(){
 
   const detail = document.getElementById('calendar-day-detail');
   if(!calendarSelectedDate){
-    const upcoming = tasks.filter(t => !t.done && isScheduledForFuture(t)).sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
+    const upcoming = tasks.filter(t => !t.done && isScheduledForFuture(t)).sort((a, b) => (a.snoozeUntil || 0) - (b.snoozeUntil || 0) || schedKey(a).localeCompare(schedKey(b)));
     detail.innerHTML = '<div class="cal-day-label">Upcoming</div>' + (
       upcoming.length === 0
         ? '<div class="empty">Nothing scheduled for later.</div>'
@@ -4255,7 +4262,7 @@ function renderCalendar(){
           <div class="review-item">
             <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
             <span class="name">${t.name}</span>
-            <span class="mins" style="flex-shrink:0;">${niceDate(t.scheduledDate)}</span>
+            <span class="mins" style="flex-shrink:0;">${snoozeLabel(t)}</span>
             <button type="button" class="board-chip-btn cal-edit" data-id="${t.id}" title="Edit">✎</button>
             <button type="button" class="board-chip-btn cal-del" data-id="${t.id}" title="Delete" style="color:var(--danger); border-color:var(--danger);">✕</button>
           </div>
@@ -4497,7 +4504,7 @@ function renderTaskList(){
     container.appendChild(buildTaskRow(t));
   });
   if(!filtering){
-    const later = tasks.filter(t => !t.done && !t.microGoal && isScheduledForFuture(t)).sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
+    const later = tasks.filter(t => !t.done && !t.microGoal && isScheduledForFuture(t)).sort((a, b) => (a.snoozeUntil || 0) - (b.snoozeUntil || 0) || schedKey(a).localeCompare(schedKey(b)));
     if(later.length){
       const h = document.createElement('div'); h.className = 'priority-divider'; h.innerHTML = '<span>📆 Scheduled for later (' + later.length + ')</span>'; container.appendChild(h);
       later.forEach(t => container.appendChild(buildTaskRow(t)));
@@ -4529,7 +4536,7 @@ function buildTaskRow(t){
         ${t.escalated ? '<span class="tag-badge" title="Bumped up — this sat pending for 2+ weeks">⏫</span>' : ''}
         ${t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff; font-weight:800; padding:0 8px;" title="Sitting at P1 too long — this needs doing">!</span>' : ''}
         ${t.timeConstraint ? `<span class="tag-badge" ${isPastTimeConstraint(t) ? 'style="background:var(--danger); color:#fff;"' : ''} title="Must be done by ${formatTimeConstraint(t)}${isPastTimeConstraint(t) ? ' — that time has passed' : ''}">${formatTimeConstraint(t)}</span>` : ''}
-        ${t.scheduledDate ? `<span class="tag-badge" title="Scheduled for ${niceDate(t.scheduledDate)}">📆</span>` : ''}
+        ${isScheduledForFuture(t) ? `<span class="tag-badge" title="${snoozeLabel(t)}">📆${t.snoozeUntil && t.snoozeUntil > Date.now() && !(t.scheduledDate && t.scheduledDate > todayStr()) ? ' ' + clockLabel(t.snoozeUntil) : ''}</span>` : (t.scheduledDate ? `<span class="tag-badge" title="Scheduled for ${niceDate(t.scheduledDate)}">📆</span>` : '')}
         ${t.notBeforeTime ? `<span class="tag-badge" title="Won't be offered by the timer before ${formatNotBeforeTime(t)}">🌤 After ${formatNotBeforeTime(t)}</span>` : ''}
         ${(!t.escalated && t.priority !== 'p1' && ((escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14) - daysSince(t.staleSince || t.createdAt)) <= 3) ? '<span class="tag-badge" title="Will bump up in a few days if still pending">⏳</span>' : ''}
         <span class="mins">${isSplit(t) ? '✂️ ' + (t.doneMins || 0) + '/' + t.mins + ' min' : t.mins + ' min'}</span>
