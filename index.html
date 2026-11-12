@@ -2431,7 +2431,7 @@ document.getElementById('edit-save-btn').onclick = async () => {
     t.recurring = document.getElementById('edit-recurring-checkbox').checked;
     t.recurEveryDays = Math.max(1, parseInt(document.getElementById('edit-recur-interval-input').value) || 1);
     t.recurDays = editRecur.get();
-    { const sp = editSplit.get(); t.splittable = sp.splittable; t.chunkMins = sp.chunkMins; if(!sp.splittable) t.doneMins = 0; }
+    { const sp = editSplit.get(); t.splittable = sp.splittable; t.chunkMins = sp.chunkMins; t.autoSplit = false; /* the user now owns the bits, so they survive the recurring reset */ if(!sp.splittable) t.doneMins = 0; }
     t.scheduledDate = document.getElementById('edit-date-input').value || null;
     t.notBeforeTime = document.getElementById('edit-not-before-input').value || null;
     t.scheduleArrived = false;
@@ -2782,7 +2782,7 @@ document.getElementById('reduce-apply-btn').onclick = applyReduce;
 /* after doing part of a recurring task that was broken up, decide what happens to the rest (this time only) */
 async function askRestOfRecurring(id){
   const t = tasks.find(x => x.id === id);
-  if(!t || t.done || !t.recurring || !t.autoSplit) return;
+  if(!t || t.done || !t.recurring) return;
   const left = remMins(t), lower = PRIORITIES.slice(PRIORITIES.indexOf(t.priority) + 1);
   const labels = ['Keep the rest as planned'].concat(lower.map(p => 'Lower it to ' + PRIORITY_LABELS[p])).concat(['Cancel the rest (that was enough)']);
   const c = await askChoice(left + ' min of “' + t.name + '” still to do', 'This is for this time only. It repeats as normal next time.', labels, labels.length - 1);
@@ -3428,7 +3428,7 @@ function openReviewModal(budget){
       box.innerHTML = '<div style="margin-bottom:8px;"></div><button type="button" class="empty-add" style="margin:0;"></button>';
       box.firstChild.textContent = '“' + cand.name + '” (' + cand.mins + ' min) ' + (cand.mins > budget ? 'is longer than this session.' : 'keeps getting left out.') + ' Do it in small bits instead?';
       box.lastChild.textContent = '✂️ Do it in ' + chunk + '-min bits';
-      box.lastChild.onclick = () => { cand.splittable = true; cand.chunkMins = chunk; save(); keepPickSeed = true; openReviewModal(budget); };
+      box.lastChild.onclick = () => { cand.splittable = true; cand.autoSplit = false; cand.chunkMins = chunk; save(); keepPickSeed = true; openReviewModal(budget); };
       document.getElementById('review-list').before(box);
     } }
   updateReviewTotal();
