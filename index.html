@@ -2780,6 +2780,14 @@ document.getElementById('reduce-cancel-btn').onclick = () => { reducePicks = {};
 document.getElementById('reduce-apply-btn').onclick = applyReduce;
 
 /* after doing part of a recurring task that was broken up, decide what happens to the rest (this time only) */
+/* the session may have ended while this prompt was open (tasks waiting on the cut one were held back); carry on if something is now available */
+function resumeSessionIfDone(){
+  if(timerState !== 'done' || !sessionTaskIds) return;
+  const n = findNextIndex(0); if(n === -1) return;
+  currentIndex = n; taskEndTime = Date.now() + runMins(tasks[n]) * 60000; secondsLeft = runMins(tasks[n]) * 60; timerState = 'running'; lastMotivationTaskId = null; window.__confettiDone = false;
+  unlockAudio(); requestWake(); startInterval(); persistSession(); refreshTimerDisplays();
+  document.getElementById('timer-done-view').classList.add('hidden'); document.getElementById('timer-active-view').classList.remove('hidden');
+}
 async function askRestOfRecurring(id){
   const t = tasks.find(x => x.id === id);
   if(!t || t.done || !t.recurring) return;
@@ -2791,10 +2799,12 @@ async function askRestOfRecurring(id){
     t.done = true; t.doneMins = t.mins; sessionPartial = sessionPartial.filter(x => x !== id);
     save(); persistSession(); render(); refreshTimerDisplays();
     showToast('✓ Rest of “' + t.name + '” cancelled for this time');
+    resumeSessionIfDone();
   } else {
     const np = lower[c - 1]; t.once = Object.assign({}, t.once || {}); if(!('priority' in t.once)) t.once.priority = t.priority;
     t.priority = np; save(); render();
     showToast('“' + t.name + '” lowered to ' + PRIORITY_LABELS[np] + ' for this time');
+    resumeSessionIfDone();
   }
 }
 
