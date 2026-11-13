@@ -1864,7 +1864,14 @@ function openFullList(focusSearch, toCompleted){
 }
 document.getElementById('full-list-close-btn').onclick = () => document.getElementById('full-list-modal').classList.add('hidden');
 
+/* a bit-by-bit task whose minutes are all done (e.g. after its length was edited down) is finished, never a 0-minute pick */
+function healFinishedSplits(){
+  let ch = false;
+  tasks.forEach(t => { if(t.splittable && !t.done && !t.microGoal && (t.doneMins || 0) > 0 && t.doneMins >= t.mins){ t.done = true; ch = true; } });
+  if(ch) save();
+}
 function render(){
+  healFinishedSplits();
   starCelebrate();
   escalateStaleTasks();
   renderTaskList();
@@ -3521,6 +3528,7 @@ function routineRoot(t){
 function routineDepth(t){ let d = 0, cur = t; while(cur && cur.pin !== 'first' && d < 25){ cur = cur.afterId ? tasks.find(x => x.id === cur.afterId) : null; d++; } return d; }
 function isRoutineMember(t){ return !t.microGoal && !!routineRoot(t); }
 function pickTasksForBudget(pendingOrig, budget){
+  pendingOrig = pendingOrig.filter(t => !(isSplit(t) && remMins(t) <= 0)); // never plan a 0-minute task
   const sz = t => isSplit(t) ? Math.min(t.chunkMins || 5, remMins(t)) : t.mins;
   const claimed = new Set(); let rleft = budget;
   // the morning routine is planned before anything else, in list order, as far as the time allows
@@ -4406,7 +4414,21 @@ let openDay = localStorage.getItem('powerHourOpenDay') || todayStr();
 let rolloverDismissedFor = localStorage.getItem('powerHourRolloverLater');
 if(!localStorage.getItem('powerHourOpenDay')) localStorage.setItem('powerHourOpenDay', openDay);
 function setOpenDay(d){ openDay = d; try{ localStorage.setItem('powerHourOpenDay', d); }catch(e){} }
+/* at midnight a recurring task that was only part-done (or had a one-off change) goes back to its normal self for its next occurrence */
+function resetStalePartials(){
+  if(timerState === 'running' || timerState === 'paused') return false;
+  const today = todayStr(); let last = null;
+  try{ last = localStorage.getItem('powerHourPartialDay'); }catch(e){}
+  if(last === today) return false;
+  try{ localStorage.setItem('powerHourPartialDay', today); }catch(e){}
+  if(!last) return false;
+  let n = 0; const rid = currentTaskId();
+  tasks = tasks.map(t => { if(t.recurring && !t.done && !t.microGoal && ((t.doneMins || 0) > 0 || t.once || t.autoSplit)){ n++; return resetRecurringTask(t); } return t; });
+  if(n){ reanchor(rid); save(); render(); }
+  return n > 0;
+}
 function checkDayRollover(){
+  resetStalePartials();
   const today = todayStr();
   if(openDay >= today) return;
   if(timerState === 'running' || timerState === 'paused') return;
@@ -5214,7 +5236,7 @@ applyFeatures();
     const b = top.querySelector('[id$="close-btn"],[id$="cancel-btn"]'); if(b) b.click();
   });
 })();
-const SKIP_KEYS = ['powerHourSession','powerHourSyncAt','powerHourBackupBeforeSync','powerHourBackupBeforeRestore','powerHourSnapshots','powerHourLastOpen','powerHourHelpSeen','powerHourWelcomeSeen','powerHourOpenDay','powerHourRolloverLater','powerHourBreakAcc','powerHourMQ'];
+const SKIP_KEYS = ['powerHourSession','powerHourPartialDay','powerHourSyncAt','powerHourBackupBeforeSync','powerHourBackupBeforeRestore','powerHourSnapshots','powerHourLastOpen','powerHourHelpSeen','powerHourWelcomeSeen','powerHourOpenDay','powerHourRolloverLater','powerHourBreakAcc','powerHourMQ'];
 document.querySelectorAll('.app-version-label').forEach(e => e.textContent = APP_VERSION);
 
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
