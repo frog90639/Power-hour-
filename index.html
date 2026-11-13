@@ -1403,11 +1403,13 @@ let sessionPlan = {}, sessionPartial = [], lastPickPlan = new Map(), lastEligibl
 let chunkToday = (() => { try{ return JSON.parse(localStorage.getItem('powerHourChunkToday') || '[]') || []; }catch(e){ return []; } })();
 function saveChunkToday(){ try{ localStorage.setItem('powerHourChunkToday', JSON.stringify(chunkToday)); }catch(e){} }
 function isSplit(t){ return !!(t && t.splittable && t.mins > (t.chunkMins || 5)); }
+/* one sitting of a task done in bits: a chunk, but a tiny tail (1-2 min) is given a whole chunk rather than a 1-minute slot */
+function chunkLen(t){ const c = t.chunkMins || 5, r = Math.max(0, t.mins - (t.doneMins || 0)); return (r < c && r <= 2 && r > 0) ? c : Math.min(c, r); }
 function remMins(t){ return isSplit(t) ? Math.max(0, t.mins - (t.doneMins || 0)) : t.mins; }
-function runMins(t){ if(!t) return 0; if(isSplit(t)) return (sessionPlan && sessionPlan[t.id]) || Math.min(remMins(t), t.chunkMins || 5); return t.mins; }
+function runMins(t){ if(!t) return 0; if(isSplit(t)) return (sessionPlan && sessionPlan[t.id]) || chunkLen(t); return t.mins; }
 function creditChunk(t, add){
   add = Math.max(0, Math.min(add, remMins(t)));
-  t.doneMins = (t.doneMins || 0) + add; t.lastChunkAdd = add;
+  t.doneMins = (t.doneMins || 0) + add; t.lastChunkAdd = add; t.partialOn = todayStr();
   t.staleSince = Date.now(); t.passedOver = 0;
   if(t.doneMins >= t.mins){ t.done = true; chunkToday = chunkToday.filter(x => x.id !== t.id); }
   else chunkToday.push({ id: t.id, name: t.name + ' (+' + add + ' min)', mins: add, priority: t.priority, tag: t.tag || null, steps: 0, partial: true, at: Date.now() });
@@ -2459,7 +2461,7 @@ document.getElementById('edit-save-btn').onclick = async () => {
       if(o){ o.afterId = t.id; o.afterDirect = directOn; }
     }
     t.morning = document.getElementById('edit-morning-checkbox').checked || undefined;
-    if(onceSnap) t.once = onceSnap;
+    if(onceSnap){ t.once = onceSnap; t.partialOn = todayStr(); }
     t.autoWalk = false; // a manual edit means the user now owns this task, not the auto-pace system
     const ageDays = Math.max(0, parseInt(document.getElementById('edit-age-input').value) || 0);
     const now = new Date();
@@ -2741,7 +2743,7 @@ function applyReduce(){
     if(pk.kind === 'remove'){ if(sessionTaskIds) sessionTaskIds = sessionTaskIds.filter(x => x !== id); delete sessionPlan[id]; }
     else {
       const run = runMins(t), nr = Math.max(1, run - pk.mins);
-      if(!isSplit(t)){ t.splittable = true; t.autoSplit = true; t.chunkMins = nr; }
+      if(!isSplit(t)){ t.splittable = true; t.autoSplit = true; t.chunkMins = nr; } t.partialOn = todayStr();
       sessionPlan[id] = nr;
       if(cur && cur.id === id){ taskEndTime -= pk.mins * 60000; secondsLeft = Math.max(1, secondsLeft - pk.mins * 60); }
     }
@@ -2808,7 +2810,7 @@ async function askRestOfRecurring(id){
     showToast('✓ Rest of “' + t.name + '” cancelled for this time');
     resumeSessionIfDone();
   } else {
-    const np = lower[c - 1]; t.once = Object.assign({}, t.once || {}); if(!('priority' in t.once)) t.once.priority = t.priority;
+    const np = lower[c - 1]; t.once = Object.assign({}, t.once || {}); t.partialOn = todayStr(); if(!('priority' in t.once)) t.once.priority = t.priority;
     t.priority = np; save(); render();
     showToast('“' + t.name + '” lowered to ' + PRIORITY_LABELS[np] + ' for this time');
     resumeSessionIfDone();
@@ -3529,7 +3531,7 @@ function routineDepth(t){ let d = 0, cur = t; while(cur && cur.pin !== 'first' &
 function isRoutineMember(t){ return !t.microGoal && !!routineRoot(t); }
 function pickTasksForBudget(pendingOrig, budget){
   pendingOrig = pendingOrig.filter(t => !(isSplit(t) && remMins(t) <= 0)); // never plan a 0-minute task
-  const sz = t => isSplit(t) ? Math.min(t.chunkMins || 5, remMins(t)) : t.mins;
+  const sz = t => isSplit(t) ? chunkLen(t) : t.mins;
   const claimed = new Set(); let rleft = budget;
   // the morning routine is planned before anything else, in list order, as far as the time allows
   for(const t of pendingOrig.filter(isMorningNow).sort((a, b) => tasks.indexOf(a) - tasks.indexOf(b))){
@@ -3553,7 +3555,7 @@ function pickTasksForBudget(pendingOrig, budget){
     if((pre && !pre.done && !claimed.has(pre.id)) || sz(t) > rleft) return;
     claimed.add(t.id); rleft -= sz(t);
   });
-  const rest = pendingOrig.filter(t => !claimed.has(t.id)).map(t => isSplit(t) ? { ...t, mins: Math.min(t.chunkMins || 5, remMins(t)) } : t);
+  const rest = pendingOrig.filter(t => !claimed.has(t.id)).map(t => isSplit(t) ? { ...t, mins: chunkLen(t) } : t);
   const selected = pickCore(rest, rleft, claimed);
   claimed.forEach(id => selected.add(id));
   { let u = 0; pendingOrig.forEach(t => { if(selected.has(t.id)) u += sz(t); });
@@ -3563,7 +3565,7 @@ function pickTasksForBudget(pendingOrig, budget){
   // spare time goes to tasks done in bits, in chunk-sized steps, highest priority first
   const plan = new Map();
   let used = 0;
-  pendingOrig.forEach(t => { if(selected.has(t.id)){ const m = isSplit(t) ? Math.min(t.chunkMins || 5, remMins(t)) : t.mins; plan.set(t.id, m); used += m; } });
+  pendingOrig.forEach(t => { if(selected.has(t.id)){ const m = isSplit(t) ? chunkLen(t) : t.mins; plan.set(t.id, m); used += m; } });
   let left = budget - used;
   const splits = pendingOrig.filter(isSplit).sort((a, b) => (selected.has(b.id) - selected.has(a.id)) || (PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority)));
   let moved = true;
@@ -3688,7 +3690,7 @@ function showMustDoConfirm(t, onConfirm, opts){
   };
 }
 
-function planMins(t){ return isSplit(t) ? (lastPickPlan.get(t.id) || Math.min(t.chunkMins || 5, remMins(t))) : t.mins; }
+function planMins(t){ return isSplit(t) ? (lastPickPlan.get(t.id) || chunkLen(t)) : t.mins; }
 /* ---------- learning from plan overrides (rule-based, no AI) ---------- */
 let learnData = (() => { try{ const d = JSON.parse(localStorage.getItem('powerHourLearn') || '{}'); return { net: d.net || {}, names: d.names || {} }; }catch(e){ return { net: {}, names: {} }; } })();
 function saveLearn(){ try{ localStorage.setItem('powerHourLearn', JSON.stringify(learnData)); }catch(e){} }
@@ -4421,9 +4423,8 @@ function resetStalePartials(){
   try{ last = localStorage.getItem('powerHourPartialDay'); }catch(e){}
   if(last === today) return false;
   try{ localStorage.setItem('powerHourPartialDay', today); }catch(e){}
-  if(!last) return false;
   let n = 0; const rid = currentTaskId();
-  tasks = tasks.map(t => { if(t.recurring && !t.done && !t.microGoal && ((t.doneMins || 0) > 0 || t.once || t.autoSplit)){ n++; return resetRecurringTask(t); } return t; });
+  tasks = tasks.map(t => { if(t.recurring && !t.done && !t.microGoal && ((t.doneMins || 0) > 0 || t.once || t.autoSplit) && t.partialOn !== today){ n++; return resetRecurringTask(t); } return t; });
   if(n){ reanchor(rid); save(); render(); }
   return n > 0;
 }
@@ -4591,7 +4592,7 @@ function boardMarkDone(id){
   const sessionActive = timerState === 'running' || timerState === 'paused';
   const isCur = sessionActive && currentIndex !== -1 && tasks[currentIndex] && tasks[currentIndex].id === id;
   if(isSplit(t) && !isCur){
-    const add = creditChunk(t, Math.min(t.chunkMins || 5, remMins(t)));
+    const add = creditChunk(t, chunkLen(t));
     confetti(10);
     save(); render(); if(sessionActive) refreshTimerDisplays();
     showToast(t.done ? `✓ All done: ${name}` : `✂️ +${add} min: ${name} (${t.doneMins}/${t.mins})`, 'Undo', () => { uncreditChunk(t, add); save(); render(); });
