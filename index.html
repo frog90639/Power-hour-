@@ -3833,11 +3833,48 @@ async function snoozeFromReview(id){
   if(i === 2){ const d = new Date(); d.setDate(d.getDate() + 1); t.scheduledDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); t.scheduleArrived = false; t.snoozeUntil = null; }
   else t.snoozeUntil = i === 0 ? h1 : h5;
   save(); render();
-  const redraw = () => { const sel = new Set([...document.querySelectorAll('#review-list input:checked')].map(cb => cb.dataset.id)); sel.delete(id);
-    reviewPending = reviewPending.filter(x => x.id !== id); renderReviewList(reviewPending, sel); updateReviewTotal(); };
+  const redraw = () => refreshReviewList(id);
   redraw();
   showToast('📆 Snoozed ' + ['until ' + lab(h1), 'until ' + lab(h5), 'to tomorrow'][i] + ': ' + t.name, 'Undo', () => { Object.assign(t, prev); save(); render();
-    if(!document.getElementById('review-modal').classList.contains('hidden')){ reviewPending.push(t); reviewPending.sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority)); const sel = new Set([...document.querySelectorAll('#review-list input:checked')].map(cb => cb.dataset.id)); renderReviewList(reviewPending, sel); updateReviewTotal(); } });
+    if(planOpen() && !reviewPending.some(x => x.id === t.id)) reviewPending.push(t); refreshReviewList(); });
+}
+function planOpen(){ return !document.getElementById('review-modal').classList.contains('hidden'); }
+/* redraw the plan list after a task changed, keeping what's ticked; dropId removes a task from it */
+function refreshReviewList(dropId){
+  if(!planOpen()) return;
+  const sel = new Set([...document.querySelectorAll('#review-list input:checked')].map(cb => cb.dataset.id));
+  if(dropId){ sel.delete(dropId); reviewPending = reviewPending.filter(x => x.id !== dropId); }
+  reviewPending = reviewPending.filter(x => { const t = tasks.find(y => y.id === x.id); return t && !t.done && !isScheduledForFuture(t); }).map(x => tasks.find(y => y.id === x.id));
+  reviewPending.sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority));
+  renderReviewList(reviewPending, sel); updateReviewTotal();
+}
+/* double-tap a task (plan or list) for a menu of quick actions */
+async function openTaskMenu(id, fromPlan){
+  const t = tasks.find(x => x.id === id); if(!t) return;
+  const items = [];
+  const add = (label, fn) => items.push({ label, fn });
+  if(!t.done) add('✓ Mark complete', () => { boardMarkDone(id); refreshReviewList(); });
+  add('📆 Snooze…', () => snoozeFromReview(id));
+  add('✏️ Edit', () => { if(fromPlan && planOpen()){ editOpenedFromReview = true; document.getElementById('review-modal').classList.add('hidden'); } openEditModal(id); });
+  add('🎚 Change priority…', async () => { const k = await askChoice('Priority for “' + t.name + '”', 'Currently ' + PRIORITY_LABELS[t.priority], PRIORITIES.map(p => PRIORITY_LABELS[p]), -1); if(k >= 0){ setPriorityDirect(id, k); refreshReviewList(); } });
+  if(!t.done) add(t.wantSoon ? '↩︎ Stop moving to the front' : '⏫ Do it first next session', () => { t.wantSoon = !t.wantSoon; save(); render(); refreshReviewList(); showToast(t.wantSoon ? '⏫ Will be planned first: ' + t.name : 'Back to normal order: ' + t.name); });
+  if(features.intentions && !t.done) add('⭐ Make it my star task', () => { const d = new Date(); d.setDate(d.getDate() + 1); const tomorrow = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); star = { day: (star && star.day > todayStr()) ? star.day : todayStr(), id: t.id, name: t.name }; saveStar(); render(); showToast('⭐ Star task: ' + t.name); });
+  if(isSplit(t) && (t.doneMins || 0) > 0) add('↺ Start this task over', () => { t.doneMins = 0; save(); render(); refreshReviewList(); showToast('Reset to 0 / ' + t.mins + ' min: ' + t.name); });
+  add('🗑 Delete', async () => { await requestDeleteTask(id); refreshReviewList(); });
+  const i = await askChoice(t.name.length > 40 ? t.name.slice(0, 40) + '…' : t.name, PRIORITY_LABELS[t.priority] + ' · ' + (isSplit(t) ? (t.doneMins || 0) + '/' + t.mins : t.mins) + ' min', items.map(x => x.label), items.length - 1);
+  if(i >= 0) items[i].fn();
+}
+/* one tap runs single() after a short wait; a second tap inside the wait runs double() instead */
+function tapOrDouble(el, ignore, single, double){
+  let timer = null, last = 0;
+  el.style.touchAction = 'manipulation';
+  el.addEventListener('click', e => {
+    if(e.target.closest(ignore)) return;
+    const now = Date.now();
+    if(timer && now - last < 350){ clearTimeout(timer); timer = null; last = 0; e.preventDefault(); double(); return; }
+    last = now;
+    timer = setTimeout(() => { timer = null; single(e); }, 300);
+  });
 }
 function renderReviewList(pending, selectedIds){
   reviewPending = pending;
@@ -3882,7 +3919,7 @@ function renderReviewList(pending, selectedIds){
         <span class="drag-handle" ${features.planMove ? '' : 'hidden'} aria-hidden="true" style="cursor:grab; color:var(--muted); padding:0 4px; user-select:none;">⠿</span>
       `;
       row.querySelector('.mv-btn').onclick = () => moveInReview(t.id, !selectedIds.has(t.id));
-      attachReviewSwipe(row, t.id);
+      tapOrDouble(row, 'input, button, .drag-handle', e => { if(e && e.target.closest('.review-edit-trigger') && row.__editSingle) row.__editSingle(); }, () => openTaskMenu(t.id, true));
       if(features.planMove) attachReviewDrag(row.querySelector('.drag-handle'), row, t.id, selectedIds.has(t.id));
       list.appendChild(row);
     });
@@ -3901,11 +3938,9 @@ function renderReviewList(pending, selectedIds){
     };
   });
   list.querySelectorAll('.review-edit-trigger').forEach(el => {
-    el.onclick = () => {
-      editOpenedFromReview = true;
-      document.getElementById('review-modal').classList.add('hidden');
-      openEditModal(el.dataset.id);
-    };
+    const row = el.closest('.review-item');
+    // single tap on the name still edits (after a beat, so a double-tap can open the menu instead)
+    row.__editSingle = () => { editOpenedFromReview = true; document.getElementById('review-modal').classList.add('hidden'); openEditModal(el.dataset.id); };
   });
 }
 
@@ -4886,7 +4921,9 @@ function onRowPointerUp(){
     // was just an ordinary scroll — nothing to do
   } else {
     if(Math.abs(rowGestureDX) < 8 && Math.abs(rowGestureDY) < 8){
-      openEditModal(rowGestureId);
+      const gid = rowGestureId, now = Date.now();
+      if(window.__rowTap && window.__rowTap.id === gid && now - window.__rowTap.t < 350){ clearTimeout(window.__rowTap.timer); window.__rowTap = null; openTaskMenu(gid, false); }
+      else { const timer = setTimeout(() => { window.__rowTap = null; openEditModal(gid); }, 300); window.__rowTap = { id: gid, t: now, timer }; }
     }
   }
   cleanupRowGesture();
