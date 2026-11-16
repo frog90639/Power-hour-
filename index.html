@@ -1016,7 +1016,7 @@
     <h3>☁️ Cloud backup</h3>
     <div style="color:var(--muted); font-size:0.7rem; margin-top:-8px;">version <span class="app-version-label"></span></div>
     <p id="sync-status" style="color:var(--muted); font-size:0.88rem; margin-top:-6px;"></p>
-    <div id="sync-choice" class="hidden" style="display:none; flex-direction:column; gap:10px; margin:8px 0;">
+    <div id="sync-choice" style="display:none; flex-direction:column; gap:10px; margin:8px 0;">
       <button id="sync-merge-btn" class="add-btn" style="width:100%; padding:13px; border-radius:10px; border:none; font-weight:600; cursor:pointer;">Combine both (recommended)</button>
       <button id="sync-keep-local-btn" style="width:100%; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer; background:var(--btn); color:var(--text);">Keep this device only</button>
       <button id="sync-use-cloud-btn" style="width:100%; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer; background:var(--btn); color:var(--text);">Use cloud copy only</button>
@@ -5154,7 +5154,7 @@ document.getElementById('edit-delete-btn').onclick = async () => {
 };
 
 /* ---------- round 2: version/updates, snapshots, alerts, theme, insights, welcome, data hub ---------- */
-const APP_VERSION = '2026-11-08-a';
+const APP_VERSION = '2026-11-16-a';
 /* confetti: a quick burst of colour for wins */
 function confetti(n){
   if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
