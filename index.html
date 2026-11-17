@@ -584,6 +584,7 @@
         <select id="add-before-select" style="margin-left:auto; max-width:60%;"></select>
       </div>
       <div class="opt-head">🌅 Routine &amp; prompts</div>
+      <label class="modal-row" style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="add-habit-checkbox"><span>🔥 Habit <span style="color:var(--muted); font-size:0.78rem;">(streak + XP; best on a recurring task)</span></span></label>
       <label class="modal-row" style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="add-morning-checkbox"><span>🌅 Morning routine <span style="color:var(--muted); font-size:0.78rem;">(first thing, before anything else)</span></span></label>
       <label class="modal-row" style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="add-direct-checkbox"><span>Back-to-back <span style="color:var(--muted); font-size:0.78rem;">(do it straight after, not just sometime after)</span></span></label>
       <div class="modal-row"><input type="text" id="add-question-input" placeholder="❓ Morning question (e.g. Bottle prep?)" style="width:100%;" maxlength="80"></div>
@@ -816,6 +817,7 @@
       <input type="number" id="edit-age-input" min="0" step="1" style="margin-left:auto; width:80px;">
     </div>
     <div class="opt-head">🌅 Routine &amp; prompts</div>
+      <label class="modal-row" style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="edit-habit-checkbox"><span>🔥 Habit <span style="color:var(--muted); font-size:0.78rem;">(streak + XP; best on a recurring task)</span></span></label>
       <label class="modal-row" style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="edit-morning-checkbox"><span>🌅 Morning routine <span style="color:var(--muted); font-size:0.78rem;">(first thing, before anything else)</span></span></label>
     <label class="modal-row" style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="edit-direct-checkbox"><span>Back-to-back <span style="color:var(--muted); font-size:0.78rem;">(do it straight after, not just sometime after)</span></span></label>
     <div class="modal-row"><input type="text" id="edit-question-input" placeholder="❓ Morning question (e.g. Bottle prep?)" style="width:100%;" maxlength="80"></div>
@@ -1152,6 +1154,14 @@
   </div>
 </div>
 
+<div class="modal hidden" id="streaks-modal" style="z-index:262;">
+  <div class="modal-card" style="max-height:90vh; overflow-y:auto;">
+    <h3>🔥 Streaks &amp; XP</h3>
+    <div id="streaks-body"></div>
+    <button id="streaks-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
 <div class="modal hidden" id="star-set-modal" style="z-index:305;">
   <div class="modal-card" style="max-height:88vh; overflow-y:auto;">
     <h3 id="star-set-title">⭐ Star task</h3>
@@ -1433,7 +1443,7 @@ const DEFAULT_MQ_ANSWERS = [
   { label: '⚡ Urgent today (treat as P1)', action: 'urgent' },
   { label: '😴 Not today (snooze to tomorrow)', action: 'skip' }
 ];
-const DEFAULT_FEATURES = { intentions: true, morningQ: true, quickNote: true, bankTime: true, morningRoutine: true, routineUntil: 12, timePresets: true, mqUntil: 12, learn: true, planMove: true, presetList: [15, 30, 45, 60, 90], mqAnswers: DEFAULT_MQ_ANSWERS };
+const DEFAULT_FEATURES = { habits: true, intentions: true, morningQ: true, quickNote: true, bankTime: true, morningRoutine: true, routineUntil: 12, timePresets: true, mqUntil: 12, learn: true, planMove: true, presetList: [15, 30, 45, 60, 90], mqAnswers: DEFAULT_MQ_ANSWERS };
 let features = (() => { try{ return Object.assign({}, DEFAULT_FEATURES, JSON.parse(localStorage.getItem('powerHourFeatures') || '{}')); }catch(e){ return Object.assign({}, DEFAULT_FEATURES); } })();
 function saveFeatures(){ try{ localStorage.setItem('powerHourFeatures', JSON.stringify(features)); }catch(e){} }
 const minsDisplay = document.getElementById('mins-display');
@@ -1443,6 +1453,79 @@ function todayStr(){
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+/* ---------- habits, streaks and XP ---------- */
+let game = (() => { try{ const g = JSON.parse(localStorage.getItem('powerHourGame') || 'null'); return g && typeof g === 'object' ? Object.assign({ xp: 0, badges: [], perfect: null }, g) : { xp: 0, badges: [], perfect: null }; }catch(e){ return { xp: 0, badges: [], perfect: null }; } })();
+function saveGame(){ try{ localStorage.setItem('powerHourGame', JSON.stringify(game)); }catch(e){} }
+const LEVEL_NAMES = ['Seedling', 'Sprout', 'Sapling', 'Climber', 'Flame keeper', 'Streak hero', 'Habit master', 'Legend'];
+function levelAt(xp){ let n = 1; while(xp >= 25 * (n + 1) * n) n++; return n; }
+function levelInfo(xp){ const n = levelAt(xp), lo = 25 * n * (n - 1), hi = 25 * (n + 1) * n; return { n, name: LEVEL_NAMES[Math.min(n - 1, LEVEL_NAMES.length - 1)], lo, hi, pct: Math.round((xp - lo) / (hi - lo) * 100) }; }
+function dayNum(ds){ return Math.round(new Date(ds + 'T12:00:00').getTime() / 86400000); }
+function habitGap(t){ // the longest normal gap between completions
+  if(Array.isArray(t.recurDays) && t.recurDays.length){ const d = [...t.recurDays].sort((a, b) => a - b); let g = 1; for(let i = 0; i < d.length; i++){ const nx = d[(i + 1) % d.length]; g = Math.max(g, ((nx - d[i] + 7) % 7) || 7); } return g; }
+  return Math.max(1, t.recurEveryDays || 1);
+}
+function habitStreak(t){
+  const log = [...new Set(t.habitLog || [])].sort().reverse(); if(!log.length) return { cur: 0, best: 0 };
+  const g = habitGap(t), today = dayNum(todayStr());
+  const run = (list, startsAlive) => { let n = 1, sinceFreeze = 99; for(let i = 1; i < list.length; i++){ const gap = dayNum(list[i - 1]) - dayNum(list[i]); sinceFreeze += gap;
+      if(gap <= g){ n++; } else if(gap <= g + 1 && sinceFreeze >= 7){ n++; sinceFreeze = 0; } else break; } return n; };
+  const alive = today - dayNum(log[0]) <= g + 1;
+  const cur = alive ? run(log) : 0;
+  let best = cur; for(let s = 0; s < log.length; s++){ best = Math.max(best, run(log.slice(s))); }
+  return { cur, best };
+}
+const HABIT_PRAISE = ['Nice. Future you says thanks.', 'Small thing, big compounding.', 'That one counts. Every single time.', 'Done. That is who you are now.', 'Look at you, showing up.', 'Another brick in the wall.', 'Boom. Streak protected.', 'Easy win banked.'];
+const STREAK_MILESTONES = [3, 7, 14, 30, 60, 100];
+function habitSweep(){
+  if(!features.habits) return;
+  const today = todayStr(); let changed = false;
+  const habits = tasks.filter(t => t.habit && !t.microGoal);
+  habits.forEach(t => {
+    if(!t.done) return;
+    t.habitLog = t.habitLog || [];
+    if(t.habitLog.includes(today)) return;
+    t.habitLog.push(today); if(t.habitLog.length > 200) t.habitLog = t.habitLog.slice(-200); changed = true;
+    const st = habitStreak(t), before = levelAt(game.xp);
+    const gain = 10 + Math.min(st.cur, 20);
+    game.xp += gain;
+    const msg = HABIT_PRAISE[Math.floor(Math.random() * HABIT_PRAISE.length)];
+    confetti(st.cur >= 7 ? 60 : 30);
+    showToast('🔥 ' + t.name + ' · ' + st.cur + '-day streak · +' + gain + ' XP. ' + msg);
+    if(STREAK_MILESTONES.includes(st.cur)){
+      const k = 'streak' + st.cur + ':' + t.id;
+      if(!game.badges.some(b => b.k === k)){ game.badges.push({ k, name: st.cur + '-day streak', task: t.name, day: today }); game.xp += st.cur * 2; setTimeout(() => { megaConfetti(); showToast('🏅 BADGE: ' + st.cur + '-day streak on ' + t.name + '! +' + st.cur * 2 + ' bonus XP'); }, 1800); }
+    }
+    const after = levelAt(game.xp);
+    if(after > before) setTimeout(() => { megaConfetti(); showToast('⬆️ LEVEL ' + after + ': ' + levelInfo(game.xp).name + '!'); }, 3600);
+  });
+  if(changed){
+    const due = habits.filter(t => !isScheduledForFuture(t));
+    if(due.length >= 2 && due.every(t => t.done) && game.perfect !== today){ game.perfect = today; game.xp += 25; setTimeout(() => { megaConfetti(); showToast('💯 PERFECT HABIT DAY! All ' + due.length + ' habits done. +25 XP'); }, 5200); }
+    saveGame(); save();
+  }
+}
+function habitDotRow(t){
+  const log = new Set(t.habitLog || []); let h = '';
+  for(let i = 27; i >= 0; i--){ const d = new Date(); d.setDate(d.getDate() - i); const ds = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    h += '<i style="display:inline-block; width:9px; height:9px; margin:1px; border-radius:50%; background:' + (log.has(ds) ? '#FF9F43' : 'var(--btn)') + (i === 0 ? '; outline:1px solid var(--muted)' : '') + ';"></i>'; }
+  return h;
+}
+function openStreaks(){
+  const info = levelInfo(game.xp), hs = tasks.filter(t => t.habit && !t.microGoal);
+  let h = '<div style="text-align:center; margin-bottom:12px;"><div style="font-size:0.78rem; color:var(--muted); letter-spacing:.06em; text-transform:uppercase;">Level ' + info.n + '</div><div style="font-size:1.3rem; font-weight:800;">' + info.name + '</div>' +
+    '<div style="height:10px; background:var(--btn); border-radius:6px; margin:8px 0 4px; overflow:hidden;"><div style="height:100%; width:' + info.pct + '%; background:linear-gradient(90deg,#FFD166,#FF5C7A);"></div></div><div style="font-size:0.78rem; color:var(--muted);">' + game.xp + ' XP · ' + (info.hi - game.xp) + ' to level ' + (info.n + 1) + '</div></div>';
+  if(!hs.length) h += '<div class="empty">No habits yet. Edit a task (ideally a recurring one) and tick “🔥 Habit”.</div>';
+  hs.forEach(t => { const st = habitStreak(t), done = t.done || (t.habitLog || []).includes(todayStr());
+    h += '<div style="padding:10px 0; border-top:1px solid var(--hairline);"><div style="display:flex; justify-content:space-between; gap:8px;"><b></b><span style="white-space:nowrap;">' + (done ? '✅ today' : '⬜ today') + '</span></div><div style="font-size:0.85rem; margin:2px 0 4px;">🔥 <b>' + st.cur + '</b> day streak · best ' + st.best + '</div><div>' + habitDotRow(t) + '</div></div>'; });
+  h += '<div style="font-size:0.78rem; color:var(--muted); margin-top:8px;">🧊 One missed day a week is forgiven, so a single slip does not wipe a streak.</div>';
+  if(game.badges.length) h += '<div style="margin-top:12px; font-weight:700;">🏅 Badges</div>' + game.badges.slice().reverse().map(b => '<div style="font-size:0.85rem; padding:3px 0;">🏅 ' + b.name + ' · <span class="bn"></span></div>').join('');
+  const body = document.getElementById('streaks-body'); body.innerHTML = h;
+  [...body.querySelectorAll('b')].filter(b => !b.textContent && true).forEach((b, i) => { b.textContent = hs[i] ? hs[i].name : ''; });
+  [...body.querySelectorAll('.bn')].forEach((el, i) => { el.textContent = game.badges.slice().reverse()[i].task; });
+  document.getElementById('streaks-modal').classList.remove('hidden');
+}
+document.getElementById('streaks-close-btn').onclick = () => document.getElementById('streaks-modal').classList.add('hidden');
+
 /* ---------- star task (intentions) ---------- */
 let star = (() => { try{ const o = JSON.parse(localStorage.getItem('powerHourStar') || 'null'); return o && o.id ? o : null; }catch(e){ return null; } })();
 function saveStar(){ try{ if(star) localStorage.setItem('powerHourStar', JSON.stringify(star)); else localStorage.removeItem('powerHourStar'); }catch(e){} }
@@ -1813,6 +1896,7 @@ function updateHome(){
     ['📋', 'Full list', 'full', pend.length + ' to do'],
     ['✅', 'Completed', 'completed', doneToday + ' today'],
     ['📥', 'Quick notes', 'inbox', inbox.length ? inbox.length + ' to sort' : ''],
+    ...(features.habits ? [['🏆', 'Streaks & XP', 'streaks', 'Lv ' + levelAt(game.xp) + ' · ' + (tasks.filter(t => t.habit).reduce((m, t) => Math.max(m, habitStreak(t).cur), 0)) + '🔥']] : []),
     ...(features.intentions ? [['⭐', 'Star task', 'star', star && star.day === todayStr() ? star.name.slice(0, 22) : (star ? 'Set for tomorrow ✓' : 'Set one')]] : []),
     ['🗓️', 'Calendar', 'settings-calendar-btn', ''],
     ['📊', 'History', 'settings-insights-btn', '']
@@ -1828,6 +1912,7 @@ function updateHome(){
       if(act === 'full') openFullList(false);
       else if(act === 'completed') openFullList(false, true);
       else if(act === 'inbox') openInbox();
+      else if(act === 'streaks') openStreaks();
       else if(act === 'star') openStarSet(star && star.day > todayStr() ? star.day : todayStr());
       else { const t = document.getElementById(act); if(t && t.onclick) t.onclick(); }
     };
@@ -1874,6 +1959,7 @@ function healFinishedSplits(){
 }
 function render(){
   healFinishedSplits();
+  habitSweep();
   starCelebrate();
   escalateStaleTasks();
   renderTaskList();
@@ -2198,6 +2284,7 @@ function addTaskNow(){
   newTask.question = (document.getElementById('add-question-input').value || '').trim() || null;
   newTask.pin = beforeRaw === '__first' ? 'first' : (afterRaw === '__last' ? 'last' : null);
   newTask.morning = document.getElementById('add-morning-checkbox').checked || undefined;
+  newTask.habit = document.getElementById('add-habit-checkbox').checked || undefined;
   const direct = document.getElementById('add-direct-checkbox').checked;
   if(afterRaw && afterRaw !== '__last'){ newTask.afterId = afterRaw; if(direct) newTask.afterDirect = true; }
   tasks.push(newTask);
@@ -2212,7 +2299,7 @@ function addTaskNow(){
   dateInput.value = '';
   specificTimeInput.value = '';
   notBeforeInput.value = '';
-  document.getElementById('add-notes-input').value = ''; document.getElementById('add-question-input').value = ''; document.getElementById('add-direct-checkbox').checked = false; document.getElementById('add-morning-checkbox').checked = false;
+  document.getElementById('add-notes-input').value = ''; document.getElementById('add-question-input').value = ''; document.getElementById('add-direct-checkbox').checked = false; document.getElementById('add-morning-checkbox').checked = false; document.getElementById('add-habit-checkbox').checked = false;
   fillAddDepSelects();
   minsDisplay.textContent = '5 min';
   refreshAddPriorityPicker();
@@ -2341,6 +2428,7 @@ function fillDepSelects(t){
   const dependent = tasks.find(x => !x.done && x.afterId === t.id);
   editBeforeOriginalId = dependent ? dependent.id : null;
   document.getElementById('edit-morning-checkbox').checked = !!t.morning;
+  document.getElementById('edit-habit-checkbox').checked = !!t.habit;
   document.getElementById('edit-direct-checkbox').checked = !!(t.afterDirect || (dependent && dependent.afterDirect));
   b.value = t.pin === 'first' ? '__first' : (dependent ? dependent.id : '');
 }
@@ -2461,6 +2549,7 @@ document.getElementById('edit-save-btn').onclick = async () => {
       if(o){ o.afterId = t.id; o.afterDirect = directOn; }
     }
     t.morning = document.getElementById('edit-morning-checkbox').checked || undefined;
+    t.habit = document.getElementById('edit-habit-checkbox').checked || undefined;
     if(onceSnap){ t.once = onceSnap; t.partialOn = todayStr(); }
     t.autoWalk = false; // a manual edit means the user now owns this task, not the auto-pace system
     const ageDays = Math.max(0, parseInt(document.getElementById('edit-age-input').value) || 0);
@@ -4191,6 +4280,7 @@ function undoCompletedTask(id){
   const live = tasks.find(t => t.id === id && t.done);
   if(live){
     live.done = false;
+    if(live.habit && live.habitLog && live.habitLog.includes(todayStr())){ live.habitLog = live.habitLog.filter(d => d !== todayStr()); game.xp = Math.max(0, game.xp - 12); saveGame(); }
     if(live.splittable && live.lastChunkAdd) live.doneMins = Math.max(0, (live.doneMins || 0) - live.lastChunkAdd);
     live.createdAt = Date.now();
     live.staleSince = Date.now();
@@ -4423,6 +4513,7 @@ function renderDayLog(){
 
   list.innerHTML = `
     <div style="color:var(--muted); font-size:0.85rem; margin-bottom:4px;">${entry.completedCount} task${entry.completedCount !== 1 ? 's' : ''} • ${entry.totalMins} min</div>
+    ${entry.habits ? `<div style="margin-bottom:10px; color:var(--muted); font-size:0.85rem;">🔥 Habits kept: <b style="color:var(--text);">${entry.habits.done} of ${entry.habits.total}</b></div>` : ''}
     ${entry.star ? `<div style="margin-bottom:10px; padding:8px 10px; border-radius:10px; ${entry.star.done ? 'background:linear-gradient(135deg,#FFD166,#FF9F43); color:#2a1500; font-weight:700;' : 'border:1px dashed var(--hairline); color:var(--muted);'}">${entry.star.done ? '🌟 Star task achieved: ' : '⭐ Star task (not done): '}${String(entry.star.name).replace(/</g, '&lt;')}</div>` : ''}
     <div style="color:var(--muted); font-size:0.8rem; margin-bottom:12px;">👣 ${entry.actualSteps.toLocaleString()} / ${entry.stepGoal.toLocaleString()} steps</div>
     ${(entry.tasks || []).length === 0 ? '<div class="empty">Nothing completed this day.</div>' : (entry.tasks || []).map(t => `
@@ -4495,6 +4586,7 @@ async function clearDay(skipConfirm){
   dayLog.push({
     date: logDate,
     star: starLog,
+    habits: (() => { const hs = tasks.filter(t => t.habit && !t.microGoal && !(t.scheduledDate && t.scheduledDate > logDate)); return hs.length ? { done: hs.filter(t => t.done).length, total: hs.length } : null; })(),
     completedCount: completedToday.filter(t => !t.partial).length,
     totalMins: completedToday.reduce((s, t) => s + t.mins, 0),
     actualSteps,
@@ -4598,6 +4690,7 @@ function buildTaskRow(t){
       </div>
       <div class="task-row-line2">
         ${getPrereq(t) && !getPrereq(t).done ? `<span class="tag-badge" title="Held until the task it comes after is done">🔗 after ${getPrereq(t).name.replace(/</g, '&lt;').slice(0, 18)}</span>` : ''}
+        ${t.habit && features.habits ? '<span class="tag-badge" title="Habit streak">🔥 ' + habitStreak(t).cur + '</span>' : ''}
         ${t.notes ? '<span class="tag-badge" title="Has notes">📝</span>' : ''}
         ${t.pin === 'first' ? '<span class="tag-badge" title="Always done first in a timer run">🥇 first</span>' : t.pin === 'last' ? '<span class="tag-badge" title="Always done last in a timer run">🏁 last</span>' : ''}
         ${t.autoWalk ? '<span class="tag-badge" title="Added automatically to help hit your step goal">🤖 auto</span>' : ''}
@@ -5172,6 +5265,7 @@ function confetti(n){
   el.textContent = at ? 'Last: ' + new Date(at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Off — tap to set up'; })();
 /* ---------- Settings: features on/off + shortcuts ---------- */
 const FEATURE_TOGGLES = [
+  ['habits', '🔥 Habits & streaks', 'Mark tasks like flossing as habits. Every completion gives instant XP, confetti and a streak that grows day by day (one "freeze" a week forgives a missed day). Level up and earn badges.'],
   ['intentions', '⭐ Star task (intentions)', 'At the end of the day, pick the one thing you will be proudest of doing tomorrow. It pops up each morning, is favoured over other tasks of the same priority, and gets a big celebration in your end-of-day report.'],
   ['morningQ', '❓ Morning questions', 'Ask a question about a task the first time you open the app each day.'],
   ['morningRoutine', '🌅 Morning routine first', 'Tasks marked as morning routine are planned and done before everything else, until the cut-off hour below.'],
@@ -5388,6 +5482,7 @@ function renderInsights(){
   let html = '<div class="ins-bars">' + stats.map(x => `<div class="ins-bar"><span>${x.count}</span><div class="ins-bar-fill" style="height:${Math.round(x.count / max * 80)}%"></div><span>${dow(x.d)}</span></div>`).join('') + '</div>';
   html += `<div class="ins-stat"><span>Tasks completed</span><b>${total}</b></div><div class="ins-stat"><span>Focused minutes</span><b>${mins}</b></div><div class="ins-stat"><span>Steps logged</span><b>${steps.toLocaleString()}</b></div>`;
   { const logs = days.map(d => dayLog.filter(e => e.date === d && e.star).map(e => e.star)).flat(); if(star && days.includes(star.day) && star.day === todayStr()) logs.push({ done: starDoneOn(star.day) }); if(logs.length) html += `<div class="ins-stat"><span>⭐ Star tasks achieved</span><b>${logs.filter(x => x.done).length} of ${logs.length}</b></div>`; }
+  { const hl = days.map(d => dayLog.filter(e => e.date === d && e.habits).map(e => e.habits)).flat(); if(hl.length){ const dn = hl.reduce((a, x) => a + x.done, 0), tt = hl.reduce((a, x) => a + x.total, 0); html += `<div class="ins-stat"><span>🔥 Habits kept</span><b>${dn} of ${tt}</b></div>`; } }
   if(best.count > 0) html += `<div class="ins-stat"><span>Best day</span><b>${dow(best.d)} · ${best.count} tasks</b></div>`;
   const names = [...new Set(tasks.filter(t => t.recurring).map(t => t.name))];
   const streaks = names.map(n => { const h = getHabitHistory(n, 14); let st = 0; for(let i = h.length - 1; i >= 0; i--){ if(h[i].done) st++; else if(i === h.length - 1) continue; else break; } return { n, st }; }).filter(x => x.st > 0).sort((a, b) => b.st - a.st).slice(0, 3);
