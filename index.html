@@ -717,7 +717,6 @@
       </div>
       <div class="timer-controls" style="flex-wrap:wrap;">
         <button id="done-export-btn">⇧ Export list</button>
-        <button id="done-remove-btn" style="background:var(--danger); color:#fff;">Remove completed</button>
         <button id="done-inbox-btn" class="add-btn hidden" style="width:100%;">📥 Sort quick notes</button>
         <button id="done-more-btn" class="hidden" style="width:100%;">＋ Add more time</button>
         <button id="done-eod-btn" class="add-btn hidden" style="width:100%;">🌇 End of day</button>
@@ -3212,9 +3211,6 @@ function refreshTimerDisplays(){
     `).join('');
     document.getElementById('done-eod-btn').classList.toggle('hidden', tasks.some(t => !t.done && !t.microGoal));
     document.getElementById('done-more-btn').classList.toggle('hidden', eligibleExtra().length === 0);
-    const removeBtn = document.getElementById('done-remove-btn');
-    removeBtn.textContent = 'Remove completed';
-    removeBtn.disabled = tasks.every(t => !t.done);
 
     const skippedSection = document.getElementById('skipped-section');
     const stillPendingSkips = sessionSkipped.filter(s => tasks.some(t => t.id === s.id));
@@ -4087,20 +4083,6 @@ function resetRecurringTask(t, fromDate){
   return reset;
 }
 
-document.getElementById('done-remove-btn').onclick = () => {
-  if(document.getElementById('done-remove-btn').disabled) return;
-  tasks.forEach(t => { if(t.done && !t.recurring) deletedCompleted.push({ ...t }); });
-  const _rid = currentTaskId();
-  tasks = tasks
-    .map(t => (t.done && t.recurring) ? resetRecurringTask(t) : t)
-    .filter(t => !t.done);
-  reanchor(_rid);
-  save();
-  refreshTimerDisplays();
-  const btn = document.getElementById('done-remove-btn');
-  btn.textContent = 'Removed ✓';
-  btn.disabled = true;
-};
 document.getElementById('done-close-btn').onclick = closeTimerFully;
 function eligibleExtra(){
   let p = tasks.filter(t => !t.done && !t.microGoal && !isScheduledForFuture(t) && !isWrongTimeOfDay(t) && !isBeforeEarliestTime(t) && !(sessionTaskIds || []).includes(t.id) && !sessionSkipped.some(k => k.id === t.id));
