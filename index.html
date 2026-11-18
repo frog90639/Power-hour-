@@ -475,9 +475,7 @@
 </div>
 
 <div id="home-panel">
-  <div id="home-stats" style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px;"></div>
-  <input type="text" id="home-search" placeholder="🔍 Search every task, including completed" aria-label="Search every task" style="width:100%; min-width:0; padding:12px 14px; margin-bottom:12px;">
-  <div id="home-results" class="hidden" style="margin-bottom:18px;"></div>
+  <div id="home-stats" style="margin-bottom:12px;"></div>
   <div id="home-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px;"></div>
 </div>
 <button id="inbox-pill" class="hidden" aria-label="Quick notes to sort" style="position:fixed; right:88px; bottom:calc(32px + env(safe-area-inset-bottom)); z-index:150; background:var(--card-raised); color:var(--text); border:1px solid var(--hairline); border-radius:20px; padding:8px 14px; font-weight:600; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.3);"></button>
@@ -1889,18 +1887,23 @@ function updateHome(){
   const dur = mins >= 60 ? Math.floor(mins / 60) + 'h' + (mins % 60 ? ' ' + (mins % 60) + 'm' : '') : mins + 'm';
   const doneToday = getAllCompleted().filter(t => !t.partial).length;
   const urgent = pend.filter(t => t.mustDo || (t.timeConstraint && (isPastTimeConstraint(t) || isUrgentSlot(t)))).length;
-  const cell = (big, small, warn) => '<div style="background:var(--card-raised); border:1px solid var(--hairline); border-radius:14px; padding:10px 6px; text-align:center;"><div style="font-size:1.35rem; font-weight:800;' + (warn ? ' color:var(--danger);' : '') + '">' + big + '</div><div style="color:var(--muted); font-size:0.75rem;">' + small + '</div></div>';
-  stats.innerHTML = cell(pend.length, 'to do · ' + dur) + cell(doneToday, 'done today') + cell(urgent, urgent === 1 ? 'needs attention' : 'need attention', urgent > 0);
+  const nTxt = pend.length === 0 ? 'Nothing left on your list 🎉' : pend.length + (pend.length === 1 ? ' task' : ' tasks') + ' · about ' + dur;
+  const starToday = features.intentions && star && star.day === todayStr() && !starDoneOn(todayStr());
+  stats.innerHTML = '<div style="font-size:1.05rem; font-weight:700; text-align:center; margin:4px 0 8px;">☀️ ' + nTxt + '</div>' +
+    (urgent > 0 ? '<div style="text-align:center; margin-bottom:8px;"><span style="display:inline-block; font-size:0.8rem; padding:3px 12px; border-radius:12px; background:var(--chip-bg); color:var(--chip-fg);">⏰ ' + urgent + ' time-sensitive</span></div>' : '') +
+    (starToday ? '<button type="button" id="home-star-card" style="width:100%; text-align:left; background:var(--card-raised); color:var(--text); border:1px solid var(--hairline); border-radius:14px; padding:12px 14px; font-size:1rem; font-weight:700; cursor:pointer;">⭐ <span id="home-star-name"></span><div style="color:var(--muted); font-size:0.75rem; font-weight:400;">Today’s star task</div></button>' : '') +
+    (inbox.length ? '<button type="button" id="home-inbox-banner" style="width:100%; margin-top:8px; text-align:center; background:var(--chip-bg); color:var(--chip-fg); border:none; border-radius:12px; padding:8px; font-size:0.85rem; cursor:pointer;">📥 ' + inbox.length + (inbox.length === 1 ? ' note' : ' notes') + ' to sort</button>' : '');
+  const sn = document.getElementById('home-star-name'); if(sn){ sn.textContent = star.name; document.getElementById('home-star-card').onclick = () => openStarSet(todayStr()); }
+  const ib = document.getElementById('home-inbox-banner'); if(ib) ib.onclick = openInbox;
   const btns = [
-    ['📋', 'Full list', 'full', pend.length + ' to do'],
-    ['✅', 'Completed', 'completed', doneToday + ' today'],
-    ['📥', 'Quick notes', 'inbox', inbox.length ? inbox.length + ' to sort' : ''],
-    ...(features.habits ? [['🏆', 'Streaks & XP', 'streaks', 'Lv ' + levelAt(game.xp) + ' · ' + (tasks.filter(t => t.habit).reduce((m, t) => Math.max(m, habitStreak(t).cur), 0)) + '🔥']] : []),
-    ...(features.intentions ? [['⭐', 'Star task', 'star', star && star.day === todayStr() ? star.name.slice(0, 22) : (star ? 'Set for tomorrow ✓' : 'Set one')]] : []),
+    ['📋', 'Full list', 'full', ''],
+    ['✅', 'Done today', 'completed', doneToday ? doneToday + ' 🎉' : ''],
+    ...(features.habits ? [['🔥', 'Habits', 'streaks', 'Lv ' + levelAt(game.xp)]] : []),
+    ...(features.intentions ? [['⭐', 'Star task', 'star', star && star.day === todayStr() ? star.name.slice(0, 22) : (star ? 'Set for tomorrow ✓' : '')]] : []),
     ['🗓️', 'Calendar', 'settings-calendar-btn', ''],
     ['📊', 'History', 'settings-insights-btn', '']
   ];
-  const hb = document.getElementById('settings-habits-btn'); if(hb && hb.style.display !== 'none') btns.push(['🔥', 'Habits', 'settings-habits-btn', '']);
+  const hb = document.getElementById('settings-habits-btn'); if(hb && hb.style.display !== 'none') btns.push(['🌱', 'Habit tracker', 'settings-habits-btn', '']);
   homeSearch();
   grid.innerHTML = '';
   btns.forEach(([ic, label, act, sub]) => {
@@ -1919,6 +1922,7 @@ function updateHome(){
   });
 }
 function homeSearch(){
+  if(!document.getElementById('home-search')) return;
   const q = document.getElementById('home-search').value.trim().toLowerCase();
   const box = document.getElementById('home-results'), grid = document.getElementById('home-grid');
   box.classList.toggle('hidden', !q); grid.style.display = q ? 'none' : 'grid';
@@ -1941,7 +1945,7 @@ function homeSearch(){
   });
   if(!open.length && !done.length) box.innerHTML = '<div class="empty">Nothing matches “' + q.replace(/</g, '&lt;') + '”.</div>';
 }
-document.getElementById('home-search').addEventListener('input', homeSearch);
+{ const hs = document.getElementById('home-search'); if(hs) hs.addEventListener('input', homeSearch); }
 function openFullList(focusSearch, toCompleted){
   document.getElementById('full-list-modal').classList.remove('hidden');
   renderTaskList();
@@ -2074,6 +2078,7 @@ function syncAutoWalk(pace){
 
 function updateStepsBar(){
   syncAutoWalk(getStepPace());
+  { const mb = document.getElementById('mini-steps-bar'); if(mb) mb.style.display = stepGoal > 0 ? '' : 'none'; }
 
   const plannedSteps = tasks.filter(t => t.tag === 'errands' && t.steps > 0 && !t.done && !isScheduledForFuture(t)).reduce((s, t) => s + t.steps, 0);
   const goal = stepGoal > 0 ? stepGoal : 1;
