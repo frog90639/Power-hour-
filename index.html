@@ -451,6 +451,9 @@
   #session-panel .sp-time{font-size:clamp(1.8rem,5vh,2.4rem); margin:2px 0 0; grid-column:1;}
   .sp-next-name{font-size:0.85rem; white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; margin:2px 0; line-height:1.2; padding:0;}
   .sp-next-time{font-size:clamp(1.1rem,3vh,1.4rem);}
+
+  .side-emoji{width:46px; height:46px; border-radius:50%; border:1px solid var(--hairline); background:var(--card-raised); color:var(--text); font-size:1.3rem; cursor:pointer; padding:0; line-height:1;}
+  .timer-controls button.main-emoji{font-size:1.7rem; padding:10px 0; min-width:84px; line-height:1;}
 </style>
 </head>
 <body>
@@ -669,7 +672,7 @@
 <!-- full screen timer -->
 <div class="timer-screen hidden" id="timer-screen">
   <div class="timer-screen-header">
-    <button class="icon-btn" id="minimize-btn" title="Minimize">⌄</button>
+    <button class="icon-btn" id="minimize-btn" title="Minimise" style="width:auto; padding:0 12px; font-size:0.9rem; border-radius:20px;">⌄ Minimise</button>
     <span class="title">Power Hour</span>
     <span style="width:40px;"></span>
   </div>
@@ -682,26 +685,24 @@
       <div id="timer-notes" style="color:var(--muted); font-size:0.88rem; max-width:320px; text-align:center; margin:-4px auto 10px; white-space:pre-wrap;"></div>
       <div class="timer-clock" id="timer-clock">00:00</div>
       <div id="timer-progress" style="display:none;"></div>
-      <div style="display:flex; justify-content:center; gap:22px; margin-bottom:2px;">
-        <button id="add-time-btn" class="eod-link">＋ Add time</button>
-        <button id="reduce-time-btn" class="eod-link">－ Reduce time</button>
-      </div>
-      <div style="display:flex; justify-content:center; gap:14px; margin-bottom:clamp(6px, 1.5vh, 14px);">
-        <button id="quick-note-btn" class="eod-link">📝 Note</button>
-        <button id="bank-btn" class="eod-link">⏳ Bank time</button>
-        <button id="needs-longer-btn" class="eod-link">⏱ Needs longer</button>
+      <div id="timer-side-row" style="display:flex; justify-content:center; gap:10px; margin-bottom:clamp(6px, 1.5vh, 14px);">
+        <button id="quick-note-btn" class="side-emoji" data-name="Add a note" aria-label="Add a note">📝</button>
+        <button id="bank-btn" class="side-emoji" data-name="Bank the time left" aria-label="Bank the time left">⏳</button>
+        <button id="add-time-btn" class="side-emoji" data-name="Add tasks" aria-label="Add tasks">➕</button>
+        <button id="reduce-time-btn" class="side-emoji" data-name="Less time" aria-label="Less time">➖</button>
+        <button id="needs-longer-btn" class="side-emoji" data-name="This needs longer" aria-label="This needs longer">⏱</button>
       </div>
       <div class="timer-controls">
-        <button id="done-current-btn">✓ Done</button>
-        <button id="pause-btn">Pause</button>
-        <button id="skip-btn">Skip</button>
+        <button id="done-current-btn" class="main-emoji" data-name="Done" aria-label="Done">✅</button>
+        <button id="pause-btn" class="main-emoji" data-name="Pause" aria-label="Pause">⏸</button>
+        <button id="skip-btn" class="main-emoji" data-name="Not now: move to the end" aria-label="Not now">⏭</button>
       </div>
       <div id="session-panel">
         <div class="sp-label">Session time left</div>
         <div class="sp-time" id="session-remaining">00:00</div>
         <div class="sp-next" id="up-next"></div>
       </div>
-      <button id="close-timer-btn" class="eod-link" style="margin-top:6px; color:var(--danger);">End session</button>
+      <button id="close-timer-btn" class="eod-link" style="margin-top:6px;">Finish session</button>
     </div>
     <div id="timer-done-view" class="hidden">
       <div style="font-size:3rem; margin-bottom:6px;" id="done-emoji">🎉</div>
@@ -865,22 +866,19 @@
 <div class="modal hidden" id="settings-modal">
   <div class="modal-card" style="max-height:80vh; overflow-y:auto;">
     <h3>Settings</h3>
-    <button id="settings-guide-btn" class="settings-item">❓ How this app works</button>
-    <div class="settings-group-label">Views</div>
-    <button id="settings-calendar-btn" class="settings-item">🗓️ Calendar</button>
-    <button id="settings-habits-btn" class="settings-item" style="display:none">🔥 Habit tracker</button>
-    <button id="settings-insights-btn" class="settings-item">📊 History</button>
-    <div class="settings-group-label">Customise</div>
-    <button id="settings-escalation-btn" class="settings-item">📈 Escalation timing</button>
-    <button id="settings-gestures-btn" class="settings-item">👆 Gestures</button>
-    <button id="settings-goals-btn" class="settings-item">💧 Daily goal nudges</button>
-    <button id="settings-features-btn" class="settings-item">🧩 Features &amp; shortcuts</button>
     <button id="settings-learn-btn" class="settings-item">🧠 What I've learned</button>
+    <button id="settings-data-btn" class="settings-item">☁️ Backup &amp; sync</button>
+    <button id="settings-guide-btn" class="settings-item">❓ How this app works</button>
+    <div class="settings-group-label">🧩 Features &amp; behaviour</div>
+    <button id="settings-features-btn" class="settings-item">🧩 Features &amp; shortcuts</button>
+    <button id="settings-escalation-btn" class="settings-item">📈 Escalation timing</button>
+    <button id="settings-goals-btn" class="settings-item">💧 Daily goal nudges</button>
+    <div class="settings-group-label">🎨 Appearance &amp; alerts</div>
     <button id="settings-theme-btn" class="settings-item">🎨 Appearance</button>
     <button id="settings-alerts-btn" class="settings-item">🔔 Timer alerts</button>
-    <div class="settings-group-label">Data</div>
+    <button id="settings-calendar-btn" class="settings-item" style="display:none">🗓️ Calendar</button>
+    <button id="settings-insights-btn" class="settings-item" style="display:none">📊 History</button>
     <button id="settings-daylog-btn" class="settings-item" style="display:none">📅 Day log</button>
-    <button id="settings-data-btn" class="settings-item">💾 Data &amp; backup</button>
     <button id="settings-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--btn); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
     <div style="text-align:center; color:var(--muted); font-size:0.72rem; margin-top:10px;">Power Hour · version <span class="app-version-label"></span></div>
   </div>
@@ -889,14 +887,16 @@
 <!-- data & backup -->
 <div class="modal hidden" id="data-modal">
   <div class="modal-card" style="max-height:85vh; overflow-y:auto;">
-    <h3>💾 Data &amp; backup</h3>
+    <h3>☁️ Backup &amp; sync</h3>
+    <button id="settings-sync-btn" class="settings-item">☁️ Cloud backup <span id="sync-badge" style="float:right; color:var(--muted); font-size:0.8rem;"></span></button>
+    <details style="margin-top:14px;"><summary style="cursor:pointer; color:var(--muted); font-size:0.9rem; padding:8px 0;">⚙️ Advanced: export &amp; restore</summary>
     <button id="settings-bulk-add-btn" class="settings-item">＋ Bulk add (paste a list)</button>
     <button id="settings-export-btn" class="settings-item">⇧ Export tasks</button>
     <button id="settings-backup-btn" class="settings-item">📋 Backup code (copy / restore)</button>
-    <button id="settings-sync-btn" class="settings-item">☁️ Cloud backup <span id="sync-badge" style="float:right; color:var(--muted); font-size:0.8rem;"></span></button>
     <div class="settings-group-label" style="margin-top:16px;">Automatic daily snapshots</div>
     <p style="color:var(--muted); font-size:0.8rem; margin:4px 0 6px;">A copy of everything is saved the first time you open the app each day (last 7 kept, on this device).</p>
     <div id="snap-list"></div>
+    </details>
     <button id="data-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
   </div>
 </div>
@@ -1041,25 +1041,25 @@
     <h4>Gestures</h4>
     <ul>
       <li><b>Tap</b> a task to edit it (or delete it from there).</li>
-      <li><b>Swipe</b> right or left for a quick action. Choose what each does in <b>Settings → Customise → Gestures</b>.</li>
+      <li><b>Tap a task</b> for a quick menu: complete, snooze, edit, priority or delete. Use the tick box to complete it.</li>
       <li>Tick <b>🌅 Morning routine</b> on a task and it's planned and done before everything else until midday (change this in Features &amp; shortcuts). Untick it on the plan screen, or Skip it, if you want something else first.</li>
       <li><b>Do after</b> means “not before”; tick <b>Back-to-back</b> to make it come straight after. Editing or deleting a recurring task asks whether it's just this once or every time.</li>
       <li>Short on time? Tap <b>－ Reduce time</b> on the timer, say how many minutes, then cut tasks down to part of their time or drop them from this session. The session time left and the next task show at the bottom of the timer.</li>
       <li>Interrupted mid-task? Tap <b>⏳ Bank time</b> on the timer. The minutes you spent are kept and the rest is planned later.</li>
-      <li>Switch features on or off, and edit the time shortcuts and morning-question answers, in <b>Settings → Customise → Features &amp; shortcuts</b>.</li>
+      <li>Switch features on or off, and edit the time shortcuts and morning-question answers, in <b>Settings → Features &amp; shortcuts</b>.</li>
       <li>Add a <b>morning question</b> to a task (under More options) and it asks you the first time you open the app each day (before midday by default): normal, do first, urgent, or not today. Those answers last for that day only.</li>
-      <li>On the plan screen, <b>drag a task</b> (or tap ▲ / ▼) between Planned and Left out, then say why. After two similar moves I adjust future plans within a priority; see <b>Settings → Customise → What I've learned</b>.</li>
+      <li>On the plan screen, <b>drag a task</b> between Planned and Saved for later, then say why. After two similar moves I adjust future plans within a priority; see <b>Settings → What I've learned</b>.</li>
       <li><b>Press and hold</b>, then drag up or down to change priority; hold near the left edge to reorder within a priority.</li>
     </ul>
 
     <h4>Start a Power Hour</h4>
-    <p>Tap <b>▶ Start a Power Hour</b> and say how many minutes you have. The app picks the best mix of tasks: P1 first, then whatever time is left flows down. Must-dos, escalated tasks and deadlines get priority within a level, and equal tasks are shuffled so the same ones don't always win. Tasks you've marked <b>Do it in bits</b> soak up spare time in small chunks, and a <b>do-first routine</b> (a do-first task plus everything chained after it) is always planned before anything else and carries on in the next session if it doesn't all fit. The plan shows what was picked, what was left out and why. You can edit or untick anything before you start. Need longer? Tap <b>＋ Add more time</b> on the timer. During the timer, ✕ ends the session (after a check) and the bar under the clock shows what's done and what's left.</p>
+    <p>Tap <b>▶ Start a Power Hour</b> and say how many minutes you have. The app picks the best mix of tasks: P1 first, then whatever time is left flows down. Must-dos, escalated tasks and deadlines get priority within a level, and equal tasks are shuffled so the same ones don't always win. Tasks you've marked <b>Do it in bits</b> soak up spare time in small chunks, and a <b>do-first routine</b> (a do-first task plus everything chained after it) is always planned before anything else and carries on in the next session if it doesn't all fit. The plan shows what was picked, what was saved for later and why. You can edit or untick anything before you start. Need longer? Tap <b>＋ Add more time</b> on the timer. During the timer, ✕ ends the session (after a check) and the bar under the clock shows what's done and what's left.</p>
 
     <h4>Order rules</h4>
     <p>In a task's options, <b>Do after</b> and <b>Do before</b> link it to another task, or pin it as <b>🥇 first</b> or <b>🏁 last</b>. The picker pulls in what a task depends on, and the timer always respects the order.</p>
 
     <h4>Tasks that sit too long</h4>
-    <p>A pending task moves up a priority after a set number of days, and a P1 that stays put is flagged <b>❗ must do</b>, which is hard to untick. Timings are in <b>Settings → Customise → Escalation timing</b>, where you can also see <b>aging tasks</b>. Editing only restarts a task's clock if you change its priority, date or age.</p>
+    <p>A pending task moves up a priority after a set number of days, and a P1 that stays put is flagged <b>❗ must do</b>, which is hard to untick. Timings are in <b>Settings → Features &amp; behaviour → Escalation timing</b>, where you can also see <b>aging tasks</b>. Editing only restarts a task's clock if you change its priority, date or age.</p>
 
     <h4>Tags and Quick tidy</h4>
     <p>Tags (🎧 No hands, 🏃 Errands, 🚶 Move around) let you filter what the timer picks. If you've been away for 5+ hours, a <b>Quick tidy</b> prompt offers to tag anything untagged.</p>
@@ -1074,7 +1074,7 @@
     <p>Tap <b>🌇 End of day</b> for highlights or the full list, then clear the day. If you forget, the app asks "How did yesterday go?" the next morning. Past days, habit consistency and your last 7 days are all in <b>Settings → History</b>.</p>
 
     <h4>Backup and updates</h4>
-    <p><b>Settings → Data &amp; backup</b> has Cloud backup (Google sign-in, best used in Safari), a copyable Backup code, bulk add, export and automatic daily snapshots. A banner appears when a new version is ready. <b>Appearance</b> switches between dark, light and matching your phone, and <b>Timer alerts</b> turns the end-of-task chime on or off.</p>
+    <p><b>Settings → Backup &amp; sync</b> has Cloud backup (Google sign-in, best used in Safari), a copyable Backup code, bulk add, export and automatic daily snapshots. A banner appears when a new version is ready. <b>Appearance</b> switches between dark, light and matching your phone, and <b>Timer alerts</b> turns the end-of-task chime on or off.</p>
 
     <button id="guide-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
   </div>
@@ -1092,15 +1092,6 @@
 
 <!-- calendar -->
 <!-- habit tracker -->
-<div class="modal hidden" id="habits-modal">
-  <div class="modal-card" style="max-height:80vh; overflow-y:auto;">
-    <h3>🔥 Habit tracker</h3>
-    <p style="color:var(--muted); font-size:0.8rem; margin-top:-8px;">Consistency on your recurring tasks, last 14 days.</p>
-    <div id="habits-list"></div>
-    <button id="habits-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
-  </div>
-</div>
-
 <div class="modal hidden" id="calendar-modal">
   <div class="modal-card" style="max-height:85vh; overflow-y:auto;">
     <h3>🗓️ Calendar</h3>
@@ -1153,9 +1144,20 @@
 
 <div class="modal hidden" id="streaks-modal" style="z-index:262;">
   <div class="modal-card" style="max-height:90vh; overflow-y:auto;">
-    <h3>🔥 Streaks &amp; XP</h3>
+    <h3>🔥 Habits</h3>
     <div id="streaks-body"></div>
     <button id="streaks-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
+  </div>
+</div>
+
+<div class="modal hidden" id="star-check-modal" style="z-index:306;">
+  <div class="modal-card" style="max-height:85vh; overflow-y:auto;">
+    <h3>🧭 Star check-in</h3>
+    <div id="star-check-body"></div>
+    <div class="modal-actions">
+      <button id="star-check-close">Keep everything</button>
+      <button id="star-check-apply" class="add-btn">Move to tomorrow</button>
+    </div>
   </div>
 </div>
 
@@ -1226,28 +1228,6 @@
     <div id="learn-list"></div>
     <button id="learn-reset-btn" class="settings-item" style="margin-top:10px;">Reset everything I've learned</button>
     <button id="learn-close-btn" style="width:100%; margin-top:10px; background:none; border:1px solid var(--btn); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
-  </div>
-</div>
-
-<div class="modal hidden" id="gestures-modal">
-  <div class="modal-card">
-    <h3>👆 Gestures</h3>
-    <p style="color:var(--muted); font-size:0.8rem; margin-top:-8px;">
-      Tap a task to edit it. Choose what swiping and pressing-and-holding do instead.
-    </p>
-    <div class="modal-row" style="flex-direction:column; align-items:flex-start; gap:8px;">
-      <span style="color:var(--muted); font-size:0.85rem;">Swipe right</span>
-      <div class="time-limit-picker" id="gesture-swipe-right" style="margin-left:0;"></div>
-    </div>
-    <div class="modal-row" style="flex-direction:column; align-items:flex-start; gap:8px;">
-      <span style="color:var(--muted); font-size:0.85rem;">Swipe left</span>
-      <div class="time-limit-picker" id="gesture-swipe-left" style="margin-left:0;"></div>
-    </div>
-    <div class="modal-row" style="flex-direction:column; align-items:flex-start; gap:8px;">
-      <span style="color:var(--muted); font-size:0.85rem;">Press &amp; hold, then drag up/down changes</span>
-      <div class="time-limit-picker" id="gesture-longpress" style="margin-left:0;"></div>
-    </div>
-    <button id="gestures-close-btn" style="width:100%; margin-top:14px; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Close</button>
   </div>
 </div>
 
@@ -1377,11 +1357,16 @@
 <!-- review selection modal -->
 <div class="modal hidden" id="review-modal">
   <div class="modal-card" style="max-height:80vh; overflow-y:auto;">
-    <h3>Review your Power Hour</h3>
-    <p id="review-total" style="font-size:0.85rem; margin-top:-8px; color:var(--muted);">0 / 0 min selected</p>
-    <div class="modal-actions review-actions-top">
-      <button id="review-cancel-btn" class="review-action-compact">Cancel</button>
-      <button id="review-start-btn" class="review-action-compact review-action-compact-accent">Start timer</button>
+    <div class="review-head" style="position:sticky; top:0; z-index:3; background:var(--card); padding:16px 0 8px;">
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <h3 style="margin:0;">⏱ Your Power Hour</h3>
+        <button id="review-x-btn" class="icon-btn" aria-label="Close" style="font-size:1.2rem;">✕</button>
+      </div>
+      <p id="review-total" style="font-size:0.85rem; margin:4px 0 10px; color:var(--muted);">0 of 0 min planned</p>
+      <div class="modal-actions review-actions-top" style="margin:0;">
+        <button id="review-cancel-btn" class="review-action-compact">Cancel</button>
+        <button id="review-start-btn" class="review-action-compact review-action-compact-accent">▶ Start</button>
+      </div>
     </div>
     <div id="review-list"></div>
   </div>
@@ -1507,16 +1492,21 @@ function habitDotRow(t){
     h += '<i style="display:inline-block; width:9px; height:9px; margin:1px; border-radius:50%; background:' + (log.has(ds) ? '#FF9F43' : 'var(--btn)') + (i === 0 ? '; outline:1px solid var(--muted)' : '') + ';"></i>'; }
   return h;
 }
+const SEEDLING = [[30,'🌸','in bloom'],[14,'🌳','a tree'],[7,'🪴','a young plant'],[3,'🌿','a sprout'],[1,'🌱','a seedling'],[0,'🌰','a seed']];
+function seedlingFor(n){ return SEEDLING.find(x => n >= x[0]); }
+function seedlingNext(n){ const up = SEEDLING.slice().reverse().find(x => x[0] > n); return up ? (up[0] - n) + ' more ' + (up[0] - n === 1 ? 'day' : 'days') + ' to grow into ' + up[2] : 'fully grown 🌸'; }
 function openStreaks(){
   const info = levelInfo(game.xp), hs = tasks.filter(t => t.habit && !t.microGoal);
   let h = '<div style="text-align:center; margin-bottom:12px;"><div style="font-size:0.78rem; color:var(--muted); letter-spacing:.06em; text-transform:uppercase;">Level ' + info.n + '</div><div style="font-size:1.3rem; font-weight:800;">' + info.name + '</div>' +
     '<div style="height:10px; background:var(--btn); border-radius:6px; margin:8px 0 4px; overflow:hidden;"><div style="height:100%; width:' + info.pct + '%; background:linear-gradient(90deg,#FFD166,#FF5C7A);"></div></div><div style="font-size:0.78rem; color:var(--muted);">' + game.xp + ' XP · ' + (info.hi - game.xp) + ' to level ' + (info.n + 1) + '</div></div>';
   if(!hs.length) h += '<div class="empty">No habits yet. Edit a task (ideally a recurring one) and tick “🔥 Habit”.</div>';
   hs.forEach(t => { const st = habitStreak(t), done = t.done || (t.habitLog || []).includes(todayStr());
-    h += '<div style="padding:10px 0; border-top:1px solid var(--hairline);"><div style="display:flex; justify-content:space-between; gap:8px;"><b></b><span style="white-space:nowrap;">' + (done ? '✅ today' : '⬜ today') + '</span></div><div style="font-size:0.85rem; margin:2px 0 4px;">🔥 <b>' + st.cur + '</b> day streak · best ' + st.best + '</div><div>' + habitDotRow(t) + '</div></div>'; });
+    h += '<div style="padding:10px 0; border-top:1px solid var(--hairline);"><div style="display:flex; justify-content:space-between; gap:8px; align-items:center;"><span style="display:flex; align-items:center; gap:8px; min-width:0;"><span style="font-size:2rem; line-height:1;">' + seedlingFor(st.cur)[1] + '</span><b></b></span><span style="white-space:nowrap;">' + (done ? '✅ today' : '⬜ today') + '</span></div><div style="font-size:0.85rem; margin:2px 0 4px;">🔥 <b>' + st.cur + '</b> day streak · best ' + st.best + '</div><div style="font-size:0.78rem; color:var(--muted); margin-bottom:4px;">' + seedlingFor(st.cur)[2] + ' · ' + seedlingNext(st.cur) + '</div><div>' + habitDotRow(t) + '</div></div>'; });
   h += '<div style="font-size:0.78rem; color:var(--muted); margin-top:8px;">🧊 One missed day a week is forgiven, so a single slip does not wipe a streak.</div>';
   if(game.badges.length) h += '<div style="margin-top:12px; font-weight:700;">🏅 Badges</div>' + game.badges.slice().reverse().map(b => '<div style="font-size:0.85rem; padding:3px 0;">🏅 ' + b.name + ' · <span class="bn"></span></div>').join('');
+  h += '<div id="streaks-recur"></div>';
   const body = document.getElementById('streaks-body'); body.innerHTML = h;
+  renderHabitTracker(document.getElementById('streaks-recur'));
   [...body.querySelectorAll('b')].filter(b => !b.textContent && true).forEach((b, i) => { b.textContent = hs[i] ? hs[i].name : ''; });
   [...body.querySelectorAll('.bn')].forEach((el, i) => { el.textContent = game.badges.slice().reverse()[i].task; });
   document.getElementById('streaks-modal').classList.remove('hidden');
@@ -1526,13 +1516,15 @@ document.getElementById('streaks-close-btn').onclick = () => document.getElement
 /* ---------- star task (intentions) ---------- */
 let star = (() => { try{ const o = JSON.parse(localStorage.getItem('powerHourStar') || 'null'); return o && o.id ? o : null; }catch(e){ return null; } })();
 function saveStar(){ try{ if(star) localStorage.setItem('powerHourStar', JSON.stringify(star)); else localStorage.removeItem('powerHourStar'); }catch(e){} }
-function isStarToday(t){ return !!(features.intentions && star && star.day === todayStr() && t && star.id === t.id); }
+function hasProgressToday(t){ return !!t && ((chunkToday || []).some(c => c.id === t.id) || (!t.done && (t.doneMins || 0) > 0 && t.partialOn === todayStr())); }
+function starProgressOn(day){ return !!(star && star.day === day && !starDoneOn(day) && (chunkToday || []).some(c => c.id === star.id)); }
+function isStarToday(t){ return !!(features.intentions && star && star.day === todayStr() && t && (star.id === t.id || (star.also || []).includes(t.id))); }
 function starDoneOn(day){ return !!(star && star.day === day && getAllCompleted().some(t => t.id === star.id && !t.partial)); }
 function anyModalOpen(){ return [...document.querySelectorAll('.modal')].some(m => m.id === 'add-modal' ? m.classList.contains('modal-open') : !m.classList.contains('hidden')); }
 function megaConfetti(){ confetti(160); setTimeout(() => confetti(120), 500); setTimeout(() => confetti(120), 1100); try{ navigator.vibrate && navigator.vibrate([60, 40, 60, 40, 120]); }catch(e){} }
 function starCelebrate(){ // the moment the star task is completed
   if(!features.intentions || !star || star.day !== todayStr() || star.celebrated) return;
-  if(!starDoneOn(star.day)) return;
+  if(!starDoneOn(star.day)){ if(starProgressOn(star.day) && !star.progressed){ star.progressed = true; saveStar(); showToast('⭐ Progress on your star task. Great start!'); } return; }
   star.celebrated = true; saveStar(); megaConfetti(); showToast('⭐ YOU DID YOUR STAR TASK! ' + star.name);
 }
 function starBanner(day){ // shown at the top of the end-of-day highlights and list
@@ -1540,7 +1532,60 @@ function starBanner(day){ // shown at the top of the end-of-day highlights and l
   const nm = star.name.replace(/</g, '&lt;');
   return starDoneOn(day)
     ? '<div style="text-align:center; padding:16px 12px; margin-bottom:14px; border-radius:16px; background:linear-gradient(135deg,#FFD166,#FF9F43 55%,#FF5C7A); color:#2a1500;"><div style="font-size:2.6rem; line-height:1;">🌟⭐🌟</div><div style="font-weight:800; font-size:1.25rem; margin-top:6px;">STAR TASK ACHIEVED!</div><div style="font-weight:700; margin-top:2px;">' + nm + '</div><div style="font-size:0.85rem; margin-top:4px;">This is the one you wanted to be proud of. You did it.</div></div>'
-    : '<div style="text-align:center; padding:10px 12px; margin-bottom:14px; border-radius:14px; border:1px dashed var(--hairline); color:var(--muted);"><div>⭐ Star task: <b style="color:var(--text);">' + nm + '</b></div><div style="font-size:0.8rem; margin-top:2px;">Not done today. It stays on your list.</div></div>';
+    : '<div style="text-align:center; padding:10px 12px; margin-bottom:14px; border-radius:14px; border:1px dashed var(--hairline); color:var(--muted);"><div>⭐ Star task: <b style="color:var(--text);">' + nm + '</b></div><div style="font-size:0.8rem; margin-top:2px;">' + (starProgressOn(day) ? '🌱 You made progress on it today. That counts!' : 'Not finished today. It stays on your list.') + '</div></div>';
+}
+
+/* ---------- star check-in: protect the things that must happen, see what the rest of the day can afford ---------- */
+function tomorrowStr(){ const d = new Date(); d.setDate(d.getDate() + 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function dayEndMins(){ let v = '21:00'; try{ v = localStorage.getItem('powerHourDayEnd') || v; }catch(e){} const m = /^(\d{1,2}):(\d{2})$/.exec(v); return m ? (+m[1]) * 60 + (+m[2]) : 21 * 60; }
+function openStarCheck(){
+  if(!star || star.day !== todayStr()){ showToast('⭐ Pick today’s star task first'); return; }
+  const body = document.getElementById('star-check-body'), apply = document.getElementById('star-check-apply'), close = document.getElementById('star-check-close');
+  const modal = document.getElementById('star-check-modal');
+  let cuts = new Set();
+  const draw = () => {
+    const now = new Date(), left = Math.max(0, dayEndMins() - (now.getHours() * 60 + now.getMinutes()));
+    const prot = tasks.filter(t => !t.done && !t.microGoal && isStarToday(t));
+    const others = tasks.filter(t => !t.done && !t.microGoal && !t.autoWalk && !isStarToday(t) && !isScheduledForFuture(t));
+    const need = prot.reduce((a, t) => a + remMins(t), 0), load = others.reduce((a, t) => a + remMins(t), 0);
+    const spare = left - need, fmt = m => m >= 60 ? Math.floor(m / 60) + 'h' + (m % 60 ? ' ' + (m % 60) + 'm' : '') : m + ' min';
+    // suggestions: lowest priority first, never must-dos or time-slotted tasks
+    const order = others.filter(t => !t.mustDo && !t.timeConstraint).sort((a, b) => PRIORITIES.indexOf(b.priority) - PRIORITIES.indexOf(a.priority) || remMins(b) - remMins(a));
+    const short = Math.max(0, need + load - left);
+    if(!draw.init){ let f = 0; order.forEach(t => { if(f < short){ cuts.add(t.id); f += remMins(t); } }); draw.init = true; }
+    cuts = new Set([...cuts].filter(id => others.some(t => t.id === id)));
+    const freed = others.filter(t => cuts.has(t.id)).reduce((a, t) => a + remMins(t), 0);
+    let h = '<div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; color:var(--muted); font-size:0.85rem;">🌙 Day ends at <input type="time" id="star-check-end" value="' + String(Math.floor(dayEndMins() / 60)).padStart(2, '0') + ':' + String(dayEndMins() % 60).padStart(2, '0') + '" style="flex:none;"> · ' + fmt(left) + ' left</div>';
+    h += '<div style="margin-bottom:6px; font-weight:700;">⭐ Protecting</div>';
+    h += prot.length ? prot.map(t => '<div class="review-item"><span class="name">' + t.name.replace(/</g, '&lt;') + '</span><span class="mins">' + fmt(remMins(t)) + '</span></div>').join('') : '<div class="empty">Your star task is already done 🎉</div>';
+    let msg;
+    if(!prot.length) msg = '🎉 Nothing left to protect. Enjoy the rest of your day.';
+    else if(need > left) msg = '💛 There isn’t quite enough day left for even this (' + fmt(need) + ' needed). Maybe cut it into bits, or do the part that matters most.';
+    else if(short === 0) msg = '✅ You’re on track. Your star fits with ' + fmt(Math.max(0, left - need - load)) + ' to spare.';
+    else msg = '🧭 To make this happen you’d need to let ' + fmt(short) + ' go. Here’s what I’d move to tomorrow. Untick anything you’d rather keep.';
+    h += '<div style="margin:12px 0; padding:10px 12px; border-radius:12px; background:var(--card-raised);">' + msg + '</div>';
+    if(prot.length && need <= left && short > 0){
+      h += order.map(t => '<label class="review-item" style="cursor:pointer;"><input type="checkbox" data-id="' + t.id + '" ' + (cuts.has(t.id) ? 'checked' : '') + '><span class="priority-badge" style="color:var(--' + t.priority + ')">' + PRIORITY_LABELS[t.priority] + '</span><span class="name"></span><span class="mins">' + fmt(remMins(t)) + '</span></label>').join('');
+      h += '<div style="color:var(--muted); font-size:0.8rem; margin-top:8px;">Moving these frees ' + fmt(freed) + (freed >= short ? ' ✓' : ' (still ' + fmt(short - freed) + ' short)') + '</div>';
+    }
+    body.innerHTML = h;
+    [...body.querySelectorAll('label.review-item .name')].forEach((el, i) => { el.textContent = order[i].name; });
+    body.querySelectorAll('input[type=checkbox]').forEach(cb => cb.onchange = () => { if(cb.checked) cuts.add(cb.dataset.id); else cuts.delete(cb.dataset.id); draw(); });
+    body.querySelector('#star-check-end').onchange = e => { try{ localStorage.setItem('powerHourDayEnd', e.target.value || '21:00'); }catch(_){} draw.init = false; cuts = new Set(); draw(); };
+    const canApply = prot.length && need <= left && short > 0 && cuts.size > 0;
+    apply.style.display = canApply ? '' : 'none';
+    apply.textContent = 'Move ' + cuts.size + ' to tomorrow';
+    close.textContent = canApply ? 'Keep everything' : 'Close';
+  };
+  draw.init = false; draw();
+  apply.onclick = () => {
+    const ids = [...cuts]; let n = 0;
+    ids.forEach(id => { const t = tasks.find(x => x.id === id); if(t){ t.scheduledDate = tomorrowStr(); t.scheduleArrived = false; n++; } });
+    save(); render(); modal.classList.add('hidden');
+    showToast('🌙 ' + n + (n === 1 ? ' task' : ' tasks') + ' moved to tomorrow', 'Undo', () => { ids.forEach(id => { const t = tasks.find(x => x.id === id); if(t){ t.scheduledDate = null; } }); save(); render(); });
+  };
+  close.onclick = () => modal.classList.add('hidden');
+  modal.classList.remove('hidden');
 }
 function openStarSet(forDay, onClose){
   const modal = document.getElementById('star-set-modal'), list = document.getElementById('star-set-list');
@@ -1890,10 +1935,10 @@ function updateHome(){
   const starToday = features.intentions && star && star.day === todayStr() && !starDoneOn(todayStr());
   stats.innerHTML = '' +
     (urgent > 0 ? '<div style="text-align:center; margin-bottom:8px;"><span style="display:inline-block; font-size:0.8rem; padding:3px 12px; border-radius:12px; background:var(--chip-bg); color:var(--chip-fg);">⏰ ' + urgent + ' time-sensitive</span></div>' : '') +
-    (starToday ? '<button type="button" id="home-star-card" style="width:100%; text-align:left; background:var(--card-raised); color:var(--text); border:1px solid var(--hairline); border-radius:14px; padding:12px 14px; font-size:1rem; font-weight:700; cursor:pointer;">⭐ <span id="home-star-name"></span><div style="color:var(--muted); font-size:0.75rem; font-weight:400;">Today’s star task</div></button>' : '') +
+    (starToday ? '<button type="button" id="home-star-card" style="width:100%; text-align:left; background:var(--card-raised); color:var(--text); border:1px solid var(--hairline); border-radius:14px; padding:12px 14px; font-size:1rem; font-weight:700; cursor:pointer;">⭐ <span id="home-star-name"></span><div style="color:var(--muted); font-size:0.75rem; font-weight:400;">Today’s star task</div></button><button type="button" id="home-star-check" style="width:100%; margin-top:6px; background:none; border:none; color:var(--muted); font-size:0.85rem; padding:6px; cursor:pointer;">🧭 Check in: will I make it?</button>' : '') +
     (inbox.length ? '<button type="button" id="home-inbox-banner" style="width:100%; margin-top:8px; text-align:center; background:var(--chip-bg); color:var(--chip-fg); border:none; border-radius:12px; padding:8px; font-size:0.85rem; cursor:pointer;">📥 ' + inbox.length + (inbox.length === 1 ? ' note' : ' notes') + ' to sort</button>' : '');
   stats.style.marginBottom = stats.innerHTML ? '12px' : '0';
-  const sn = document.getElementById('home-star-name'); if(sn){ sn.textContent = star.name; document.getElementById('home-star-card').onclick = () => openStarSet(todayStr()); }
+  const sn = document.getElementById('home-star-name'); if(sn){ sn.textContent = star.name; document.getElementById('home-star-card').onclick = () => openStarSet(todayStr()); const sc = document.getElementById('home-star-check'); if(sc) sc.onclick = openStarCheck; }
   const ib = document.getElementById('home-inbox-banner'); if(ib) ib.onclick = openInbox;
   const btns = [
     ['📋', 'Full list', 'full', ''],
@@ -1903,7 +1948,6 @@ function updateHome(){
     ['🗓️', 'Calendar', 'settings-calendar-btn', ''],
     ['📊', 'History', 'settings-insights-btn', '']
   ];
-  const hb = document.getElementById('settings-habits-btn'); if(hb && hb.style.display !== 'none') btns.push(['🌱', 'Habit tracker', 'settings-habits-btn', '']);
   homeSearch();
   grid.innerHTML = '';
   btns.forEach(([ic, label, act, sub]) => {
@@ -2657,7 +2701,7 @@ function beginRun(){
   unlockAudio(); requestWake();
   if(timerState === 'idle' && sessionTaskIds){
     // anything that was available but left out of this session gets a small standing boost next time
-    tasks.forEach(t => { const pre = getPrereq(t); if(pre && !pre.done){ t.passedOver = 0; t.passedSince = null; return; } // blocked: the 'left out' clock only starts once it's unblocked
+    tasks.forEach(t => { const pre = getPrereq(t); if((pre && !pre.done) || hasProgressToday(t)){ t.passedOver = 0; t.passedSince = null; return; } // blocked: the 'left out' clock only starts once it's unblocked
       if(!t.done && !t.microGoal && lastEligibleIds.has(t.id) && !sessionTaskIds.includes(t.id)){ if(!t.passedOver) t.passedSince = Date.now(); t.passedOver = (t.passedOver || 0) + 1; } }); // only tasks that could actually have been chosen count as 'left out'
     tasks.forEach(t => { if(t.wantSoon && sessionTaskIds.includes(t.id)) t.wantSoon = false; });
     save();
@@ -3149,15 +3193,11 @@ const COMEBACK_LINES = [
   d => `${d} days since the last one. Today's a great day to pick it back up.`,
   d => `Missed ${d} days? The streak resets, the habit doesn't. Start small today. 💪`,
 ];
-function renderHabitTracker(){
-  const recurringNames = [...new Set(tasks.filter(t => t.recurring).map(t => t.name))];
-  const list = document.getElementById('habits-list');
-  if(recurringNames.length === 0){
-    list.innerHTML = '<div class="empty">No recurring tasks yet — mark one Recurring to start tracking it here.</div>';
-    return;
-  }
+function renderHabitTracker(list){
+  const recurringNames = [...new Set(tasks.filter(t => t.recurring && !t.habit).map(t => t.name))];
+  if(recurringNames.length === 0){ list.innerHTML = ''; return; }
   const today = todayStr();
-  list.innerHTML = recurringNames.map(name => {
+  list.innerHTML = '<div style="margin-top:14px; font-weight:700;">🔁 Recurring tasks · last 14 days</div>' + recurringNames.map(name => {
     const history = getHabitHistory(name, 14);
     const streak = getCurrentStreak(history);
     const _ht = tasks.find(x => x.recurring && x.name === name); const _gap = habitGapDays(_ht);
@@ -3175,12 +3215,6 @@ function renderHabitTracker(){
     `;
   }).join('');
 }
-document.getElementById('settings-habits-btn').onclick = () => {
-  renderHabitTracker();
-  document.getElementById('settings-modal').classList.add('hidden');
-  document.getElementById('habits-modal').classList.remove('hidden');
-};
-document.getElementById('habits-close-btn').onclick = () => document.getElementById('habits-modal').classList.add('hidden');
 
 function getCelebration(count, mins){
   let tier = CELEBRATION_TIERS[0];
@@ -3275,7 +3309,7 @@ function refreshTimerDisplays(){
   }
   document.getElementById('timer-notes').textContent = t.notes || '';
   document.getElementById('timer-clock').textContent = formatTime(secondsLeft);
-  document.getElementById('pause-btn').textContent = timerState === 'paused' ? 'Resume' : 'Pause';
+  document.getElementById('pause-btn').textContent = timerState === 'paused' ? '▶️' : '⏸';
 
   const nextIdx = findNextIndex(currentIndex + 1);
   { const sessIds = sessionTaskIds || tasks.map(x => x.id);
@@ -3322,7 +3356,11 @@ function closeTimerFully(){
 document.getElementById('minimize-btn').onclick = showMinimized;
 document.getElementById('mini-expand').onclick = showMaximized;
 document.getElementById('mini-expand-area').onclick = showMaximized;
-document.getElementById('close-timer-btn').onclick = async () => { if(await appConfirm({ title: 'End this Power Hour?', text: 'Tasks you\'ve already ticked off stay done. The rest go back on your list.', okLabel: 'End session', danger: true })) closeTimerFully(); };
+document.getElementById('close-timer-btn').onclick = async () => {
+  const n = (sessionCompleted || []).length, m = (sessionCompleted || []).reduce((a, x) => a + (x.mins || 0), 0);
+  const nice = n ? '🌟 You got ' + n + (n === 1 ? ' thing' : ' things') + ' done (about ' + m + ' min). ' : '🌱 Showing up counts. ';
+  if(await appConfirm({ title: 'Finish for now?', text: nice + 'Anything left stays safely on your list.', okLabel: 'Finish session' })) closeTimerFully();
+};
 
 document.getElementById('pause-btn').onclick = () => {
   if(timerState === 'running'){
@@ -3519,7 +3557,7 @@ function formatNotBeforeTime(t){
 }
 
 function openReviewModal(budget){
-  reviewBudget = budget;
+  reviewBudget = budget; reviewLeftOpen = false;
   if(!keepPickSeed) pickSeed = String(Math.random()); // a fresh shuffle for every new plan; edits made inside the plan keep it steady
   keepPickSeed = false;
   let pending = tasks.filter(t => !t.done && !isScheduledForFuture(t) && !isWrongTimeOfDay(t) && (!isBeforeEarliestTime(t) || startsWithin(t, budget))); // current order reflects whichever quick sort is active
@@ -3528,14 +3566,14 @@ function openReviewModal(budget){
   lastEligibleIds = new Set(pending.map(t => t.id));
   renderReviewList(pending, selected);
   { const old = document.getElementById('review-split-nudge'); if(old) old.remove();
-    const cand = pending.filter(t => !t.splittable && !t.autoWalk && !selected.has(t.id) && !(getPrereq(t) && !getPrereq(t).done) && (t.mins > budget || ((t.passedOver || 0) >= 3 && t.mins >= 20 && Date.now() - (t.passedSince || t.createdAt || 0) >= 2 * 86400000)))
+    const cand = pending.filter(t => !t.splittable && !t.autoWalk && !hasProgressToday(t) && !selected.has(t.id) && !(getPrereq(t) && !getPrereq(t).done) && (t.mins > budget || ((t.passedOver || 0) >= 3 && t.mins >= 20 && Date.now() - (t.passedSince || t.createdAt || 0) >= 2 * 86400000)))
       .sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority))[0];
     if(cand){
       const chunk = cand.mins >= 40 ? 10 : 5;
       const box = document.createElement('div'); box.id = 'review-split-nudge';
       box.style.cssText = 'background:var(--card-raised); border:1px solid var(--btn); border-radius:10px; padding:10px 12px; margin-bottom:10px; font-size:0.85rem;';
       box.innerHTML = '<div style="margin-bottom:8px;"></div><button type="button" class="empty-add" style="margin:0;"></button>';
-      box.firstChild.textContent = '“' + cand.name + '” (' + cand.mins + ' min) ' + (cand.mins > budget ? 'is longer than this session.' : 'keeps getting left out.') + ' Do it in small bits instead?';
+      box.firstChild.textContent = '“' + cand.name + '” (' + cand.mins + ' min) ' + (cand.mins > budget ? 'is longer than this session.' : 'keeps getting saved for later.') + ' Do it in small bits instead?';
       box.lastChild.textContent = '✂️ Do it in ' + chunk + '-min bits';
       box.lastChild.onclick = () => { cand.splittable = true; cand.autoSplit = false; cand.chunkMins = chunk; save(); keepPickSeed = true; openReviewModal(budget); };
       document.getElementById('review-list').before(box);
@@ -3859,7 +3897,7 @@ document.getElementById('learn-reset-btn').onclick = async () => { if(await appC
 let reviewPending = [];
 function moveInReview(id, up){
   const t = reviewPending.find(x => x.id === id); if(!t) return;
-  const sel = new Set([...document.querySelectorAll('#review-list input:checked')].map(cb => cb.dataset.id));
+  const sel = new Set([...document.querySelectorAll('#review-list input:checked')].flatMap(cb => cb.dataset.group ? cb.dataset.group.split(',') : [cb.dataset.id]));
   if(up){ sel.add(id); t.wantSoon = true; } else { sel.delete(id); t.wantSoon = false; }
   save();
   renderReviewList(reviewPending, sel); updateReviewTotal();
@@ -3932,7 +3970,7 @@ function planOpen(){ return !document.getElementById('review-modal').classList.c
 /* redraw the plan list after a task changed, keeping what's ticked; dropId removes a task from it */
 function refreshReviewList(dropId){
   if(!planOpen()) return;
-  const sel = new Set([...document.querySelectorAll('#review-list input:checked')].map(cb => cb.dataset.id));
+  const sel = new Set([...document.querySelectorAll('#review-list input:checked')].flatMap(cb => cb.dataset.group ? cb.dataset.group.split(',') : [cb.dataset.id]));
   if(dropId){ sel.delete(dropId); reviewPending = reviewPending.filter(x => x.id !== dropId); }
   reviewPending = reviewPending.filter(x => { const t = tasks.find(y => y.id === x.id); return t && !t.done && !isScheduledForFuture(t); }).map(x => tasks.find(y => y.id === x.id));
   reviewPending.sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority));
@@ -3943,14 +3981,20 @@ async function openTaskMenu(id, fromPlan){
   const t = tasks.find(x => x.id === id); if(!t) return;
   const items = [];
   const add = (label, fn) => items.push({ label, fn });
-  if(!t.done) add('✓ Mark complete', () => { boardMarkDone(id); refreshReviewList(); });
-  add('📆 Snooze…', () => snoozeFromReview(id));
+  if(!t.done) add('✅ Complete', () => { boardMarkDone(id); refreshReviewList(); });
+  add('😴 Snooze', () => snoozeFromReview(id));
   add('✏️ Edit', () => { if(fromPlan && planOpen()){ editOpenedFromReview = true; document.getElementById('review-modal').classList.add('hidden'); } openEditModal(id); });
-  add('🎚 Change priority…', async () => { const k = await askChoice('Priority for “' + t.name + '”', 'Currently ' + PRIORITY_LABELS[t.priority], PRIORITIES.map(p => PRIORITY_LABELS[p]), -1); if(k >= 0){ setPriorityDirect(id, k); refreshReviewList(); } });
+  add('🎚 Priority', async () => { const k = await askChoice('Priority for “' + t.name + '”', 'Currently ' + PRIORITY_LABELS[t.priority], PRIORITIES.map(p => PRIORITY_LABELS[p]), -1); if(k >= 0){ setPriorityDirect(id, k); refreshReviewList(); } });
   if(!t.done) add(t.wantSoon ? '↩︎ Stop moving to the front' : '⏫ Do it first next session', () => { t.wantSoon = !t.wantSoon; save(); render(); refreshReviewList(); showToast(t.wantSoon ? '⏫ Will be planned first: ' + t.name : 'Back to normal order: ' + t.name); });
   if(features.intentions && !t.done) add('⭐ Make it my star task', () => { const d = new Date(); d.setDate(d.getDate() + 1); const tomorrow = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); star = { day: (star && star.day > todayStr()) ? star.day : todayStr(), id: t.id, name: t.name }; saveStar(); render(); showToast('⭐ Star task: ' + t.name); });
+  if(features.intentions && !t.done && star && star.day === todayStr() && star.id !== t.id){ const on = (star.also || []).includes(t.id); add(on ? '🛡 Stop protecting today' : '🛡 Make sure this happens today', () => { star.also = on ? star.also.filter(x => x !== t.id) : [...(star.also || []), t.id]; saveStar(); render(); showToast(on ? 'No longer protected' : '🛡 Protected. Use the check-in to plan around it'); }); }
   if(isSplit(t) && (t.doneMins || 0) > 0) add('↺ Start this task over', () => { t.doneMins = 0; save(); render(); refreshReviewList(); showToast('Reset to 0 / ' + t.mins + ' min: ' + t.name); });
-  add('🗑 Delete', async () => { await requestDeleteTask(id); refreshReviewList(); });
+  add('🗑 Delete', async () => {
+    if(t.recurring){ await requestDeleteTask(id); refreshReviewList(); return; }
+    const snap = { ...t }, at = tasks.findIndex(x => x.id === id);
+    deleteTaskById(id); refreshReviewList(); render();
+    showToast('🗑 Deleted', 'Undo', () => { if(!tasks.some(x => x.id === snap.id)){ tasks.splice(Math.min(at, tasks.length), 0, snap); save(); render(); refreshReviewList(); } });
+  });
   const i = await askChoice(t.name.length > 40 ? t.name.slice(0, 40) + '…' : t.name, PRIORITY_LABELS[t.priority] + ' · ' + (isSplit(t) ? (t.doneMins || 0) + '/' + t.mins : t.mins) + ' min', items.map(x => x.label), items.length - 1);
   if(i >= 0) items[i].fn();
 }
@@ -3966,6 +4010,7 @@ function tapOrDouble(el, ignore, single, double){
     timer = setTimeout(() => { timer = null; single(e); }, 300);
   });
 }
+let reviewLeftOpen = false;
 function renderReviewList(pending, selectedIds){
   reviewPending = pending;
   const list = document.getElementById('review-list');
@@ -3979,7 +4024,7 @@ function renderReviewList(pending, selectedIds){
     const pre = getPrereq(t);
     if(pre && !pre.done && !selectedIds.has(pre.id)) return '⏳ waiting for “' + pre.name.slice(0, 22) + '”';
     if(planMins(t) > budgetNow) return '⏱ longer than this session';
-    return 'no room left after higher priorities';
+    return 'not enough time today';
   };
   const chips = t => [
     t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff;" title="Must do">must do</span>' : '',
@@ -3991,39 +4036,55 @@ function renderReviewList(pending, selectedIds){
     t.escalated ? '<span class="tag-badge" title="Bumped up for waiting">⏫</span>' : ''
   ].join('');
   const picked = pending.filter(t => selectedIds.has(t.id)).sort((a, b) => (isMorningNow(b) - isMorningNow(a)) || (isMorningNow(a) && isMorningNow(b) ? tasks.indexOf(a) - tasks.indexOf(b) : 0)), left = pending.filter(t => !selectedIds.has(t.id));
-  [['', picked], ['Left out', left]].forEach(([label, group]) => {
-    if(!group.length) return;
-    if(label){ const h = document.createElement('div'); h.className = 'settings-group-label'; h.textContent = label + ' (' + group.length + ')'; h.style.marginTop = '12px'; h.id = 'review-left-header'; list.appendChild(h); }
-    group.forEach(t => {
+  const addRows = (parent, group) => {
+    const walks = group.filter(t => t.autoWalk);
+    const rest = walks.length > 1 ? group.filter(t => !t.autoWalk) : group;
+    if(walks.length > 1){
+      const sel = selectedIds.has(walks[0].id), per = Math.round(walks.reduce((a, t) => a + planMins(t), 0) / walks.length);
+      const row = document.createElement('div'); row.className = 'review-item';
+      row.innerHTML = '<input type="checkbox" data-id="' + walks[0].id + '" data-group="' + walks.map(t => t.id).join(',') + '" ' + (sel ? 'checked' : '') + '><span class="name">🚶 Walk · ' + walks.length + ' × ' + per + ' min</span><span class="mins">' + walks.reduce((a, t) => a + planMins(t), 0) + ' min</span>';
+      parent.appendChild(row);
+    }
+    rest.forEach(t => {
       const row = document.createElement('div');
       row.className = 'review-item';
+      const isIn = selectedIds.has(t.id);
       row.innerHTML = `
-        <input type="checkbox" data-id="${t.id}" ${selectedIds.has(t.id) ? 'checked' : ''}>
+        <input type="checkbox" data-id="${t.id}" ${isIn ? 'checked' : ''}>
         <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
         <span class="name review-edit-trigger" data-id="${t.id}" style="cursor:pointer;">${t.name}${isSplit(t) ? ' ✂️' : ''}
-          ${selectedIds.has(t.id) ? '' : '<div style="color:var(--muted); font-size:0.75rem; font-weight:400;">' + reasonFor(t) + '</div>'}</span>
-        ${selectedIds.has(t.id) ? chips(t) : ''}
+          ${isIn ? '' : '<div style="color:var(--muted); font-size:0.75rem; font-weight:400;">' + reasonFor(t) + '</div>'}</span>
+        ${isIn ? chips(t) : ''}
         ${t.tag ? `<span class="tag-badge">${TAG_ICONS[t.tag]}</span>` : ''}
         <span class="mins">${planMins(t)} min</span>
-        <button type="button" class="mv-btn" ${features.planMove ? '' : 'hidden'} aria-label="${selectedIds.has(t.id) ? 'Move to left out' : 'Move to planned'}" style="background:none; border:1px solid var(--btn); color:var(--text); border-radius:8px; padding:2px 8px; cursor:pointer;">${selectedIds.has(t.id) ? '▼' : '▲'}</button>
         <span class="drag-handle" ${features.planMove ? '' : 'hidden'} aria-hidden="true" style="cursor:grab; color:var(--muted); padding:0 4px; user-select:none;">⠿</span>
       `;
-      row.querySelector('.mv-btn').onclick = () => moveInReview(t.id, !selectedIds.has(t.id));
       tapOrDouble(row, 'input, button, .drag-handle', e => { if(e && e.target.closest('.review-edit-trigger') && row.__editSingle) row.__editSingle(); }, () => openTaskMenu(t.id, true));
-      if(features.planMove) attachReviewDrag(row.querySelector('.drag-handle'), row, t.id, selectedIds.has(t.id));
-      list.appendChild(row);
+      if(features.planMove) attachReviewDrag(row.querySelector('.drag-handle'), row, t.id, isIn);
+      parent.appendChild(row);
     });
-  });
+  };
+  addRows(list, picked);
+  if(left.length){
+    const h = document.createElement('button'); h.type = 'button'; h.id = 'review-left-header';
+    h.style.cssText = 'display:block; width:100%; text-align:left; background:none; border:none; border-top:1px solid var(--hairline); color:var(--muted); font-size:0.88rem; padding:14px 2px 8px; margin-top:12px; cursor:pointer;';
+    const box = document.createElement('div'); box.id = 'review-left-box';
+    const lw = left.filter(t => t.autoWalk).length > 1 ? 1 : 0, cnt = left.length - (lw ? left.filter(t => t.autoWalk).length - 1 : 0);
+    const setH = () => { h.textContent = '🌙 ' + cnt + ' saved for later ' + (reviewLeftOpen ? '▴' : '(tap to see) ▾'); box.style.display = reviewLeftOpen ? '' : 'none'; };
+    h.onclick = () => { reviewLeftOpen = !reviewLeftOpen; setH(); };
+    setH(); list.appendChild(h); list.appendChild(box); addRows(box, left);
+  }
   { const hidden = tasks.filter(t => !t.done && !t.microGoal && !isScheduledForFuture(t) && !pending.some(x => x.id === t.id)).length;
     if(hidden){ const n = document.createElement('div'); n.style.cssText = 'color:var(--muted); font-size:0.78rem; margin-top:12px;'; n.textContent = hidden + ' more task' + (hidden === 1 ? ' is' : 's are') + ' hidden from this plan (wrong time of day, not available yet, or outside your tag filter).'; list.appendChild(n); } }
   list.querySelectorAll('input[type=checkbox]').forEach(cb => {
     const t = pending.find(x => x.id === cb.dataset.id);
     cb.onchange = () => {
+      if(cb.dataset.group){ const sel = new Set([...document.querySelectorAll('#review-list input:checked')].flatMap(c => c.dataset.group ? c.dataset.group.split(',') : [c.dataset.id])); renderReviewList(reviewPending, sel); updateReviewTotal(); return; }
       if(t && t.mustDo && !cb.checked){
         cb.checked = true; // hold it checked until they confirm
-        showMustDoConfirm(t, () => { cb.checked = false; updateReviewTotal(); });
-      } else {
-        updateReviewTotal();
+        showMustDoConfirm(t, () => { moveInReview(t.id, false); });
+      } else if(t){
+        moveInReview(t.id, cb.checked);
       }
     };
   });
@@ -4036,18 +4097,19 @@ function renderReviewList(pending, selectedIds){
 
 function updateReviewTotal(){
   const checked = [...document.querySelectorAll('#review-list input:checked')];
-  const total = checked.reduce((sum, cb) => {
-    const t = tasks.find(x => x.id === cb.dataset.id);
+  const total = checked.flatMap(cb => cb.dataset.group ? cb.dataset.group.split(',') : [cb.dataset.id]).reduce((sum, id) => {
+    const t = tasks.find(x => x.id === id);
     return sum + (t ? planMins(t) : 0);
   }, 0);
   const el = document.getElementById('review-total');
-  el.textContent = `${total} / ${reviewBudget} min selected`;
+  el.textContent = `${total} of ${reviewBudget} min planned`;
   el.style.color = total > reviewBudget ? 'var(--danger)' : 'var(--muted)';
 }
 
 document.getElementById('review-cancel-btn').onclick = () => document.getElementById('review-modal').classList.add('hidden');
+document.getElementById('review-x-btn').onclick = () => document.getElementById('review-modal').classList.add('hidden');
 document.getElementById('review-start-btn').onclick = () => {
-  const checked = [...document.querySelectorAll('#review-list input:checked')].map(cb => cb.dataset.id);
+  const checked = [...document.querySelectorAll('#review-list input:checked')].flatMap(cb => cb.dataset.group ? cb.dataset.group.split(',') : [cb.dataset.id]);
   if(checked.length === 0) return;
   sessionTaskIds = checked; sessionTimedIds = checked.filter(id => { const t = tasks.find(x => x.id === id); return t && isBeforeEarliestTime(t); });
   sessionPlan = {}; checked.forEach(id => { const t = tasks.find(x => x.id === id); if(isSplit(t)) sessionPlan[id] = planMins(t); });
@@ -4606,7 +4668,7 @@ document.getElementById('report-clear-btn').onclick = async () => {
 let listSearch = '', listTagFilter = null;
 function buildListFilters(){
   const box = document.getElementById('list-filter-chips');
-  box.innerHTML = '';
+  box.innerHTML = ''; listTagFilter = null; box.style.display = 'none'; return;
   TAGS.forEach(tag => {
     const c = document.createElement('button'); c.className = 'filter-chip' + (listTagFilter === tag ? ' on' : '');
     c.textContent = TAG_ICONS[tag] + ' ' + TAG_LABELS[tag]; c.dataset.tag = tag;
@@ -4666,10 +4728,6 @@ function buildTaskRow(t){
   wrap.className = 'task-row pr-' + t.priority;
   wrap.dataset.id = t.id;
   wrap.innerHTML = `
-    <div class="task-row-bg">
-      <div class="task-row-bg-left" id="rowbg-left-${t.id}">${GESTURE_ACTIONS[gestureSettings.swipeRight].label}</div>
-      <div class="task-row-bg-right" id="rowbg-right-${t.id}">${GESTURE_ACTIONS[gestureSettings.swipeLeft].label}</div>
-    </div>
     <div class="task-row-content" style="border-left-color:var(--${t.priority})">
       <div class="task-row-line1">
         <input type="checkbox" class="task-check">
@@ -4677,7 +4735,7 @@ function buildTaskRow(t){
       </div>
       <div class="task-row-line2">
         ${getPrereq(t) && !getPrereq(t).done ? `<span class="tag-badge" title="Held until the task it comes after is done">🔗 after ${getPrereq(t).name.replace(/</g, '&lt;').slice(0, 18)}</span>` : ''}
-        ${t.habit && features.habits ? '<span class="tag-badge" title="Habit streak">🔥 ' + habitStreak(t).cur + '</span>' : ''}
+        ${t.habit && features.habits ? '<span class="tag-badge" title="Habit streak">' + seedlingFor(habitStreak(t).cur)[1] + ' ' + habitStreak(t).cur + '</span>' : ''}
         ${t.notes ? '<span class="tag-badge" title="Has notes">📝</span>' : ''}
         ${t.pin === 'first' ? '<span class="tag-badge" title="Always done first in a timer run">🥇 first</span>' : t.pin === 'last' ? '<span class="tag-badge" title="Always done last in a timer run">🏁 last</span>' : ''}
         ${t.autoWalk ? '<span class="tag-badge" title="Added automatically to help hit your step goal">🤖 auto</span>' : ''}
@@ -4697,6 +4755,7 @@ function buildTaskRow(t){
   wrap.querySelector('.task-check').onclick = (e) => e.stopPropagation();
   const content = wrap.querySelector('.task-row-content');
   content.onpointerdown = (e) => onRowPointerDown(e, content, t.id);
+  content.onclick = (e) => { if(e.target.closest('input')) return; if(window.__rowTapId === t.id){ window.__rowTapId = null; openTaskMenu(t.id, false); } };
   return wrap;
 }
 
@@ -4893,17 +4952,6 @@ function onRowPointerDown(e, el, id){
           rowGestureTargetIdx = rowGestureSiblingStartIdx;
           rowGestureRowHeight = rowGestureEl.parentElement.offsetHeight || 70;
         }
-      } else {
-        rowGestureMode = 'longpress';
-        rowGestureEl.classList.add('longpress-active');
-        if(gestureSettings.longPress === 'priority'){
-          const t = tasks.find(x => x.id === rowGestureId);
-          if(t){
-            rowGestureStartPriorityIdx = PRIORITIES.indexOf(t.priority);
-            rowGestureTargetIdx = rowGestureStartPriorityIdx;
-            showPriorityScrubber(rowGestureEl, rowGestureStartPriorityIdx);
-          }
-        }
       }
     }
   }, 450);
@@ -4918,7 +4966,7 @@ function onRowPointerMove(e){
 
   if(rowGestureMode === null){
     if(Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2){
-      rowGestureMode = 'swipe';
+      rowGestureMode = 'scroll'; rowGestureLastY = e.clientY;
       clearTimeout(rowLongPressTimer);
     } else if(Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)){
       // ordinary page scroll intent, before the long-press timer fired — since touch-action
@@ -4935,31 +4983,12 @@ function onRowPointerMove(e){
     rowGestureLastY = e.clientY;
     return;
   }
-  if(rowGestureMode === 'swipe'){
-    const clamped = Math.max(-140, Math.min(140, dx));
-    rowGestureEl.style.transform = `translateX(${clamped}px)`;
-    const bgLeft = document.getElementById('rowbg-left-' + rowGestureId);
-    const bgRight = document.getElementById('rowbg-right-' + rowGestureId);
-    if(bgLeft) bgLeft.style.opacity = clamped > 20 ? Math.min(1, clamped / 100) : 0;
-    if(bgRight) bgRight.style.opacity = clamped < -20 ? Math.min(1, -clamped / 100) : 0;
-  } else if(rowGestureMode === 'reorder'){
+  if(rowGestureMode === 'reorder'){
     e.preventDefault();
     const clamped = Math.max(-240, Math.min(240, dy));
     rowGestureEl.style.transform = `translateY(${clamped}px)`;
     const deltaSteps = Math.round(dy / rowGestureRowHeight);
     rowGestureTargetIdx = Math.max(0, Math.min(rowGestureSiblings.length - 1, rowGestureSiblingStartIdx + deltaSteps));
-  } else if(rowGestureMode === 'longpress'){
-    e.preventDefault();
-    if(gestureSettings.longPress === 'priority'){
-      const deltaSteps = Math.round(dy / PRIORITY_SCRUBBER_STEP_PX);
-      rowGestureTargetIdx = Math.max(0, Math.min(PRIORITIES.length - 1, rowGestureStartPriorityIdx + deltaSteps));
-      updatePriorityScrubber(rowGestureTargetIdx);
-    } else {
-      const clamped2 = Math.max(-60, Math.min(60, dy));
-      rowGestureEl.style.transform = `translateY(${clamped2}px)`;
-      rowGestureEl.classList.toggle('longpress-up', clamped2 < -30);
-      rowGestureEl.classList.toggle('longpress-down', clamped2 > 30);
-    }
   }
 }
 function onRowPointerUp(){
@@ -4969,13 +4998,7 @@ function onRowPointerUp(){
   document.removeEventListener('pointercancel', onRowPointerUp);
   if(!rowGestureEl) return;
 
-  if(rowGestureMode === 'swipe'){
-    const threshold = 90;
-    const el = rowGestureEl, id = rowGestureId;
-    if(rowGestureDX < -threshold){ runGestureAction(gestureSettings.swipeLeft, id); }
-    else if(rowGestureDX > threshold){ runGestureAction(gestureSettings.swipeRight, id); }
-    resetRowTransform(el, id);
-  } else if(rowGestureMode === 'reorder'){
+  if(rowGestureMode === 'reorder'){
     unlockBodyScroll();
     rowGestureEl.style.transform = '';
     rowGestureEl.style.zIndex = '';
@@ -4983,27 +5006,11 @@ function onRowPointerUp(){
     if(rowGestureTargetIdx !== rowGestureSiblingStartIdx){
       reorderWithinPriority(rowGestureId, rowGestureTargetIdx);
     }
-  } else if(rowGestureMode === 'longpress'){
-    unlockBodyScroll();
-    if(gestureSettings.longPress === 'priority'){
-      hidePriorityScrubber();
-      if(rowGestureTargetIdx !== rowGestureStartPriorityIdx){
-        setPriorityDirect(rowGestureId, rowGestureTargetIdx);
-      }
-    } else {
-      const threshold = 30;
-      if(rowGestureDY < -threshold){ runLongPressAction('up', rowGestureId); }
-      else if(rowGestureDY > threshold){ runLongPressAction('down', rowGestureId); }
-    }
-    rowGestureEl.style.transform = '';
-    rowGestureEl.classList.remove('longpress-active', 'longpress-up', 'longpress-down');
   } else if(rowGestureMode === 'scroll'){
     // was just an ordinary scroll — nothing to do
   } else {
     if(Math.abs(rowGestureDX) < 8 && Math.abs(rowGestureDY) < 8){
-      const gid = rowGestureId, now = Date.now();
-      if(window.__rowTap && window.__rowTap.id === gid && now - window.__rowTap.t < 350){ clearTimeout(window.__rowTap.timer); window.__rowTap = null; openTaskMenu(gid, false); }
-      else { const timer = setTimeout(() => { window.__rowTap = null; openEditModal(gid); }, 300); window.__rowTap = { id: gid, t: now, timer }; }
+      window.__rowTapId = rowGestureId; clearTimeout(window.__rowTapT); window.__rowTapT = setTimeout(() => { window.__rowTapId = null; }, 600);
     }
   }
   cleanupRowGesture();
@@ -5026,24 +5033,6 @@ function cleanupRowGesture(){
   rowGestureEl = null; rowGestureId = null; rowGestureMode = null;
 }
 
-document.getElementById('settings-gestures-btn').onclick = () => {
-  refreshGestureSettingsUI();
-  document.getElementById('settings-modal').classList.add('hidden');
-  document.getElementById('gestures-modal').classList.remove('hidden');
-};
-document.getElementById('gestures-close-btn').onclick = () => document.getElementById('gestures-modal').classList.add('hidden');
-
-function refreshGestureSettingsUI(){
-  buildSegmented(document.getElementById('gesture-swipe-right'), [
-    { key: 'complete', label: '✓ Complete' }, { key: 'snooze', label: '📆 Snooze' }
-  ], gestureSettings.swipeRight, v => { gestureSettings.swipeRight = v; saveGestureSettings(); refreshGestureSettingsUI(); render(); });
-  buildSegmented(document.getElementById('gesture-swipe-left'), [
-    { key: 'delete', label: '🗑 Delete' }, { key: 'priorityUp', label: '⬆ Priority up' }
-  ], gestureSettings.swipeLeft, v => { gestureSettings.swipeLeft = v; saveGestureSettings(); refreshGestureSettingsUI(); render(); });
-  buildSegmented(document.getElementById('gesture-longpress'), [
-    { key: 'priority', label: 'Priority' }, { key: 'date', label: 'Schedule date' }
-  ], gestureSettings.longPress, v => { gestureSettings.longPress = v; saveGestureSettings(); refreshGestureSettingsUI(); });
-}
 function buildSegmented(container, options, selected, onSelect){
   container.innerHTML = '';
   options.forEach(opt => {
@@ -5310,7 +5299,7 @@ applyFeatures();
 
 /* closing a screen opened from Settings returns to Settings */
 (function(){
-  const ids = ['calendar-modal','habits-modal','insights-modal','daylog-modal','escalation-modal','aging-modal','gestures-modal','learn-modal','features-modal','goals-modal','theme-modal','data-modal','guide-modal'];
+  const ids = ['calendar-modal','insights-modal','daylog-modal','escalation-modal','aging-modal','learn-modal','features-modal','goals-modal','theme-modal','data-modal','guide-modal'];
   let ret = false;
   const settings = document.getElementById('settings-modal');
   const isOpen = m => m.id === 'add-modal' ? m.classList.contains('modal-open') : !m.classList.contains('hidden');
@@ -5330,7 +5319,7 @@ applyFeatures();
 })();
 /* History: one place with tabs for Week / Habits / Day log */
 (function(){
-  const tabs = [['insights','insights-modal','settings-insights-btn','Week'],['habits','habits-modal','settings-habits-btn','Habits'],['daylog','daylog-modal','settings-daylog-btn','Day log']];
+  const tabs = [['insights','insights-modal','settings-insights-btn','Week'],['daylog','daylog-modal','settings-daylog-btn','Day log']];
   tabs.forEach(([key, modalId]) => {
     const card = document.querySelector('#' + modalId + ' .modal-card'); const h = card.querySelector('h3');
     h.textContent = 'History';
@@ -5487,7 +5476,7 @@ document.getElementById('insights-close-btn').onclick = () => document.getElemen
   const slides = [
     ['⏱️', 'Welcome to Power Hour', 'A task list that decides what to do next. Add tasks with a time and a priority, and let the app fit them to the time you have.'],
     ['▶', 'Start a Power Hour', 'Tell it how many minutes you have. It picks the best tasks and times them one by one. Anything left waiting gradually moves up on its own.'],
-    ['👆', 'Everything’s a touch', 'Tap a task to edit, swipe for quick actions, press and hold to change priority. You can change what swipes do in Settings.']
+    ['👆', 'Everything’s a touch', 'Tap a task for a quick menu: complete, snooze, edit, change priority or delete.']
   ];
   let i = 0;
   const show = () => {
@@ -5705,6 +5694,81 @@ if(!configured){
   show('Cloud backup couldn’t load (are you offline?). The app still works normally.');
   $('sync-signin-btn').style.display = 'none';
 }
+
+/* ---------- type-to-search pickers for the Do before / Do after dropdowns ---------- */
+(function(){
+  let ov = null;
+  function build(){
+    ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.55); display:none; align-items:flex-end; justify-content:center;';
+    ov.innerHTML = '<div style="background:var(--card-raised,#222); color:var(--text); width:100%; max-width:520px; border-radius:18px 18px 0 0; padding:14px; max-height:80vh; display:flex; flex-direction:column; padding-bottom:calc(14px + env(safe-area-inset-bottom));"><div style="display:flex; align-items:center; margin-bottom:8px;"><b id="sp-title" style="flex:1;"></b><button type="button" id="sp-x" aria-label="Close" style="background:none; border:none; color:var(--text); font-size:1.3rem; cursor:pointer;">✕</button></div><input type="text" id="sp-q" placeholder="🔍 Type to search" autocomplete="off" style="width:100%; box-sizing:border-box; margin-bottom:8px;"><div id="sp-list" style="overflow-y:auto; flex:1;"></div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if(e.target === ov) ov.style.display = 'none'; });
+    ov.querySelector('#sp-x').onclick = () => ov.style.display = 'none';
+  }
+  function open(sel, title){
+    if(!ov) build();
+    const q = ov.querySelector('#sp-q'), list = ov.querySelector('#sp-list');
+    ov.querySelector('#sp-title').textContent = title;
+    const draw = () => {
+      const f = q.value.trim().toLowerCase(); list.innerHTML = '';
+      let n = 0;
+      [...sel.options].forEach(o => {
+        if(f && !o.textContent.toLowerCase().includes(f)) return;
+        n++;
+        const b = document.createElement('button'); b.type = 'button';
+        b.textContent = o.textContent;
+        b.style.cssText = 'display:block; width:100%; text-align:left; background:' + (o.value === sel.value ? 'var(--btn)' : 'none') + '; color:var(--text); border:none; border-bottom:1px solid var(--hairline); padding:11px 8px; font-size:0.95rem; cursor:pointer;';
+        b.onclick = () => { sel.value = o.value; sel.dispatchEvent(new Event('change', { bubbles: true })); ov.style.display = 'none'; };
+        list.appendChild(b);
+      });
+      if(!n) list.innerHTML = '<div style="color:var(--muted); padding:12px;">Nothing matches.</div>';
+    };
+    q.value = ''; q.oninput = draw; draw();
+    ov.style.display = 'flex'; setTimeout(() => q.focus(), 50);
+  }
+  function enhance(id, title){
+    const sel = document.getElementById(id); if(!sel) return;
+    const btn = document.createElement('button'); btn.type = 'button';
+    btn.className = sel.className;
+    btn.style.cssText = 'margin-left:auto; max-width:60%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left; cursor:pointer; background:var(--btn); color:var(--text); border:1px solid var(--hairline); border-radius:10px; padding:8px 10px; font:inherit;';
+    sel.style.display = 'none'; sel.parentNode.insertBefore(btn, sel.nextSibling);
+    const upd = () => { const o = sel.options[sel.selectedIndex]; btn.textContent = (o ? o.textContent : '—') + ' ▾'; };
+    const d = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+    Object.defineProperty(sel, 'value', { get(){ return d.get.call(this); }, set(v){ d.set.call(this, v); upd(); } });
+    new MutationObserver(upd).observe(sel, { childList: true });
+    sel.addEventListener('change', upd);
+    btn.onclick = () => open(sel, title);
+    upd();
+  }
+  ['add-after-select', 'edit-after-select'].forEach(i => enhance(i, '⏭ Do this after…'));
+  ['add-before-select', 'edit-before-select'].forEach(i => enhance(i, '⏮ Do this before…'));
+})();
+
+/* emoji-only timer buttons: press and hold shows what a button does */
+(function(){
+  document.querySelectorAll('.side-emoji, .main-emoji').forEach(b => {
+    let tm = null, held = false;
+    b.addEventListener('pointerdown', () => { held = false; tm = setTimeout(() => { held = true; showToast(b.dataset.name); }, 500); });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, () => clearTimeout(tm)));
+    b.addEventListener('click', e => { if(held){ e.stopImmediatePropagation(); e.preventDefault(); held = false; } }, true);
+  });
+})();
+
+/* consistent sheet headers: title on the left, ✕ on the right (runs the sheet's own close button when it has one) */
+(function(){
+  document.querySelectorAll('.modal').forEach(m => {
+    if(m.id === 'add-modal' || m.id === 'edit-modal') return;
+    const card = m.querySelector('.modal-card'); if(!card) return;
+    const h = card.querySelector(':scope > h3:first-child'); if(!h || h.querySelector('.sheet-x')) return;
+    const own = [...card.querySelectorAll('button')].find(b => /(close|cancel|done|back|skip)/i.test(b.id) || /^(close|cancel|done|back)$/i.test(b.textContent.trim()));
+    const x = document.createElement('button'); x.type = 'button'; x.className = 'icon-btn sheet-x'; x.setAttribute('aria-label', 'Close'); x.textContent = '✕';
+    x.style.cssText = 'font-size:1.1rem; flex:none; margin-left:auto;';
+    x.onclick = () => { if(own) own.click(); else m.classList.add('hidden'); };
+    h.style.display = 'flex'; h.style.alignItems = 'center'; h.style.gap = '8px';
+    h.appendChild(x);
+  });
+})();
 </script>
 
 </body>
