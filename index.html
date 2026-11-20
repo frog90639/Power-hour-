@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Power Hour</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -454,6 +454,10 @@
 
   .side-emoji{width:46px; height:46px; border-radius:50%; border:1px solid var(--hairline); background:var(--card-raised); color:var(--text); font-size:1.3rem; cursor:pointer; padding:0; line-height:1;}
   .timer-controls button.main-emoji{font-size:1.7rem; padding:10px 0; min-width:84px; line-height:1;}
+
+  html, body, button, .review-item, .task-row-content, .modal-card { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  .review-item, .task-row-content, .timer-task { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .side-emoji{width:44px; height:44px;}
 </style>
 </head>
 <body>
@@ -708,6 +712,7 @@
       <div class="timer-clock" id="timer-clock">00:00</div>
       <div id="timer-progress" style="display:none;"></div>
       <div id="timer-side-row" style="display:flex; justify-content:center; gap:10px; margin-bottom:clamp(6px, 1.5vh, 14px);">
+        <button id="search-session-btn" class="side-emoji" data-name="Find a task to do next" aria-label="Find a task to do next">🔍</button>
         <button id="quick-note-btn" class="side-emoji" data-name="Add a note" aria-label="Add a note">📝</button>
         <button id="bank-btn" class="side-emoji" data-name="Bank the time left" aria-label="Bank the time left">⏳</button>
         <button id="add-time-btn" class="side-emoji" data-name="Add tasks" aria-label="Add tasks">➕</button>
@@ -2696,7 +2701,7 @@ function isHeldBack(t){
   return !sessionTaskIds || sessionTaskIds.includes(pre.id);
 }
 /* skipped tasks go to the back of this session's queue; they only come up again once everything else is done */
-let sessionTimedIds = [], holdTimed = true;
+let sessionTimedIds = [], holdTimed = true, sessionNextId = null;
 function timedWaiting(t){ return sessionTimedIds.includes(t.id) && isBeforeEarliestTime(t); }
 function findNextIndex(from){
   holdTimed = true;
@@ -2717,6 +2722,7 @@ function isMorningNow(t){ return !!(t && t.morning && features.morningRoutine &&
 function findNextCore(from, withDeferred){
   const ok = i => (withDeferred || !sessionDeferred.includes(tasks[i].id)) && !tasks[i].done && !sessionPartial.includes(tasks[i].id) && !sessionSkipped.some(s => s.id === tasks[i].id) && !isScheduledForFuture(tasks[i]) && (!sessionTaskIds || sessionTaskIds.includes(tasks[i].id)) && !isHeldBack(tasks[i]) && !(holdTimed && timedWaiting(tasks[i]));
   const free = i => i !== currentIndex && !sessionSkipped.some(s => s.id === tasks[i].id) && ok(i);
+  if(sessionNextId){ const ni = tasks.findIndex(t => t.id === sessionNextId); if(ni !== -1 && free(ni)) return ni; }
   if(lastFinishedId){ const di = tasks.findIndex(t => t.afterDirect && t.afterId === lastFinishedId && free(tasks.indexOf(t))); if(di !== -1) return di; }
   // "do first" tasks jump the queue; "do last" tasks only come up when nothing else is left
   for(let i = 0; i < tasks.length; i++) if(isMorningNow(tasks[i]) && free(i)) return i; // the morning routine goes before everything else
@@ -2753,7 +2759,7 @@ function beginRun(){
   }
   if(timerState === 'idle'){
     sessionCompleted = [];
-    sessionSkipped = []; sessionDeferred = []; lastFinishedId = null;
+    sessionSkipped = []; sessionDeferred = []; lastFinishedId = null; sessionNextId = null;
     sessionPartial = [];
     lastMotivationTaskId = null; // fresh session — re-roll the message even if it's the same task as last time
     currentIndex = findNextIndex(0);
@@ -2985,7 +2991,8 @@ async function askRestOfRecurring(id){
   const left = remMins(t), lower = PRIORITIES.slice(PRIORITIES.indexOf(t.priority) + 1);
   const labels = ['Keep the rest as planned'].concat(lower.map(p => 'Lower it to ' + PRIORITY_LABELS[p])).concat(['Cancel the rest (that was enough)']);
   const c = await askChoice(left + ' min of “' + t.name + '” still to do', 'This is for this time only. It repeats as normal next time.', labels, labels.length - 1);
-  if(c <= 0) return;
+  if(c < 0) return;
+  if(c === 0){ rejoinWithBump(t); return; }
   if(c === labels.length - 1){
     t.done = true; t.doneMins = t.mins; sessionPartial = sessionPartial.filter(x => x !== id);
     save(); persistSession(); render(); refreshTimerDisplays();
@@ -2997,6 +3004,63 @@ async function askRestOfRecurring(id){
     showToast('“' + t.name + '” lowered to ' + PRIORITY_LABELS[np] + ' for this time');
     resumeSessionIfDone();
   }
+}
+
+
+/* ---------- find any task during a session and bring it up next ---------- */
+function openSessionSearch(){
+  const cur = tasks[currentIndex];
+  const items = tasks.filter(t => !t.done && !t.microGoal && !isScheduledForFuture(t) && (!cur || t.id !== cur.id));
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.55); display:flex; align-items:flex-end; justify-content:center;';
+  ov.innerHTML = '<div style="background:var(--card-raised,#222); color:var(--text); width:100%; max-width:520px; border-radius:18px 18px 0 0; padding:14px; max-height:80vh; display:flex; flex-direction:column; padding-bottom:calc(14px + env(safe-area-inset-bottom));"><div style="display:flex; align-items:center; margin-bottom:8px;"><b style="flex:1;">🔍 Do this next</b><button type="button" class="sx" aria-label="Close" style="background:none; border:none; color:var(--text); font-size:1.3rem; cursor:pointer;">✕</button></div><input type="text" class="sq" placeholder="Type to search" autocomplete="off" style="width:100%; box-sizing:border-box; margin-bottom:8px; font-size:16px;"><div class="sl" style="overflow-y:auto; flex:1;"></div></div>';
+  document.body.appendChild(ov);
+  const q = ov.querySelector('.sq'), list = ov.querySelector('.sl'), close = () => ov.remove();
+  ov.addEventListener('click', e => { if(e.target === ov) close(); }); ov.querySelector('.sx').onclick = close;
+  const draw = () => {
+    const f = q.value.trim().toLowerCase(); list.innerHTML = ''; let n = 0;
+    items.forEach(t => {
+      if(f && !t.name.toLowerCase().includes(f)) return; n++;
+      const b = document.createElement('button'); b.type = 'button';
+      b.style.cssText = 'display:flex; gap:8px; width:100%; text-align:left; background:none; color:var(--text); border:none; border-bottom:1px solid var(--hairline); padding:11px 8px; font-size:0.95rem; cursor:pointer;';
+      b.innerHTML = '<span class="priority-badge" style="color:var(--' + t.priority + ')">' + PRIORITY_LABELS[t.priority] + '</span><span style="flex:1;"></span><span style="color:var(--muted);">' + remMins(t) + ' min</span>';
+      b.children[1].textContent = t.name;
+      b.onclick = () => {
+        close();
+        if(!sessionTaskIds) sessionTaskIds = tasks.map(x => x.id);
+        if(!sessionTaskIds.includes(t.id)) sessionTaskIds.push(t.id);
+        sessionPartial = sessionPartial.filter(x => x !== t.id); sessionSkipped = sessionSkipped.filter(x => x.id !== t.id); sessionDeferred = sessionDeferred.filter(x => x !== t.id);
+        sessionNextId = t.id; persistSession();
+        showToast('🔍 “' + t.name + '” is up next');
+      };
+      list.appendChild(b);
+    });
+    if(!n) list.innerHTML = '<div style="color:var(--muted); padding:12px;">Nothing matches.</div>';
+  };
+  q.oninput = draw; draw(); setTimeout(() => q.focus(), 50);
+}
+document.getElementById('search-session-btn').onclick = openSessionSearch;
+
+/* ---------- a part-done task that keeps its priority gets its place back in the running session, bumping lower priorities ---------- */
+function rejoinWithBump(t){
+  if(!sessionTaskIds || !(timerState === 'running' || timerState === 'paused')) return;
+  const snap = { ids: sessionTaskIds.slice(), part: sessionPartial.slice(), plan: Object.assign({}, sessionPlan), next: sessionNextId };
+  const cur = tasks[currentIndex], rank = p => PRIORITIES.indexOf(p);
+  sessionPartial = sessionPartial.filter(x => x !== t.id);
+  if(!sessionTaskIds.includes(t.id)) sessionTaskIds.push(t.id);
+  const need = remMins(t) > 0 ? Math.min(runMins(t), remMins(t)) : 0;
+  const cands = sessionPendingTasks().filter(x => x.id !== t.id && (!cur || x.id !== cur.id) && !x.mustDo && !x.timeConstraint && !x.autoWalk && rank(x.priority) > rank(t.priority) && !sessionTimedIds.includes(x.id))
+    .sort((a, b) => rank(b.priority) - rank(a.priority) || runMins(b) - runMins(a));
+  let freed = 0; const out = [];
+  for(const x of cands){ if(freed >= need) break; out.push(x); freed += runMins(x); }
+  out.forEach(x => { sessionTaskIds = sessionTaskIds.filter(id => id !== x.id); });
+  sessionNextId = t.id;
+  persistSession(); refreshTimerDisplays();
+  const names = out.map(x => x.name);
+  showToast('“' + t.name + '” is back in' + (names.length ? ', bumped: ' + names.join(', ') : ''), 'Undo', () => {
+    sessionTaskIds = snap.ids; sessionPartial = snap.part; sessionPlan = snap.plan; sessionNextId = snap.next;
+    persistSession(); refreshTimerDisplays();
+  });
 }
 
 /* interrupted: keep the minutes already spent, and the rest goes back in the pool to be planned later */
@@ -3077,7 +3141,7 @@ function advanceAfterCurrent(startAt){
     clearInterval(timerInterval);
     timerState = 'done'; currentIndex = -1; taskEndTime = null; releaseWake();
   } else {
-    currentIndex = next;
+    currentIndex = next; if(tasks[next].id === sessionNextId) sessionNextId = null;
     taskEndTime = Date.now() + runMins(tasks[currentIndex]) * 60 * 1000;
     secondsLeft = runMins(tasks[currentIndex]) * 60;
   }
@@ -3346,7 +3410,7 @@ function refreshTimerDisplays(){
   document.getElementById('timer-priority-badge').classList.remove('hidden');
   document.getElementById('timer-priority-badge').textContent = PRIORITY_LABELS[t.priority];
   document.getElementById('timer-priority-badge').style.background = `var(--${t.priority})`;
-  document.getElementById('timer-current').textContent = `Task ${sessionPosition()} of ${sessionCount()}` + (isSplit(t) ? ` · ✂️ ${runMins(t)}-min bit (${t.doneMins || 0}/${t.mins} done)` : '');
+  { const tc = document.getElementById('timer-current'); tc.textContent = isSplit(t) ? `✂️ ${runMins(t)}-min bit (${t.doneMins || 0}/${t.mins} done)` : ''; tc.style.display = tc.textContent ? '' : 'none'; }
   document.getElementById('timer-task').textContent = t.name; document.getElementById('timer-task').dataset.taskId = t.id;
   if(lastMotivationTaskId !== t.id){
     lastMotivationTaskId = t.id;
