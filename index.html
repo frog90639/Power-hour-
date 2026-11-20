@@ -458,6 +458,28 @@
 </head>
 <body>
 
+<script>
+/* timezone override: shifts "now" so every local-time check (morning questions, today's task pop-up, deadlines) follows the zone chosen in Settings */
+(function(){
+  let tz = 'auto'; try{ tz = localStorage.getItem('powerHourTZ') || 'auto'; }catch(e){}
+  if(tz === 'auto') return;
+  const RealDate = Date, realNow = RealDate.now.bind(RealDate);
+  let shift = 0;
+  try{
+    const n = realNow(), p = {};
+    new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' }).formatToParts(new RealDate(n)).forEach(x => { p[x.type] = +x.value; });
+    const target = RealDate.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+    const d = new RealDate(n), local = RealDate.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds());
+    shift = Math.round((target - local) / 1000) * 1000;
+  }catch(e){ shift = 0; }
+  if(!shift) return;
+  class ShiftDate extends RealDate{
+    constructor(...a){ if(a.length === 0) super(realNow() + shift); else super(...a); }
+    static now(){ return realNow() + shift; }
+  }
+  ShiftDate.__real = RealDate; window.Date = ShiftDate;
+})();
+</script>
 <script>window.__freshInstall = (localStorage.getItem('powerHourTasks') === null && localStorage.getItem('powerHourDayLog') === null);</script>
 <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
   <h1 style="margin:0;">⏱️ <span class="grad-text">Power Hour</span></h1>
@@ -876,6 +898,7 @@
     <div class="settings-group-label">🎨 Appearance &amp; alerts</div>
     <button id="settings-theme-btn" class="settings-item">🎨 Appearance</button>
     <button id="settings-alerts-btn" class="settings-item">🔔 Timer alerts</button>
+    <button id="settings-tz-btn" class="settings-item">🌍 Timezone</button>
     <button id="settings-calendar-btn" class="settings-item" style="display:none">🗓️ Calendar</button>
     <button id="settings-insights-btn" class="settings-item" style="display:none">📊 History</button>
     <button id="settings-daylog-btn" class="settings-item" style="display:none">📅 Day log</button>
@@ -1150,6 +1173,19 @@
   </div>
 </div>
 
+<div class="modal hidden" id="tz-modal" style="z-index:320;">
+  <div class="modal-card">
+    <h3>🌍 Timezone</h3>
+    <p style="color:var(--muted); font-size:0.85rem; margin:0 0 10px;">Morning questions, today's task pop-up and deadlines follow this zone. Pick where you are.</p>
+    <select id="tz-select" style="width:100%; margin-bottom:8px;"></select>
+    <div id="tz-now" style="color:var(--muted); font-size:0.85rem; margin-bottom:12px;"></div>
+    <div class="modal-actions">
+      <button id="tz-cancel">Cancel</button>
+      <button id="tz-save" class="add-btn">Save</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal hidden" id="star-check-modal" style="z-index:306;">
   <div class="modal-card" style="max-height:85vh; overflow-y:auto;">
     <h3>🧭 Star check-in</h3>
@@ -1188,6 +1224,10 @@
     <p id="star-card-meta" style="color:var(--muted); font-size:0.85rem; margin:0 0 6px;"></p>
     <p style="font-size:0.9rem; margin:8px 0 16px;">This is what you said you'd be really proud of doing.</p>
     <button id="star-card-ok-btn" class="add-btn" style="width:100%;">Let's do it</button>
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <button id="star-card-check-btn" style="flex:1; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">🧭 Check in</button>
+      <button id="star-card-change-btn" style="flex:1; background:none; border:1px solid var(--hairline); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">✏️ Change</button>
+    </div>
   </div>
 </div>
 
@@ -1557,7 +1597,7 @@ function openStarCheck(){
     const freed = others.filter(t => cuts.has(t.id)).reduce((a, t) => a + remMins(t), 0);
     let h = '<div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; color:var(--muted); font-size:0.85rem;">🌙 Day ends at <input type="time" id="star-check-end" value="' + String(Math.floor(dayEndMins() / 60)).padStart(2, '0') + ':' + String(dayEndMins() % 60).padStart(2, '0') + '" style="flex:none;"> · ' + fmt(left) + ' left</div>';
     h += '<div style="margin-bottom:6px; font-weight:700;">⭐ Protecting</div>';
-    h += prot.length ? prot.map(t => '<div class="review-item"><span class="name">' + t.name.replace(/</g, '&lt;') + '</span><span class="mins">' + fmt(remMins(t)) + '</span></div>').join('') : '<div class="empty">Your star task is already done 🎉</div>';
+    h += prot.length ? prot.map(t => '<div class="review-item" data-task-id="' + t.id + '"><span class="name">' + t.name.replace(/</g, '&lt;') + '</span><span class="mins">' + fmt(remMins(t)) + '</span></div>').join('') : '<div class="empty">Your star task is already done 🎉</div>';
     let msg;
     if(!prot.length) msg = '🎉 Nothing left to protect. Enjoy the rest of your day.';
     else if(need > left) msg = '💛 There isn’t quite enough day left for even this (' + fmt(need) + ' needed). Maybe cut it into bits, or do the part that matters most.';
@@ -1629,16 +1669,24 @@ function openStarSet(forDay, onClose){
     close();
   };
 }
+function showStarCard(){
+  const t = star && tasks.find(x => x.id === star.id); if(!t) return false;
+  const m = document.getElementById('star-card-modal');
+  document.getElementById('star-card-name').textContent = t.name;
+  document.getElementById('star-card-meta').textContent = PRIORITY_LABELS[t.priority] + ' · ' + t.mins + ' min';
+  const close = () => m.classList.add('hidden');
+  document.getElementById('star-card-ok-btn').onclick = () => { close(); setTimeout(checkMorningQuestions, 250); };
+  document.getElementById('star-card-check-btn').onclick = () => { close(); openStarCheck(); };
+  document.getElementById('star-card-change-btn').onclick = () => { close(); openStarSet(todayStr()); };
+  m.classList.remove('hidden'); return true;
+}
 function checkStarMorning(){ // the first time the app is opened on the day, remind what the goal is
   if(!features.intentions || !star || star.day !== todayStr() || star.shown) return false;
   if(timerState === 'running' || timerState === 'paused' || anyModalOpen()) return false;
   const t = tasks.find(x => x.id === star.id);
   if(!t || t.done){ star.shown = true; saveStar(); return false; }
   star.shown = true; saveStar();
-  document.getElementById('star-card-name').textContent = t.name;
-  document.getElementById('star-card-meta').textContent = PRIORITY_LABELS[t.priority] + ' · ' + t.mins + ' min';
-  document.getElementById('star-card-modal').classList.remove('hidden');
-  document.getElementById('star-card-ok-btn').onclick = () => { document.getElementById('star-card-modal').classList.add('hidden'); setTimeout(checkMorningQuestions, 250); };
+  showStarCard();
   return true;
 }
 function isScheduledForFuture(t){ return !!((t.scheduledDate && t.scheduledDate > todayStr()) || (t.snoozeUntil && t.snoozeUntil > Date.now())); }
@@ -1934,12 +1982,10 @@ function updateHome(){
   const urgent = pend.filter(t => t.mustDo || (t.timeConstraint && (isPastTimeConstraint(t) || isUrgentSlot(t)))).length;
   const starToday = features.intentions && star && star.day === todayStr() && !starDoneOn(todayStr());
   stats.innerHTML = '' +
-    (urgent > 0 ? '<div style="text-align:center; margin-bottom:8px;"><span style="display:inline-block; font-size:0.8rem; padding:3px 12px; border-radius:12px; background:var(--chip-bg); color:var(--chip-fg);">⏰ ' + urgent + ' time-sensitive</span></div>' : '') +
-    (starToday ? '<button type="button" id="home-star-card" style="width:100%; text-align:left; background:var(--card-raised); color:var(--text); border:1px solid var(--hairline); border-radius:14px; padding:12px 14px; font-size:1rem; font-weight:700; cursor:pointer;">⭐ <span id="home-star-name"></span><div style="color:var(--muted); font-size:0.75rem; font-weight:400;">Today’s star task</div></button><button type="button" id="home-star-check" style="width:100%; margin-top:6px; background:none; border:none; color:var(--muted); font-size:0.85rem; padding:6px; cursor:pointer;">🧭 Check in: will I make it?</button>' : '') +
-    (inbox.length ? '<button type="button" id="home-inbox-banner" style="width:100%; margin-top:8px; text-align:center; background:var(--chip-bg); color:var(--chip-fg); border:none; border-radius:12px; padding:8px; font-size:0.85rem; cursor:pointer;">📥 ' + inbox.length + (inbox.length === 1 ? ' note' : ' notes') + ' to sort</button>' : '');
+    (starToday ? '<button type="button" id="home-star-card" style="width:100%; text-align:left; background:var(--card-raised); color:var(--text); border:1px solid var(--hairline); border-radius:14px; padding:12px 14px; font-size:1rem; font-weight:700; cursor:pointer;">⭐ <span id="home-star-name"></span><div style="color:var(--muted); font-size:0.75rem; font-weight:400;">Today’s star task</div></button>' : '') +
+    '';
   stats.style.marginBottom = stats.innerHTML ? '12px' : '0';
-  const sn = document.getElementById('home-star-name'); if(sn){ sn.textContent = star.name; document.getElementById('home-star-card').onclick = () => openStarSet(todayStr()); const sc = document.getElementById('home-star-check'); if(sc) sc.onclick = openStarCheck; }
-  const ib = document.getElementById('home-inbox-banner'); if(ib) ib.onclick = openInbox;
+  const sn = document.getElementById('home-star-name'); if(sn){ sn.textContent = star.name; document.getElementById('home-star-card').onclick = () => showStarCard(); }
   const btns = [
     ['📋', 'Full list', 'full', ''],
     ['✅', 'Done today', 'completed', doneToday ? doneToday + ' 🎉' : ''],
@@ -3240,7 +3286,7 @@ function refreshTimerDisplays(){
     document.getElementById('done-summary').textContent = celebration.detail;
     const list = document.getElementById('done-list');
     list.innerHTML = completed.map(t => `
-      <div class="review-item">
+      <div class="review-item" data-task-id="${t.id}">
         <span style="color:var(--accent); flex-shrink:0;">✓</span>
         <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
         <span class="name">${t.name}</span>
@@ -3261,7 +3307,7 @@ function refreshTimerDisplays(){
       skippedList.innerHTML = stillPendingSkips.map(s => {
         const live = tasks.find(t => t.id === s.id);
         return `
-        <div class="review-item">
+        <div class="review-item" data-task-id="${s.id}">
           <input type="checkbox" data-id="${s.id}" ${live && live.done ? 'checked' : ''}>
           <span class="priority-badge" style="color:var(--${s.priority})">${PRIORITY_LABELS[s.priority]}</span>
           <span class="name">${s.name}</span>
@@ -3302,7 +3348,7 @@ function refreshTimerDisplays(){
   document.getElementById('timer-priority-badge').textContent = PRIORITY_LABELS[t.priority];
   document.getElementById('timer-priority-badge').style.background = `var(--${t.priority})`;
   document.getElementById('timer-current').textContent = `Task ${sessionPosition()} of ${sessionCount()}` + (isSplit(t) ? ` · ✂️ ${runMins(t)}-min bit (${t.doneMins || 0}/${t.mins} done)` : '');
-  document.getElementById('timer-task').textContent = t.name;
+  document.getElementById('timer-task').textContent = t.name; document.getElementById('timer-task').dataset.taskId = t.id;
   if(lastMotivationTaskId !== t.id){
     lastMotivationTaskId = t.id;
     document.getElementById('timer-motivation').textContent = getTaskMotivation(t);
@@ -4198,7 +4244,7 @@ function openReportModal(){
   document.getElementById('report-summary').textContent = completed.length === 0 ? 'Nothing completed yet — get started!' : celebration.detail;
   const list = document.getElementById('report-list');
   list.innerHTML = starBanner(openDay < todayStr() ? openDay : todayStr()) + completed.map(t => `
-    <div class="review-item">
+    <div class="review-item" data-task-id="${t.id}">
       <span style="color:var(--accent); flex-shrink:0;">✓</span>
       <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
       <span class="name">${t.name}</span>
@@ -4372,7 +4418,7 @@ document.getElementById('esc-aging-btn').onclick = () => {
       else if(daysLeft <= 0){ statusText = `${ageLabel} — escalating`; }
       else { statusText = `${ageLabel} — bumps up in ${daysLeft}d`; }
       return `
-        <div class="review-item">
+        <div class="review-item" data-task-id="${t.id}">
           <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
           <span class="name">${t.name}</span>
           <span class="mins" style="flex-shrink:0;">${statusText}</span>
@@ -4454,7 +4500,7 @@ function renderCalendar(){
       upcoming.length === 0
         ? '<div class="empty">Nothing scheduled for later.</div>'
         : upcoming.map(t => `
-          <div class="review-item">
+          <div class="review-item" data-task-id="${t.id}">
             <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
             <span class="name">${t.name}</span>
             <span class="mins" style="flex-shrink:0;">${snoozeLabel(t)}</span>
@@ -4478,7 +4524,7 @@ function renderCalendar(){
     dayTasks.length === 0
       ? '<div class="empty">Nothing scheduled.</div>'
       : dayTasks.map(t => `
-        <div class="review-item">
+        <div class="review-item" data-task-id="${t.id}">
           <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
           <span class="name">${t.name}</span>
           <button type="button" class="board-chip-btn cal-edit" data-id="${t.id}" title="Edit">✎</button>
@@ -5344,7 +5390,7 @@ applyFeatures();
     const b = top.querySelector('[id$="close-btn"],[id$="cancel-btn"]'); if(b) b.click();
   });
 })();
-const SKIP_KEYS = ['powerHourSession','powerHourPartialDay','powerHourSyncAt','powerHourBackupBeforeSync','powerHourBackupBeforeRestore','powerHourSnapshots','powerHourLastOpen','powerHourHelpSeen','powerHourWelcomeSeen','powerHourOpenDay','powerHourRolloverLater','powerHourBreakAcc','powerHourMQ'];
+const SKIP_KEYS = ['powerHourSession','powerHourPartialDay','powerHourTZ','powerHourSyncAt','powerHourBackupBeforeSync','powerHourBackupBeforeRestore','powerHourSnapshots','powerHourLastOpen','powerHourHelpSeen','powerHourWelcomeSeen','powerHourOpenDay','powerHourRolloverLater','powerHourBreakAcc','powerHourMQ'];
 document.querySelectorAll('.app-version-label').forEach(e => e.textContent = APP_VERSION);
 
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
@@ -5768,6 +5814,34 @@ if(!configured){
     h.style.display = 'flex'; h.style.alignItems = 'center'; h.style.gap = '8px';
     h.appendChild(x);
   });
+})();
+
+/* double-tap any task, anywhere, for its menu (edit, snooze, priority, delete…). The Full list opens it on a single tap, and the plan handles its own taps. */
+(function(){
+  let last = { id: null, t: 0 };
+  document.addEventListener('click', e => {
+    const el = e.target.closest('[data-task-id]'); if(!el || el.closest('#review-list, .task-row') || e.target.closest('input, button:not([data-task-id])')) return;
+    const id = el.dataset.taskId, now = Date.now();
+    if(last.id === id && now - last.t < 380){ last = { id: null, t: 0 }; openTaskMenu(id, false); }
+    else last = { id, t: now };
+  });
+})();
+
+/* timezone setting */
+(function(){
+  const sel = document.getElementById('tz-select'), now = document.getElementById('tz-now'), modal = document.getElementById('tz-modal');
+  let zones = []; try{ zones = Intl.supportedValuesOf('timeZone'); }catch(e){}
+  if(!zones.length) zones = ['Europe/London','Europe/Dublin','Europe/Paris','Europe/Berlin','Europe/Madrid','Europe/Athens','Atlantic/Reykjavik','America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Toronto','Asia/Dubai','Asia/Kolkata','Asia/Singapore','Asia/Tokyo','Australia/Sydney','Pacific/Auckland'];
+  let dev = ''; try{ dev = Intl.DateTimeFormat().resolvedOptions().timeZone; }catch(e){}
+  const cur = () => { try{ return localStorage.getItem('powerHourTZ') || 'auto'; }catch(e){ return 'auto'; } };
+  const show = () => { const z = sel.value === 'auto' ? undefined : sel.value; try{ now.textContent = 'It is ' + new Intl.DateTimeFormat([], { timeZone: z, weekday: 'short', hour: '2-digit', minute: '2-digit' }).format(new (window.Date.__real || Date)()) + (z ? '' : ' on this device'); }catch(e){ now.textContent = ''; } };
+  sel.innerHTML = '<option value="auto">📱 Match this device' + (dev ? ' (' + dev + ')' : '') + '</option>' + zones.map(z => '<option value="' + z + '">' + z.replace(/_/g, ' ') + '</option>').join('');
+  sel.onchange = show;
+  const lab = () => { const b = document.getElementById('settings-tz-btn'); if(b) b.textContent = '🌍 Timezone: ' + (cur() === 'auto' ? 'this device' : cur().replace(/_/g, ' ')); };
+  lab();
+  document.getElementById('settings-tz-btn').onclick = () => { document.getElementById('settings-modal').classList.add('hidden'); sel.value = cur(); show(); modal.classList.remove('hidden'); };
+  document.getElementById('tz-cancel').onclick = () => modal.classList.add('hidden');
+  document.getElementById('tz-save').onclick = () => { try{ if(sel.value === 'auto') localStorage.removeItem('powerHourTZ'); else localStorage.setItem('powerHourTZ', sel.value); }catch(e){} location.reload(); };
 })();
 </script>
 
