@@ -458,6 +458,41 @@
   html, body, button, .review-item, .task-row-content, .modal-card { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .review-item, .task-row-content, .timer-task { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   .side-emoji{width:44px; height:44px;}
+
+  /* ===== polish pass: timer + home ===== */
+  .timer-screen-header .icon-btn{background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);}
+  #minimize-btn{color:var(--muted) !important; font-weight:600;}
+  .timer-screen-header .title{color:var(--muted); font-weight:600; font-size:0.9rem; letter-spacing:0;}
+  .timer-priority-badge{display:inline-flex; align-items:center; gap:6px; width:auto; padding:5px 12px 5px 10px; border-radius:999px; background:rgba(255,255,255,0.08) !important; border:1px solid rgba(255,255,255,0.12); color:var(--text); font-size:0.78rem; font-weight:700; letter-spacing:0.02em; margin-bottom:10px;}
+  .timer-priority-badge::before{content:""; width:8px; height:8px; border-radius:50%; background:var(--dot, var(--accent)); box-shadow:0 0 10px var(--dot, var(--accent));}
+  .timer-task{font-size:clamp(1.25rem, 3.6vh, 1.7rem); font-weight:750; letter-spacing:-0.025em; line-height:1.18; max-width:340px; margin:0 auto 10px;}
+  .ring-wrap{position:relative; width:min(60vw, 25vh, 230px); aspect-ratio:1; margin:4px auto 14px; display:flex; align-items:center; justify-content:center;}
+  .ring{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
+  .ring-track{fill:none; stroke:rgba(255,255,255,0.08); stroke-width:9;}
+  .ring-arc{fill:none; stroke-width:9; stroke-linecap:round; transition:stroke-dashoffset .9s linear; filter:drop-shadow(0 0 8px currentColor);}
+  .ring-wrap .timer-clock{margin:0; font-size:clamp(2.4rem, 8.5vw, 3.3rem); font-weight:700; letter-spacing:-0.04em; font-variant-numeric:tabular-nums;}
+  #timer-side-row{gap:8px !important; margin-bottom:12px !important;}
+  .side-emoji{width:44px; height:44px; border-radius:14px !important; background:rgba(255,255,255,0.06) !important; border:1px solid rgba(255,255,255,0.10) !important; font-size:1.2rem; transition:transform .12s, background .12s;}
+  .side-emoji{color:#fff;}
+  .side-emoji:active{transform:scale(0.92); background:rgba(255,255,255,0.14) !important;}
+  .timer-controls{align-items:center; gap:18px !important; margin-bottom:12px !important;}
+  .timer-controls button.main-emoji{border-radius:50% !important; padding:0 !important; min-width:0 !important; width:62px; height:62px; display:inline-flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.08) !important; color:var(--text) !important; border:1px solid rgba(255,255,255,0.14) !important; box-shadow:none; transition:transform .12s;}
+  .timer-controls button.main-emoji:active{transform:scale(0.93);}
+  .timer-controls #done-current-btn{width:78px; height:78px; background:var(--accent-grad) !important; color:var(--on-accent) !important; border:none !important; box-shadow:0 10px 28px rgba(46,196,182,0.38), inset 0 1px 0 rgba(255,255,255,0.35);}
+  #session-panel{background:rgba(255,255,255,0.05) !important; border:1px solid rgba(255,255,255,0.09) !important; border-radius:20px !important; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);}
+  .sp-label,.sp-next-label{text-transform:none !important; letter-spacing:0 !important; font-weight:600 !important; font-size:0.74rem !important;}
+  .timer-screen .eod-link{color:var(--muted); font-weight:500; opacity:.8;}
+
+  .home-tile{display:flex; align-items:center; gap:12px; min-width:0; text-align:left; padding:14px 12px; border-radius:20px; color:var(--text); cursor:pointer; background:linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.04)); border:1px solid rgba(255,255,255,0.10); box-shadow:0 8px 24px rgba(10,6,30,0.25); transition:transform .12s;}
+  .home-tile:active{transform:scale(0.975);}
+  .tile-ic{flex:none; width:44px; height:44px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:1.4rem; background:color-mix(in srgb, var(--c) 22%, transparent); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--c) 38%, transparent);}
+  .tile-t{font-size:0.98rem; font-weight:650; letter-spacing:-0.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .tile-s{font-size:0.78rem; color:var(--muted); font-weight:400; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px;}
+  :root[data-theme=light] .home-tile{background:#fff; border-color:var(--hairline); box-shadow:0 6px 18px rgba(80,60,120,0.10);}
+  #home-grid{gap:12px !important;}
+  .start-btn{height:64px !important; border-radius:20px !important; font-size:1.1rem !important; letter-spacing:-0.01em; box-shadow:0 12px 30px rgba(255,92,122,0.38), inset 0 1px 0 rgba(255,255,255,0.35) !important;}
+  #home-star-card{background:linear-gradient(135deg, rgba(255,209,102,0.20), rgba(255,138,91,0.10)) !important; border:1px solid rgba(255,209,102,0.38) !important; border-radius:20px !important; box-shadow:0 8px 26px rgba(255,170,60,0.14);}
+  .eod-link{opacity:.85;}
 </style>
 </head>
 <body>
@@ -709,20 +744,20 @@
       <div class="timer-task" id="timer-task">—</div>
       <div class="timer-motivation" id="timer-motivation"></div>
       <div id="timer-notes" style="color:var(--muted); font-size:0.88rem; max-width:320px; text-align:center; margin:-4px auto 10px; white-space:pre-wrap;"></div>
-      <div class="timer-clock" id="timer-clock">00:00</div>
+      <div class="ring-wrap"><svg class="ring" viewBox="0 0 220 220" aria-hidden="true"><circle class="ring-track" cx="110" cy="110" r="98"/><circle class="ring-arc" id="ring-arc" cx="110" cy="110" r="98" transform="rotate(-90 110 110)"/></svg><div class="timer-clock" id="timer-clock">00:00</div></div>
       <div id="timer-progress" style="display:none;"></div>
       <div id="timer-side-row" style="display:flex; justify-content:center; gap:10px; margin-bottom:clamp(6px, 1.5vh, 14px);">
         <button id="search-session-btn" class="side-emoji" data-name="Find a task to do next" aria-label="Find a task to do next">🔍</button>
         <button id="quick-note-btn" class="side-emoji" data-name="Add a note" aria-label="Add a note">📝</button>
-        <button id="bank-btn" class="side-emoji" data-name="Bank the time left" aria-label="Bank the time left">⏳</button>
-        <button id="add-time-btn" class="side-emoji" data-name="Add tasks" aria-label="Add tasks">➕</button>
-        <button id="reduce-time-btn" class="side-emoji" data-name="Less time" aria-label="Less time">➖</button>
+        <button id="bank-btn" class="side-emoji" data-name="Bank the time left" aria-label="Bank the time left">🏦</button>
+        <button id="add-time-btn" class="side-emoji" data-name="Add tasks" aria-label="Add tasks"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button id="reduce-time-btn" class="side-emoji" data-name="Less time" aria-label="Less time"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
         <button id="needs-longer-btn" class="side-emoji" data-name="This needs longer" aria-label="This needs longer">⏱</button>
       </div>
       <div class="timer-controls">
-        <button id="done-current-btn" class="main-emoji" data-name="Done" aria-label="Done">✅</button>
-        <button id="pause-btn" class="main-emoji" data-name="Pause" aria-label="Pause">⏸</button>
-        <button id="skip-btn" class="main-emoji" data-name="Not now: move to the end" aria-label="Not now">⏭</button>
+        <button id="done-current-btn" class="main-emoji" data-name="Done" aria-label="Done"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
+        <button id="pause-btn" class="main-emoji" data-name="Pause" aria-label="Pause"><svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.4"/><rect x="14" y="5" width="4" height="14" rx="1.4"/></svg></button>
+        <button id="skip-btn" class="main-emoji" data-name="Not now: move to the end" aria-label="Not now"><svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path d="M5 5.5v13l9-6.5z"/><rect x="16" y="5.5" width="3" height="13" rx="1.2"/></svg></button>
       </div>
       <div id="session-panel">
         <div class="sp-label">Session time left</div>
@@ -1253,6 +1288,7 @@
       <button id="note-cancel-btn" style="flex:1; background:none; border:1px solid var(--btn); color:var(--text); padding:10px; border-radius:10px; cursor:pointer;">Cancel</button>
       <button id="note-save-btn" class="add-btn" style="flex:1;">Save</button>
     </div>
+    <button id="note-view-btn" class="hidden" style="width:100%; margin-top:10px; background:none; border:none; color:var(--muted); cursor:pointer; padding:8px;"></button>
   </div>
 </div>
 
@@ -2002,8 +2038,9 @@ function updateHome(){
   grid.innerHTML = '';
   btns.forEach(([ic, label, act, sub]) => {
     const b = document.createElement('button'); b.type = 'button';
-    b.style.cssText = 'display:flex; align-items:center; gap:8px; background:var(--card-raised); color:var(--text); border:1px solid var(--hairline); border-radius:22px; padding:16px 10px; text-align:left; cursor:pointer; font-size:0.95rem; font-weight:600; box-shadow:0 2px 10px rgba(0,0,0,0.08); min-width:0;';
-    b.innerHTML = '<span style="font-size:1.6rem; width:1.9rem; text-align:center; flex:none;">' + ic + '</span><span style="flex:1; min-width:0;"><div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + label + '</div>' + (sub ? '<div style="color:var(--muted); font-size:0.8rem; font-weight:400; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + sub + '</div>' : '') + '</span><span style="color:var(--muted); font-size:1.1rem; flex:none;">›</span>';
+    b.className = 'home-tile';
+    const tint = { full: 'var(--edit)', completed: 'var(--p5)', streaks: 'var(--p2)', star: 'var(--p3)', 'settings-calendar-btn': 'var(--p4)', 'settings-insights-btn': 'var(--accent)' }[act] || 'var(--edit)';
+    b.innerHTML = '<span class="tile-ic" style="--c:' + tint + '">' + ic + '</span><span style="flex:1; min-width:0;"><div class="tile-t">' + label + '</div>' + (sub ? '<div class="tile-s">' + sub + '</div>' : '') + '</span>';
     b.onclick = () => {
       if(act === 'full') openFullList(false);
       else if(act === 'completed') openFullList(false, true);
@@ -2345,7 +2382,7 @@ function openInbox(){
   });
   document.getElementById('inbox-modal').classList.remove('hidden');
 }
-function openQuickNote(){ const i = document.getElementById('note-input'); i.value = ''; document.getElementById('note-modal').classList.remove('hidden'); i.focus(); }
+function openQuickNote(){ const i = document.getElementById('note-input'); i.value = ''; const vb = document.getElementById('note-view-btn'); vb.classList.toggle('hidden', !inbox.length); vb.textContent = '📥 View your ' + inbox.length + (inbox.length === 1 ? ' note' : ' notes'); vb.onclick = () => { document.getElementById('note-modal').classList.add('hidden'); openInbox(); }; document.getElementById('note-modal').classList.remove('hidden'); i.focus(); }
 function saveQuickNote(){
   const i = document.getElementById('note-input'), text = i.value.trim();
   if(!text) return;
@@ -2386,8 +2423,10 @@ function addTaskNow(){
   const direct = document.getElementById('add-direct-checkbox').checked;
   if(afterRaw && afterRaw !== '__last'){ newTask.afterId = afterRaw; if(direct) newTask.afterDirect = true; }
   tasks.push(newTask);
+  const fromNote = !!inboxPendingId;
   if(inboxPendingId){ inbox = inbox.filter(x => x.id !== inboxPendingId); inboxPendingId = null; saveInbox(); if(inbox.length){ setTimeout(() => { document.getElementById('add-modal').classList.remove('modal-open'); openInbox(); }, 250); } }
   if(beforeRaw && beforeRaw !== '__first'){ const o = tasks.find(x => x.id === beforeRaw); if(o && !wouldCycle(o.id, newTask.id)){ o.afterId = newTask.id; o.afterDirect = direct; } }
+  if(fromNote) setTimeout(() => bumpNoteIntoSession(newTask), 0);
   taskInput.value = '';
   pendingMins = 5; pendingPriority = 'p3'; pendingTag = null; pendingTimeLimit = null;
   recurringCb.checked = false;
@@ -3063,6 +3102,26 @@ function rejoinWithBump(t){
   });
 }
 
+
+/* a note turned into a task mid-session: it joins the running session if it outranks something still waiting, bumping lower priorities */
+function bumpNoteIntoSession(t){
+  if(!sessionTaskIds || !(timerState === 'running' || timerState === 'paused')) return;
+  if(isScheduledForFuture(t) || isWrongTimeOfDay(t) || isBeforeEarliestTime(t)) return;
+  const cur = tasks[currentIndex], rank = p => PRIORITIES.indexOf(p);
+  const waiting = sessionPendingTasks().filter(x => x.id !== t.id && (!cur || x.id !== cur.id));
+  const lower = waiting.filter(x => rank(x.priority) > rank(t.priority) && !x.mustDo && !x.timeConstraint && !x.autoWalk && !sessionTimedIds.includes(x.id))
+    .sort((a, b) => rank(b.priority) - rank(a.priority) || runMins(b) - runMins(a));
+  if(!lower.length){ showToast('📝 “' + t.name + '” added to your list for later'); return; }
+  const snap = { ids: sessionTaskIds.slice(), next: sessionNextId };
+  const need = runMins(t); let freed = 0; const out = [];
+  for(const x of lower){ if(freed >= need) break; out.push(x); freed += runMins(x); }
+  sessionTaskIds = sessionTaskIds.filter(id => !out.some(x => x.id === id));
+  sessionTaskIds.push(t.id);
+  if(waiting.every(x => rank(x.priority) >= rank(t.priority))) sessionNextId = t.id;
+  persistSession(); refreshTimerDisplays();
+  showToast('📝 “' + t.name + '” joined, bumped: ' + out.map(x => x.name).join(', '), 'Undo', () => { sessionTaskIds = snap.ids; sessionNextId = snap.next; persistSession(); refreshTimerDisplays(); });
+}
+
 /* interrupted: keep the minutes already spent, and the rest goes back in the pool to be planned later */
 function bankCurrentTask(){
   const t = tasks[currentIndex];
@@ -3224,16 +3283,16 @@ window.addEventListener('pageshow', () => {
 
 const MOTIVATION_MESSAGES = {
   mustDo: [
-    "This one's overdue — let's finally cross it off! 💪",
-    "No more putting this off. You've got this. 🔥",
-    "Today's the day this one gets done!",
-    "This has waited long enough — let's finish it.",
+    "This one matters today. A small start is plenty. 💛",
+    "Today's a good day for this one. You've got this. 🌟",
+    "Let's give this one some love. Just begin.",
+    "One step on this and you'll feel lighter.",
   ],
   aged: [
-    "You've been meaning to do this a while — nice work tackling it now.",
-    "This one's been waiting. Let's give it the attention it deserves.",
-    "Delayed but not forgotten — let's get it done.",
+    "Lovely to see you picking this one up. 💛",
+    "No rush. Just begin, and the rest follows.",
     "Good on you for coming back to this one.",
+    "Starting is the hard part. You're already here. 🌱",
   ],
   walk: [
     "Every step here counts toward today's goal 👣",
@@ -3242,9 +3301,10 @@ const MOTIVATION_MESSAGES = {
     "A short walk now keeps the goal on track.",
   ]
 };
+function lateDays(t){ const d = daysSince(t.createdAt || Date.now()); return t.recurring ? Math.max(0, d - habitGap(t)) : d; }
 function getTaskMotivation(t){
   if(t.microGoal) return 'A surprise minute for the goals you set. Do it now, then back to it.';
-  const ageDays = daysSince(t.createdAt || Date.now());
+  const ageDays = lateDays(t);
   let pool;
   const _gap = habitGapDays(t);
   if(_gap) return COMEBACK_LINES[Math.floor(Math.random() * COMEBACK_LINES.length)](_gap);
@@ -3292,15 +3352,15 @@ function habitGapDays(t){
   let last = -1;
   for(let i = h.length - 2; i >= 0; i--) if(h[i].done){ last = i; break; }
   if(last === -1) return 0; // never done recently — not a broken habit, just a new or rare one
-  const gap = h.length - 1 - last;
-  const threshold = (t.recurDays && t.recurDays.length) ? 8 : Math.max(3, 2 * (t.recurEveryDays || 1));
+  const gap = dayNum(h[h.length - 1].date) - dayNum(h[last].date);
+  const threshold = (t.recurDays && t.recurDays.length) ? 8 : Math.max(5, 3 * (t.recurEveryDays || 1));
   return gap >= threshold ? gap : 0;
 }
 const COMEBACK_LINES = [
-  d => `${d} days off — that's okay. One small go today restarts it. 🌱`,
-  d => `It's been ${d} days. No guilt — just start again today.`,
-  d => `${d} days since the last one. Today's a great day to pick it back up.`,
-  d => `Missed ${d} days? The streak resets, the habit doesn't. Start small today. 💪`,
+  d => `Welcome back. One small go today and you're rolling again. 🌱`,
+  d => `No guilt, just start again today. 💛`,
+  d => `Today's a great day to pick this back up.`,
+  d => `A fresh start is always allowed. Keep it small today. 💪`,
 ];
 function renderHabitTracker(list){
   const recurringNames = [...new Set(tasks.filter(t => t.recurring && !t.habit).map(t => t.name))];
@@ -3409,7 +3469,7 @@ function refreshTimerDisplays(){
   document.getElementById('skip-btn').classList.remove('hidden');
   document.getElementById('timer-priority-badge').classList.remove('hidden');
   document.getElementById('timer-priority-badge').textContent = PRIORITY_LABELS[t.priority];
-  document.getElementById('timer-priority-badge').style.background = `var(--${t.priority})`;
+  document.getElementById('timer-priority-badge').style.setProperty('--dot', `var(--${t.priority})`);
   { const tc = document.getElementById('timer-current'); tc.textContent = isSplit(t) ? `✂️ ${runMins(t)}-min bit (${t.doneMins || 0}/${t.mins} done)` : ''; tc.style.display = tc.textContent ? '' : 'none'; }
   document.getElementById('timer-task').textContent = t.name; document.getElementById('timer-task').dataset.taskId = t.id;
   if(lastMotivationTaskId !== t.id){
@@ -3418,7 +3478,8 @@ function refreshTimerDisplays(){
   }
   document.getElementById('timer-notes').textContent = t.notes || '';
   document.getElementById('timer-clock').textContent = formatTime(secondsLeft);
-  document.getElementById('pause-btn').textContent = timerState === 'paused' ? '▶️' : '⏸';
+  document.getElementById('pause-btn').innerHTML = timerState === 'paused' ? '<svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path d="M7 4.5v15l12.5-7.5z"/></svg>' : '<svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.4"/><rect x="14" y="5" width="4" height="14" rx="1.4"/></svg>';
+  { const arc = document.getElementById('ring-arc'), tot = Math.max(runMins(t) * 60, secondsLeft || 0, 1), C = 615.75; arc.style.strokeDasharray = C; arc.style.strokeDashoffset = C * (1 - Math.max(0, Math.min(1, (secondsLeft || 0) / tot))); arc.style.stroke = 'var(--' + t.priority + ')'; }
 
   const nextIdx = findNextIndex(currentIndex + 1);
   { const sessIds = sessionTaskIds || tasks.map(x => x.id);
@@ -4486,8 +4547,8 @@ document.getElementById('esc-aging-btn').onclick = () => {
     list.innerHTML = '<div class="empty">Nothing pending.</div>';
   } else {
     list.innerHTML = pending.map(t => {
-      const ageDays = daysSince(t.createdAt);
-      const staleDays = daysSince(t.staleSince || t.createdAt);
+      const ageDays = lateDays(t);
+      const staleDays = t.recurring ? lateDays(t) : daysSince(t.staleSince || t.createdAt);
       const thresholdDays = escalationDays[t.priority] || DEFAULT_ESCALATION_DAYS[t.priority] || 14;
       const daysLeft = thresholdDays - staleDays;
       const ageLabel = staleDays !== ageDays ? `${ageDays}d old (${staleDays}d at this priority)` : `${ageDays}d old`;
@@ -5589,7 +5650,7 @@ function renderInsights(){
   const streaks = names.map(n => { const h = getHabitHistory(n, 14); let st = 0; for(let i = h.length - 1; i >= 0; i--){ if(h[i].done) st++; else if(i === h.length - 1) continue; else break; } return { n, st }; }).filter(x => x.st > 0).sort((a, b) => b.st - a.st).slice(0, 3);
   if(streaks.length) html += '<h4 style="margin:14px 0 4px;">🔥 Streaks</h4>' + streaks.map(x => `<div class="ins-stat"><span>${x.n.replace(/</g, '&lt;')}</span><b>${x.st} day${x.st === 1 ? '' : 's'}</b></div>`).join('');
   const pushed = tasks.filter(t => !t.done && !t.microGoal && daysSince(t.createdAt || Date.now()) >= 7).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).slice(0, 5);
-  if(pushed.length) html += '<h4 style="margin:14px 0 4px;">🧗 Keeps getting pushed back</h4>' + pushed.map(t => `<div class="ins-stat"><span>${t.name.replace(/</g, '&lt;')}</span><b>${daysSince(t.createdAt)}d old</b></div>`).join('');
+  if(pushed.length) html += '<h4 style="margin:14px 0 4px;">🧗 Keeps getting pushed back</h4>' + pushed.map(t => `<div class="ins-stat"><span>${t.name.replace(/</g, '&lt;')}</span><b>${lateDays(t)}d old</b></div>`).join('');
   document.getElementById('insights-body').innerHTML = html;
 }
 document.getElementById('settings-insights-btn').onclick = () => { document.getElementById('settings-modal').classList.add('hidden'); renderInsights(); document.getElementById('insights-modal').classList.remove('hidden'); };
