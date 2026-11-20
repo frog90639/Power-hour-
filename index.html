@@ -208,7 +208,7 @@
 
   .task-row-content{
     position:relative; background:var(--card); border:1px solid var(--hairline); border-left:4px solid var(--muted);
-    border-radius:12px; padding:12px 14px; touch-action:none; z-index:1; cursor:pointer;
+    border-radius:12px; padding:12px 14px; touch-action:manipulation; z-index:1; cursor:pointer;
   }
   .task-row-content.longpress-active{box-shadow:0 0 0 2px var(--accent); transition:box-shadow 0.15s;}
   .task-row-content.longpress-up{background:linear-gradient(0deg, rgba(111,155,214,0.18), rgba(111,155,214,0.18)), var(--card);}
@@ -1072,7 +1072,6 @@
       <li>Switch features on or off, and edit the time shortcuts and morning-question answers, in <b>Settings → Features &amp; shortcuts</b>.</li>
       <li>Add a <b>morning question</b> to a task (under More options) and it asks you the first time you open the app each day (before midday by default): normal, do first, urgent, or not today. Those answers last for that day only.</li>
       <li>On the plan screen, <b>drag a task</b> between Planned and Saved for later, then say why. After two similar moves I adjust future plans within a priority; see <b>Settings → What I've learned</b>.</li>
-      <li><b>Press and hold</b>, then drag up or down to change priority; hold near the left edge to reorder within a priority.</li>
     </ul>
 
     <h4>Start a Power Hour</h4>
@@ -1605,7 +1604,7 @@ function openStarCheck(){
     else msg = '🧭 To make this happen you’d need to let ' + fmt(short) + ' go. Here’s what I’d move to tomorrow. Untick anything you’d rather keep.';
     h += '<div style="margin:12px 0; padding:10px 12px; border-radius:12px; background:var(--card-raised);">' + msg + '</div>';
     if(prot.length && need <= left && short > 0){
-      h += order.map(t => '<label class="review-item" style="cursor:pointer;"><input type="checkbox" data-id="' + t.id + '" ' + (cuts.has(t.id) ? 'checked' : '') + '><span class="priority-badge" style="color:var(--' + t.priority + ')">' + PRIORITY_LABELS[t.priority] + '</span><span class="name"></span><span class="mins">' + fmt(remMins(t)) + '</span></label>').join('');
+      h += order.map(t => '<label class="review-item" data-task-id="' + t.id + '" style="cursor:pointer;"><input type="checkbox" data-id="' + t.id + '" ' + (cuts.has(t.id) ? 'checked' : '') + '><span class="priority-badge" style="color:var(--' + t.priority + ')">' + PRIORITY_LABELS[t.priority] + '</span><span class="name"></span><span class="mins">' + fmt(remMins(t)) + '</span></label>').join('');
       h += '<div style="color:var(--muted); font-size:0.8rem; margin-top:8px;">Moving these frees ' + fmt(freed) + (freed >= short ? ' ✓' : ' (still ' + fmt(short - freed) + ' short)') + '</div>';
     }
     body.innerHTML = h;
@@ -2023,7 +2022,7 @@ function homeSearch(){
   const done = allCompletedItems().filter(c => hit(c.name + ' ' + (c.notes || '')));
   const chip = (txt, color) => '<span style="font-size:0.72rem; padding:2px 8px; border-radius:10px; background:var(--chip-bg); color:' + (color || 'var(--chip-fg)') + '; white-space:nowrap;">' + txt + '</span>';
   open.slice(0, 60).forEach(t => {
-    const r = document.createElement('div'); r.className = 'review-item'; r.style.cursor = 'pointer';
+    const r = document.createElement('div'); r.className = 'review-item'; r.style.cursor = 'pointer'; r.dataset.taskId = t.id;
     const status = isScheduledForFuture(t) ? chip('📆 ' + snoozeLabel(t)) : chip('To do');
     r.innerHTML = '<span class="priority-badge" style="color:var(--' + t.priority + ')">' + PRIORITY_LABELS[t.priority] + '</span><span class="name"></span>' + status + '<span class="mins">' + t.mins + ' min</span>';
     r.querySelector('.name').textContent = t.name; r.onclick = () => openEditModal(t.id); box.appendChild(r);
@@ -2225,7 +2224,7 @@ function renderStepsContributors(){
   container.innerHTML = `
     <div style="color:var(--muted); font-size:0.8rem; margin-bottom:6px;">Contributing to planned steps:</div>
     ${contributors.map(t => `
-      <div class="review-item steps-contributor" data-id="${t.id}" style="cursor:pointer;">
+      <div class="review-item steps-contributor" data-id="${t.id}" data-task-id="${t.id}" style="cursor:pointer;">
         ${t.autoWalk ? '<span title="Added automatically">🤖</span>' : ''}
         <span class="priority-badge" style="color:var(--${t.priority})">${PRIORITY_LABELS[t.priority]}</span>
         <span class="name">${t.name}</span>
@@ -4070,7 +4069,7 @@ function renderReviewList(pending, selectedIds){
     const pre = getPrereq(t);
     if(pre && !pre.done && !selectedIds.has(pre.id)) return '⏳ waiting for “' + pre.name.slice(0, 22) + '”';
     if(planMins(t) > budgetNow) return '⏱ longer than this session';
-    return 'not enough time today';
+    return 'not enough time in this session';
   };
   const chips = t => [
     t.mustDo ? '<span class="tag-badge" style="background:var(--danger); color:#fff;" title="Must do">must do</span>' : '',
@@ -4120,8 +4119,27 @@ function renderReviewList(pending, selectedIds){
     h.onclick = () => { reviewLeftOpen = !reviewLeftOpen; setH(); };
     setH(); list.appendChild(h); list.appendChild(box); addRows(box, left);
   }
-  { const hidden = tasks.filter(t => !t.done && !t.microGoal && !isScheduledForFuture(t) && !pending.some(x => x.id === t.id)).length;
-    if(hidden){ const n = document.createElement('div'); n.style.cssText = 'color:var(--muted); font-size:0.78rem; margin-top:12px;'; n.textContent = hidden + ' more task' + (hidden === 1 ? ' is' : 's are') + ' hidden from this plan (wrong time of day, not available yet, or outside your tag filter).'; list.appendChild(n); } }
+  { const inel = tasks.filter(t => !t.done && !t.microGoal && !pending.some(x => x.id === t.id));
+    if(inel.length){
+      const why = t => {
+        if(isScheduledForFuture(t)) return '📆 ' + (typeof snoozeLabel === 'function' && snoozeLabel(t) ? snoozeLabel(t) : 'scheduled for later');
+        if(isWrongTimeOfDay(t)) return '🕒 not the right time of day';
+        if(isBeforeEarliestTime(t)) return '🌤 not before ' + formatNotBeforeTime(t);
+        return '🏷 outside your filter';
+      };
+      const h = document.createElement('button'); h.type = 'button';
+      h.style.cssText = 'display:block; width:100%; text-align:left; background:none; border:none; border-top:1px solid var(--hairline); color:var(--muted); font-size:0.85rem; padding:14px 2px 8px; margin-top:12px; cursor:pointer;';
+      const box = document.createElement('div'); box.style.display = 'none';
+      h.onclick = () => { const o = box.style.display === 'none'; box.style.display = o ? '' : 'none'; h.textContent = '🙈 ' + inel.length + ' not eligible right now ' + (o ? '▴' : '(tap to see) ▾'); };
+      h.textContent = '🙈 ' + inel.length + ' not eligible right now (tap to see) ▾';
+      inel.forEach(t => {
+        const r = document.createElement('div'); r.className = 'review-item'; r.dataset.taskId = t.id; r.style.opacity = '0.75';
+        r.innerHTML = '<span class="priority-badge" style="color:var(--' + t.priority + ')">' + PRIORITY_LABELS[t.priority] + '</span><span class="name"><span class="nm"></span><div style="color:var(--muted); font-size:0.75rem; font-weight:400;"></div></span><span class="mins">' + t.mins + ' min</span>';
+        r.querySelector('.nm').textContent = t.name; r.querySelector('.name div').textContent = why(t);
+        box.appendChild(r);
+      });
+      list.appendChild(h); list.appendChild(box);
+    } }
   list.querySelectorAll('input[type=checkbox]').forEach(cb => {
     const t = pending.find(x => x.id === cb.dataset.id);
     cb.onchange = () => {
@@ -4800,8 +4818,7 @@ function buildTaskRow(t){
   wrap.querySelector('.task-check').onchange = (e) => { e.stopPropagation(); boardMarkDone(t.id); };
   wrap.querySelector('.task-check').onclick = (e) => e.stopPropagation();
   const content = wrap.querySelector('.task-row-content');
-  content.onpointerdown = (e) => onRowPointerDown(e, content, t.id);
-  content.onclick = (e) => { if(e.target.closest('input')) return; if(window.__rowTapId === t.id){ window.__rowTapId = null; openTaskMenu(t.id, false); } };
+  content.dataset.taskId = t.id;
   return wrap;
 }
 
@@ -5025,9 +5042,7 @@ function onRowPointerMove(e){
     return;
   }
   if(rowGestureMode === 'scroll'){
-    window.scrollBy(0, -(e.clientY - rowGestureLastY));
-    rowGestureLastY = e.clientY;
-    return;
+    return; // the browser scrolls the list itself
   }
   if(rowGestureMode === 'reorder'){
     e.preventDefault();
@@ -5820,7 +5835,7 @@ if(!configured){
 (function(){
   let last = { id: null, t: 0 };
   document.addEventListener('click', e => {
-    const el = e.target.closest('[data-task-id]'); if(!el || el.closest('#review-list, .task-row') || e.target.closest('input, button:not([data-task-id])')) return;
+    const el = e.target.closest('[data-task-id]'); if(!el || el.closest('#review-list') || e.target.closest('input, button:not([data-task-id])')) return;
     const id = el.dataset.taskId, now = Date.now();
     if(last.id === id && now - last.t < 380){ last = { id: null, t: 0 }; openTaskMenu(id, false); }
     else last = { id, t: now };
